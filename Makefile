@@ -13,7 +13,7 @@ LDFLAGS := -X $(LDFLAGS_PKG).version=$(VERSION) \
            -X $(LDFLAGS_PKG).commit=$(COMMIT) \
            -X $(LDFLAGS_PKG).buildDate=$(BUILD_DATE)
 
-.PHONY: all build install test vet fmt tidy clean run help
+.PHONY: all build install test test-acceptance vet fmt tidy clean run help
 
 all: build
 
@@ -28,6 +28,10 @@ install:
 ## test: run the test suite
 test:
 	go test ./...
+
+## test-acceptance: run acceptance tests against chef-zero (needs Ruby + the chef-zero gem)
+test-acceptance:
+	go test -tags acceptance -count=1 ./test/...
 
 ## vet: run go vet across all packages
 vet:
