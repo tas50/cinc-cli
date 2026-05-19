@@ -35,12 +35,12 @@ Each top-level section is a profile that points at one Chef/Cinc Server.
 
 ```toml
 [default]
-chef_server_url = "https://chef.example.com/organizations/acme"
+cinc_server_url = "https://cinc.example.com/organizations/acme"
 client_name     = "tim"
 client_key      = "/keys/tim.pem"
 
 [staging]
-chef_server_url = "https://staging.example.com/organizations/acme-staging"
+cinc_server_url = "https://staging.example.com/organizations/acme-staging"
 client_name     = "tim"
 client_key      = "/keys/staging.pem"
 ssl_verify_mode = ":verify_none"
