@@ -1,0 +1,34 @@
+name: Acceptance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    name: Acceptance (chef-zero)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Install chef-zero
+        run: gem install chef-zero
+
+      - name: Run acceptance tests
+        run: go test -tags acceptance -count=1 ./test/...
