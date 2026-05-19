@@ -1,0 +1,14 @@
+// Command cinc is a unified command-line tool for Chef/Cinc Infra.
+package main
+
+import (
+	"os"
+
+	"github.com/tas50/cinc-cli/apps/cinc/cmd"
+)
+
+func main() {
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
