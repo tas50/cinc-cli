@@ -83,13 +83,11 @@ func TestFetchNodeNamesReturnsSortedNames(t *testing.T) {
 func TestNodeListCommandEndToEnd(t *testing.T) {
 	srv := nodeServer(t, "web02", "db01", "web01")
 
-	cfgPath := filepath.Join(t.TempDir(), "config.toml")
-	cfg := fmt.Sprintf(`default_profile = "test"
-[profiles.test]
-server_url = %q
-org = "acme"
-client_name = "tim"
-key_path = %q
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
 `, srv.URL, writeTestKey(t))
 	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)

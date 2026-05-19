@@ -14,8 +14,8 @@ func newRootCmd() *cobra.Command {
 	}
 
 	flags := root.PersistentFlags()
-	flags.String("config", "", "path to the cinc config file (default ~/.cinc/config.toml)")
-	flags.String("profile", "", "configuration profile to use (default: the config's default_profile)")
+	flags.String("config", "", "path to the cinc credentials file (default ~/.cinc/credentials)")
+	flags.String("profile", "", "credentials profile to use (default: $CINC_PROFILE, then $CHEF_PROFILE, then \"default\")")
 	flags.String("format", "human", "output format: human or json")
 
 	root.AddCommand(newVersionCmd())
