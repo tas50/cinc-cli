@@ -29,32 +29,43 @@ via `-ldflags`; `cinc version` will print them.
 
 ## Configure
 
-`cinc` reads a TOML config file (default `~/.cinc/config.toml`) holding
-named profiles. Each profile points at one Chef/Cinc Server.
+`cinc` reads a TOML credentials file (default `~/.cinc/credentials`)
+holding named profiles, in the same shape as Chef's `~/.chef/credentials`.
+Each top-level section is a profile that points at one Chef/Cinc Server.
 
 ```toml
-default_profile = "prod"
+[default]
+cinc_server_url = "https://cinc.example.com/organizations/acme"
+client_name     = "tim"
+client_key      = "/keys/tim.pem"
 
-[profiles.prod]
-server_url  = "https://chef.example.com"
-org         = "acme"
-client_name = "tim"
-key_path    = "/keys/tim.pem"
-
-[profiles.staging]
-server_url  = "https://staging.example.com"
-org         = "acme-staging"
-client_name = "tim"
-key_path    = "/keys/staging.pem"
+[staging]
+cinc_server_url = "https://staging.example.com/organizations/acme-staging"
+client_name     = "tim"
+client_key      = "/keys/staging.pem"
+ssl_verify_mode = ":verify_none"
 ```
 
 Persistent flags on every command:
 
 | Flag | Description |
 | --- | --- |
-| `--config` | Path to the config file (default `~/.cinc/config.toml`) |
-| `--profile` | Profile name to use (default: the config's `default_profile`) |
+| `--config` | Path to the credentials file (default `~/.cinc/credentials`) |
+| `--profile` | Profile name to use (default: `$CINC_PROFILE`, then `$CHEF_PROFILE`, then `default`) |
 | `--format` | Output format: `human` or `json` |
+
+### `CINC_*` and `CHEF_*` are both accepted
+
+Every chef-prefixed config key and environment variable has a
+cinc-prefixed equivalent. Both are accepted; if both are set in the same
+profile or environment the `cinc_`/`CINC_` form wins. This lets you run
+`cinc` against an existing Chef setup unchanged, and override individual
+settings without rewriting the whole file.
+
+| Chef-prefixed | Cinc-prefixed |
+| --- | --- |
+| `chef_server_url` (TOML key) | `cinc_server_url` (TOML key) |
+| `CHEF_PROFILE` (env var) | `CINC_PROFILE` (env var) |
 
 ## Usage
 

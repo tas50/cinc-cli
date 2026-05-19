@@ -25,12 +25,17 @@ func New(p config.Profile) (*cinc.Client, error) {
 		return nil, fmt.Errorf("client: %w", err)
 	}
 
+	var opts []cinc.Option
+	if p.SSLVerifyMode == ":verify_none" {
+		opts = append(opts, cinc.WithSkipTLSVerify(true))
+	}
+
 	c, err := cinc.NewClient(cinc.Config{
 		ServerURL:  p.ServerURL,
 		Org:        p.Org,
 		ClientName: p.ClientName,
 		Key:        key,
-	})
+	}, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("client: %w", err)
 	}

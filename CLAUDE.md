@@ -4,8 +4,28 @@ Guidance for Claude Code when working in this repository.
 
 ## Project
 
-`cinc` is a single, unified command-line tool for Chef/Cinc Infra — one command
-with one consistent grammar. It is a Go binary built with [Cobra](https://github.com/spf13/cobra).
+`cinc` is a single, unified command-line tool for Cinc Infra (with full Chef
+Infra compatibility) — one command with one consistent grammar. It is a Go
+binary built with [Cobra](https://github.com/spf13/cobra).
+
+## Project identity: cinc-first, chef-compatible
+
+This tool is for **cinc**. Treat chef as a compatibility target, not the focus:
+
+- **User-facing docs and examples** describe cinc flows first. Cinc-prefixed
+  config keys, env vars, and file paths are the canonical form; the chef
+  equivalents are mentioned as a compatibility note, not lead-with material.
+- **Internal naming uses cinc.** Functions, types, packages, fixtures, and
+  test names should say `cinc`, or be neutral, unless the symbol's job is
+  specifically to handle chef-compat behavior — in which case the chef name
+  is correct and clearer (e.g. `TestLoadAcceptsChefServerURLKey`).
+- **Strive for backwards compatibility with existing Chef tools** (knife,
+  chef workstation, chef-zero). Existing users should be able to point cinc
+  at their existing `~/.chef/credentials`, env vars, and key files and have
+  it work. **But every chef-prefixed config option or env var MUST also have
+  a cinc-prefixed equivalent**, and when both are present the cinc form
+  wins. The compatibility tables in README and tests are the source of
+  truth for which knobs need a paired form.
 
 Design documents live in `docs/`:
 
@@ -57,8 +77,14 @@ go test -tags acceptance ./test/...
 - **Test-driven development.** Write a failing test first, watch it fail for the
   expected reason, then write the minimal code to pass.
 - Run `gofmt` and `go vet ./...` before committing; both must be clean.
-- Configuration is a TOML file (`~/.cinc/config.toml` by default) holding named
-  profiles. Each profile carries `server_url`, `org`, `client_name`, `key_path`.
+- Configuration is a TOML file (`~/.cinc/credentials` by default) holding
+  named profiles. Each top-level section is a profile carrying
+  `cinc_server_url` (or, for chef compatibility, `chef_server_url`),
+  `client_name`, `client_key`, and an optional `ssl_verify_mode`. The CLI
+  splits the `/organizations/<org>` segment off the server URL internally.
+  Profile selection: `--profile` flag → `$CINC_PROFILE` → `$CHEF_PROFILE` →
+  `default`. The on-disk shape mirrors Chef's `~/.chef/credentials` so
+  existing knife users can point cinc at their existing file unchanged.
 
 ## Adding a server command
 

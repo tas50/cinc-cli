@@ -144,13 +144,11 @@ func writeAcceptanceConfig(t *testing.T, port int) string {
 		t.Fatal(err)
 	}
 
-	cfgPath := filepath.Join(dir, "config.toml")
-	cfg := fmt.Sprintf(`default_profile = "acceptance"
-[profiles.acceptance]
-server_url = "http://127.0.0.1:%d"
-org = "acme"
-client_name = "tester"
-key_path = %q
+	cfgPath := filepath.Join(dir, "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "http://127.0.0.1:%d/organizations/acme"
+client_name     = "tester"
+client_key      = %q
 `, port, keyPath)
 	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
