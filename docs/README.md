@@ -30,7 +30,7 @@ from a checkout works too.
 unchanged. Otherwise, run the interactive configurator:
 
 ```sh
-cinc config configure
+cinc config create
 ```
 
 It prompts for the server URL (including the `/organizations/<org>`
@@ -46,7 +46,7 @@ cinc config validate     # parse the file and ping the server
 cinc node list           # list nodes on the configured server
 ```
 
-If `validate` reports a problem, `cinc config configure` will let
+If `validate` reports a problem, `cinc config create` will let
 you fix it. From here, every other command follows the same
 noun-verb grammar described below.
 
@@ -59,7 +59,7 @@ noun-verb grammar described below.
   - [`cinc client`](commands/cinc_client.md) — API clients
     (`create`, `delete`, `edit`, `list`)
   - [`cinc config`](commands/cinc_config.md) — local configuration
-    (`configure`, `validate`)
+    (`create`, `validate`)
   - [`cinc cookbook`](commands/cinc_cookbook.md) — cookbooks
     (`delete`, `list`, `upload`)
   - [`cinc databag`](commands/cinc_databag.md) — data bags
