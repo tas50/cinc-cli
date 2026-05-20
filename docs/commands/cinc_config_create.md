@@ -1,9 +1,9 @@
-## cinc config configure
+## cinc config create
 
 Create or update a local credentials profile
 
 ```
-cinc config configure [flags]
+cinc config create [flags]
 ```
 
 ### Options
@@ -13,7 +13,7 @@ cinc config configure [flags]
       --cinc-server-url string    Cinc Server URL including /organizations/<org>
       --client-key string         path to the PEM private key for the client
       --client-name string        client name used to sign API requests
-  -h, --help                      help for configure
+  -h, --help                      help for create
       --server-url string         Cinc Server URL including /organizations/<org>
       --ssl-verify-mode string    optional SSL verify mode such as :verify_peer or :verify_none
       --supermarket-site string   Chef Supermarket URL for cookbook uploads

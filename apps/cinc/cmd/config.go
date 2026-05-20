@@ -21,7 +21,7 @@ func newConfigCmd() *cobra.Command {
 		Use:   "config",
 		Short: "Manage local Cinc configuration",
 	}
-	cmd.AddCommand(newConfigureCmd())
+	cmd.AddCommand(newConfigCreateCmd())
 	cmd.AddCommand(newConfigValidateCmd())
 	return cmd
 }

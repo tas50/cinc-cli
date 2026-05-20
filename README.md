@@ -20,7 +20,7 @@ weren't willing to compromise on:
   dependencies. Nothing to break when the system Ruby is upgraded,
   no gem environment to babysit, and no multi-step bootstrap in your
   CI pipelines — drop the binary in and go.
-- **Ease of setup.** `cinc config configure` walks you through credentials,
+- **Ease of setup.** `cinc config create` walks you through credentials,
   server URL, and SSL settings interactively, so a new user (or an
   existing Chef user pointing at a new server) is productive in
   minutes instead of losing an afternoon to troubleshooting.

@@ -89,7 +89,7 @@ own fresh chef-zero instance.
 - **Conversational tone in user-facing strings.** Prompts, success messages,
   and error messages talk to the user like a teammate, not a compiler. Prefer
   contractions ("we found", "you're"), full sentences, and concrete next
-  steps ("run `cinc config configure` to set one up") over terse, lowercased
+  steps ("run `cinc config create` to set one up") over terse, lowercased
   fragments ("no credentials"). Lead with what happened from the user's
   point of view; reserve technical detail for when it changes what they
   should do next.
