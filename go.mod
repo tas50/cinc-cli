@@ -7,6 +7,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.24.1
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
+	github.com/goruby/goruby v0.0.0-20210827060341-983436007185
 	github.com/spf13/cobra v1.10.2
 	github.com/tas50/cinc-api v0.0.0-20260519171711-123da42f384c
 )
@@ -33,6 +34,7 @@ require (
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect

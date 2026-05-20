@@ -119,10 +119,11 @@ func packageCookbook(opts ShareOptions, category string, includeFiles bool) (Sha
 	if err != nil {
 		return ShareResult{}, localcookbook.Archive{}, err
 	}
-	md, err := localcookbook.LoadMetadataJSON(dir)
+	metadata, err := localcookbook.LoadMetadata(dir)
 	if err != nil {
 		return ShareResult{}, localcookbook.Archive{}, err
 	}
+	md := metadata.Metadata
 	if md.Name != opts.Cookbook {
 		return ShareResult{}, localcookbook.Archive{}, fmt.Errorf("metadata.json name %q does not match requested cookbook %q", md.Name, opts.Cookbook)
 	}
@@ -130,11 +131,12 @@ func packageCookbook(opts ShareOptions, category string, includeFiles bool) (Sha
 		category = "Other"
 	}
 
-	buildArchive := localcookbook.BuildUploadArchive
+	var archive localcookbook.Archive
 	if includeFiles {
-		buildArchive = localcookbook.BuildArchive
+		archive, err = localcookbook.BuildArchiveWithMetadata(dir, opts.Cookbook, metadata.JSON)
+	} else {
+		archive, err = localcookbook.BuildUploadArchiveWithMetadata(dir, opts.Cookbook, metadata.JSON)
 	}
-	archive, err := buildArchive(dir, opts.Cookbook)
 	if err != nil {
 		return ShareResult{}, localcookbook.Archive{}, err
 	}

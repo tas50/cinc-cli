@@ -38,6 +38,21 @@ func TestShareDryRunPackagesCookbookWithoutNetwork(t *testing.T) {
 	}
 }
 
+func TestShareDryRunGeneratesMetadataJSONFromMetadataRB(t *testing.T) {
+	cookbookRoot := writeSupermarketCookbookFromMetadataRB(t, "nginx")
+	client := supermarketTestClient(t, "https://supermarket.example.test")
+
+	result, err := client.Share(context.Background(), ShareOptions{
+		Cookbook: "nginx", Category: "Other", CookbookPath: cookbookRoot, DryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("Share: %v", err)
+	}
+	if len(result.Files) != 3 || result.Files[0] != "nginx/metadata.json" || result.Files[1] != "nginx/metadata.rb" {
+		t.Fatalf("files = %v, want generated metadata.json before metadata.rb", result.Files)
+	}
+}
+
 func TestShareInfersCategoryAndPostsMultipartUpload(t *testing.T) {
 	cookbookRoot := writeSupermarketCookbook(t, "nginx")
 	var sawUpload bool
@@ -135,6 +150,23 @@ func writeSupermarketCookbook(t *testing.T, name string) string {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "metadata.json"), []byte(`{"name":"`+name+`","version":"1.2.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "recipes", "default.rb"), []byte("package 'nginx'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func writeSupermarketCookbookFromMetadataRB(t *testing.T, name string) string {
+	t.Helper()
+	root := t.TempDir()
+	dir := filepath.Join(root, name)
+	if err := os.MkdirAll(filepath.Join(dir, "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	metadata := "name '" + name + "'\nversion '1.2.0'\ndescription 'Generated metadata test'\n"
+	if err := os.WriteFile(filepath.Join(dir, "metadata.rb"), []byte(metadata), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "recipes", "default.rb"), []byte("package 'nginx'\n"), 0o644); err != nil {

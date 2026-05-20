@@ -7,6 +7,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	gotoken "go/token"
 	"io"
 	"io/fs"
 	"os"
@@ -17,6 +18,8 @@ import (
 	"time"
 	_ "unsafe"
 
+	rubyast "github.com/goruby/goruby/ast"
+	rubyparser "github.com/goruby/goruby/parser"
 	cinc "github.com/tas50/cinc-api"
 )
 
@@ -24,6 +27,13 @@ import (
 type Metadata struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
+}
+
+// MetadataFile is a loaded metadata.json payload and its minimal identity.
+type MetadataFile struct {
+	Metadata  Metadata
+	JSON      []byte
+	Generated bool
 }
 
 // Archive is an in-memory gzip-compressed tarball and its manifest.
@@ -47,30 +57,381 @@ func Locate(name, cookbookPath string) (string, error) {
 	return "", fmt.Errorf("cookbook %q not found in cookbook path %q", name, cookbookPath)
 }
 
-// LoadMetadataJSON reads metadata.json, returning a clear compatibility error
-// when only metadata.rb is present.
-func LoadMetadataJSON(dir string) (Metadata, error) {
+// LoadMetadata reads metadata.json, or generates equivalent JSON from the
+// common metadata.rb cookbook DSL when metadata.json is absent.
+func LoadMetadata(dir string) (MetadataFile, error) {
 	path := filepath.Join(dir, "metadata.json")
 	data, err := os.ReadFile(path)
+	if err == nil {
+		md, err := parseMetadataJSON(data, "metadata.json")
+		if err != nil {
+			return MetadataFile{}, err
+		}
+		return MetadataFile{Metadata: md, JSON: data}, nil
+	}
+	if !os.IsNotExist(err) {
+		return MetadataFile{}, fmt.Errorf("read metadata.json: %w", err)
+	}
+
+	data, err = os.ReadFile(filepath.Join(dir, "metadata.rb"))
 	if err != nil {
 		if os.IsNotExist(err) {
-			if _, statErr := os.Stat(filepath.Join(dir, "metadata.rb")); statErr == nil {
-				return Metadata{}, fmt.Errorf("metadata.json is required for Supermarket upload. Generate it with knife cookbook metadata COOKBOOK or run with Chef Workstation")
-			}
+			return MetadataFile{}, fmt.Errorf("read metadata.json: %w", os.ErrNotExist)
 		}
-		return Metadata{}, fmt.Errorf("read metadata.json: %w", err)
+		return MetadataFile{}, fmt.Errorf("read metadata.rb: %w", err)
 	}
+	doc, err := parseMetadataRB(data, filepath.Base(dir))
+	if err != nil {
+		return MetadataFile{}, err
+	}
+	jsonData, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return MetadataFile{}, fmt.Errorf("generate metadata.json: %w", err)
+	}
+	jsonData = append(jsonData, '\n')
+	md := Metadata{Name: doc.Name, Version: doc.Version}
+	if err := validateMetadata(md, "generated metadata.json"); err != nil {
+		return MetadataFile{}, err
+	}
+	return MetadataFile{Metadata: md, JSON: jsonData, Generated: true}, nil
+}
+
+// LoadMetadataJSON reads metadata.json or generates it from metadata.rb and
+// returns the minimal metadata needed by upload flows.
+func LoadMetadataJSON(dir string) (Metadata, error) {
+	file, err := LoadMetadata(dir)
+	if err != nil {
+		return Metadata{}, err
+	}
+	return file.Metadata, nil
+}
+
+func parseMetadataJSON(data []byte, source string) (Metadata, error) {
 	var md Metadata
 	if err := json.Unmarshal(data, &md); err != nil {
-		return Metadata{}, fmt.Errorf("parse metadata.json: %w", err)
+		return Metadata{}, fmt.Errorf("parse %s: %w", source, err)
 	}
+	return md, validateMetadata(md, source)
+}
+
+func validateMetadata(md Metadata, source string) error {
 	if md.Name == "" {
-		return Metadata{}, fmt.Errorf("metadata.json is missing name")
+		return fmt.Errorf("%s is missing name", source)
 	}
 	if md.Version == "" {
-		return Metadata{}, fmt.Errorf("metadata.json is missing version")
+		return fmt.Errorf("%s is missing version", source)
 	}
-	return md, nil
+	return nil
+}
+
+type metadataDocument struct {
+	Name               string            `json:"name"`
+	Description        string            `json:"description"`
+	LongDescription    string            `json:"long_description"`
+	Maintainer         string            `json:"maintainer"`
+	MaintainerEmail    string            `json:"maintainer_email"`
+	License            string            `json:"license"`
+	Platforms          map[string]string `json:"platforms"`
+	Dependencies       map[string]string `json:"dependencies"`
+	Providing          map[string]string `json:"providing"`
+	Recipes            map[string]string `json:"recipes"`
+	Version            string            `json:"version"`
+	SourceURL          string            `json:"source_url"`
+	IssuesURL          string            `json:"issues_url"`
+	Privacy            bool              `json:"privacy"`
+	ChefVersions       [][]string        `json:"chef_versions"`
+	OhaiVersions       [][]string        `json:"ohai_versions"`
+	Gems               [][]string        `json:"gems"`
+	EagerLoadLibraries interface{}       `json:"eager_load_libraries"`
+}
+
+func newMetadataDocument(cookbookName string) metadataDocument {
+	return metadataDocument{
+		Name:               cookbookName,
+		Description:        "",
+		LongDescription:    "",
+		Maintainer:         "",
+		MaintainerEmail:    "",
+		License:            "All rights reserved",
+		Platforms:          map[string]string{},
+		Dependencies:       map[string]string{},
+		Providing:          map[string]string{},
+		Recipes:            map[string]string{},
+		Version:            "0.0.0",
+		SourceURL:          "",
+		IssuesURL:          "",
+		Privacy:            false,
+		ChefVersions:       [][]string{},
+		OhaiVersions:       [][]string{},
+		Gems:               [][]string{},
+		EagerLoadLibraries: true,
+	}
+}
+
+func parseMetadataRB(data []byte, cookbookName string) (metadataDocument, error) {
+	fset := gotoken.NewFileSet()
+	program, err := rubyparser.ParseFile(fset, "metadata.rb", data, 0)
+	if err != nil {
+		return metadataDocument{}, fmt.Errorf("parse metadata.rb: %w", err)
+	}
+
+	doc := newMetadataDocument(cookbookName)
+	for node := range rubyast.WalkEmit(program) {
+		call, ok := node.(*rubyast.ContextCallExpression)
+		if !ok {
+			continue
+		}
+		if err := applyMetadataCall(call, fset, &doc); err != nil {
+			return metadataDocument{}, err
+		}
+	}
+	return doc, nil
+}
+
+func applyMetadataCall(call *rubyast.ContextCallExpression, fset *gotoken.FileSet, doc *metadataDocument) error {
+	if call.Function == nil || call.Context != nil {
+		return nil
+	}
+	method := call.Function.Value
+	if !isMetadataMethod(method) {
+		return nil
+	}
+
+	args, err := metadataCallArgs(call.Arguments, fset)
+	if err != nil {
+		return err
+	}
+	switch method {
+	case "name":
+		return setStringField(args, method, &doc.Name)
+	case "description":
+		return setStringField(args, method, &doc.Description)
+	case "long_description":
+		return setStringField(args, method, &doc.LongDescription)
+	case "maintainer":
+		return setStringField(args, method, &doc.Maintainer)
+	case "maintainer_email":
+		return setStringField(args, method, &doc.MaintainerEmail)
+	case "license":
+		return setStringField(args, method, &doc.License)
+	case "version":
+		return setStringField(args, method, &doc.Version)
+	case "source_url":
+		return setStringField(args, method, &doc.SourceURL)
+	case "issues_url":
+		return setStringField(args, method, &doc.IssuesURL)
+	case "privacy":
+		if len(args) != 1 || args[0].kind != metadataArgBool {
+			return metadataArgError(method, "one boolean argument")
+		}
+		doc.Privacy = args[0].boolValue
+	case "supports":
+		key, constraint, err := versionedMetadataArgs(args, method)
+		if err != nil {
+			return err
+		}
+		doc.Platforms[key] = constraint
+	case "depends":
+		key, constraint, err := versionedMetadataArgs(args, method)
+		if err != nil {
+			return err
+		}
+		if key != doc.Name {
+			doc.Dependencies[key] = constraint
+		}
+	case "provides":
+		key, constraint, err := versionedMetadataArgs(args, method)
+		if err != nil {
+			return err
+		}
+		doc.Providing[key] = constraint
+	case "chef_version":
+		group, err := versionRequirementArgs(args, method)
+		if err != nil {
+			return err
+		}
+		doc.ChefVersions = append(doc.ChefVersions, group)
+	case "ohai_version":
+		group, err := versionRequirementArgs(args, method)
+		if err != nil {
+			return err
+		}
+		doc.OhaiVersions = append(doc.OhaiVersions, group)
+	case "gem":
+		group, err := stringArgs(args, method)
+		if err != nil {
+			return err
+		}
+		doc.Gems = append(doc.Gems, group)
+	case "eager_load_libraries":
+		if len(args) != 1 {
+			return metadataArgError(method, "one literal argument")
+		}
+		doc.EagerLoadLibraries = args[0].value()
+	case "recipe":
+		values, err := stringArgs(args, method)
+		if err != nil {
+			return err
+		}
+		if len(values) != 2 {
+			return metadataArgError(method, "two string arguments")
+		}
+		doc.Recipes[values[0]] = values[1]
+	}
+	return nil
+}
+
+func isMetadataMethod(method string) bool {
+	switch method {
+	case "name", "description", "long_description", "maintainer", "maintainer_email",
+		"license", "version", "source_url", "issues_url", "privacy", "supports",
+		"depends", "provides", "chef_version", "ohai_version", "gem",
+		"eager_load_libraries", "recipe":
+		return true
+	default:
+		return false
+	}
+}
+
+type metadataArgKind int
+
+const (
+	metadataArgString metadataArgKind = iota
+	metadataArgBool
+	metadataArgStringArray
+)
+
+type metadataArg struct {
+	kind      metadataArgKind
+	stringVal string
+	boolValue bool
+	arrayVal  []string
+}
+
+func (a metadataArg) value() interface{} {
+	switch a.kind {
+	case metadataArgBool:
+		return a.boolValue
+	case metadataArgStringArray:
+		return a.arrayVal
+	default:
+		return a.stringVal
+	}
+}
+
+func metadataCallArgs(expressions []rubyast.Expression, fset *gotoken.FileSet) ([]metadataArg, error) {
+	args := make([]metadataArg, 0, len(expressions))
+	for _, expression := range expressions {
+		arg, err := parseMetadataArg(expression, fset)
+		if err != nil {
+			line := fset.Position(gotoken.Pos(expression.Pos())).Line
+			return nil, fmt.Errorf("metadata.rb:%d: %w", line, err)
+		}
+		args = append(args, arg)
+	}
+	return args, nil
+}
+
+func parseMetadataArg(expr rubyast.Expression, fset *gotoken.FileSet) (metadataArg, error) {
+	switch value := expr.(type) {
+	case *rubyast.StringLiteral:
+		return metadataArg{kind: metadataArgString, stringVal: value.Value}, nil
+	case *rubyast.SymbolLiteral:
+		symbol, err := symbolValue(value)
+		if err != nil {
+			return metadataArg{}, err
+		}
+		return metadataArg{kind: metadataArgString, stringVal: symbol}, nil
+	case *rubyast.Boolean:
+		return metadataArg{kind: metadataArgBool, boolValue: value.Value}, nil
+	case *rubyast.ArrayLiteral:
+		values, err := parseRubyStringArray(value, fset)
+		if err != nil {
+			return metadataArg{}, err
+		}
+		return metadataArg{kind: metadataArgStringArray, arrayVal: values}, nil
+	default:
+		return metadataArg{}, fmt.Errorf("unsupported metadata.rb argument %q; use literal strings, symbols, booleans, or string arrays", expr.String())
+	}
+}
+
+func symbolValue(symbol *rubyast.SymbolLiteral) (string, error) {
+	switch value := symbol.Value.(type) {
+	case *rubyast.Identifier:
+		return value.Value, nil
+	case *rubyast.StringLiteral:
+		return value.Value, nil
+	default:
+		return "", fmt.Errorf("unsupported metadata.rb symbol %q", symbol.String())
+	}
+}
+
+func parseRubyStringArray(array *rubyast.ArrayLiteral, fset *gotoken.FileSet) ([]string, error) {
+	values := make([]string, 0, len(array.Elements))
+	for _, element := range array.Elements {
+		arg, err := parseMetadataArg(element, fset)
+		if err != nil {
+			return nil, err
+		}
+		if arg.kind != metadataArgString {
+			return nil, fmt.Errorf("unsupported metadata.rb array element %q", element.String())
+		}
+		values = append(values, arg.stringVal)
+	}
+	return values, nil
+}
+
+func setStringField(args []metadataArg, method string, dst *string) error {
+	values, err := stringArgs(args, method)
+	if err != nil {
+		return err
+	}
+	if len(values) != 1 {
+		return metadataArgError(method, "one string argument")
+	}
+	*dst = values[0]
+	return nil
+}
+
+func versionedMetadataArgs(args []metadataArg, method string) (string, string, error) {
+	values, err := stringArgs(args, method)
+	if err != nil {
+		return "", "", err
+	}
+	if len(values) == 1 {
+		return values[0], ">= 0.0.0", nil
+	}
+	if len(values) == 2 {
+		return values[0], values[1], nil
+	}
+	return "", "", metadataArgError(method, "one name argument and optional version constraint")
+}
+
+func versionRequirementArgs(args []metadataArg, method string) ([]string, error) {
+	values, err := stringArgs(args, method)
+	if err != nil {
+		return nil, err
+	}
+	if len(values) == 0 {
+		return nil, metadataArgError(method, "at least one version constraint")
+	}
+	slices.Sort(values)
+	return values, nil
+}
+
+func stringArgs(args []metadataArg, method string) ([]string, error) {
+	values := make([]string, 0, len(args))
+	for _, arg := range args {
+		if arg.kind != metadataArgString {
+			return nil, metadataArgError(method, "string or symbol arguments")
+		}
+		values = append(values, arg.stringVal)
+	}
+	return values, nil
+}
+
+func metadataArgError(method, want string) error {
+	return fmt.Errorf("metadata.rb %s expects %s", method, want)
 }
 
 // ReadVersion returns the cookbook version from metadata.json or from the
@@ -94,20 +455,40 @@ var metadataRBVersion = regexp.MustCompile(`(?m)^\s*version\s+['"]([^'"]+)['"]`)
 
 // BuildArchive builds a deterministic cookbook tarball rooted at cookbookName/.
 func BuildArchive(dir, cookbookName string) (Archive, error) {
-	return buildArchive(dir, cookbookName, true)
+	return buildArchive(dir, cookbookName, true, nil)
 }
 
 // BuildUploadArchive builds the upload tarball without retaining a separate
 // file-name manifest, which is only needed for dry-run output.
 func BuildUploadArchive(dir, cookbookName string) (Archive, error) {
-	return buildArchive(dir, cookbookName, false)
+	return buildArchive(dir, cookbookName, false, nil)
 }
 
-func buildArchive(dir, cookbookName string, includeFiles bool) (Archive, error) {
+// BuildArchiveWithMetadata builds a tarball and overlays metadataJSON at
+// metadata.json, which lets callers package generated metadata without
+// modifying the cookbook directory.
+func BuildArchiveWithMetadata(dir, cookbookName string, metadataJSON []byte) (Archive, error) {
+	return buildArchive(dir, cookbookName, true, metadataOverlay(metadataJSON))
+}
+
+// BuildUploadArchiveWithMetadata is BuildUploadArchive with a metadata overlay.
+func BuildUploadArchiveWithMetadata(dir, cookbookName string, metadataJSON []byte) (Archive, error) {
+	return buildArchive(dir, cookbookName, false, metadataOverlay(metadataJSON))
+}
+
+func metadataOverlay(metadataJSON []byte) map[string][]byte {
+	if len(metadataJSON) == 0 {
+		return nil
+	}
+	return map[string][]byte{"metadata.json": metadataJSON}
+}
+
+func buildArchive(dir, cookbookName string, includeFiles bool, overlays map[string][]byte) (Archive, error) {
 	entries, err := archiveEntries(dir)
 	if err != nil {
 		return Archive{}, err
 	}
+	entries = overlayEntries(entries, overlays)
 	if len(entries) == 0 {
 		return Archive{}, fmt.Errorf("cookbook %s has no files", dir)
 	}
@@ -118,10 +499,6 @@ func buildArchive(dir, cookbookName string, includeFiles bool) (Archive, error) 
 	gz.ModTime = time.Unix(0, 0)
 	tw := tar.NewWriter(gz)
 	for _, entry := range entries {
-		f, err := os.Open(filepath.Join(dir, filepath.FromSlash(entry.path)))
-		if err != nil {
-			return Archive{}, fmt.Errorf("open %s: %w", entry.path, err)
-		}
 		hdr := &tar.Header{
 			Name:    cookbookName + "/" + entry.path,
 			Mode:    0o644,
@@ -129,15 +506,16 @@ func buildArchive(dir, cookbookName string, includeFiles bool) (Archive, error) 
 			ModTime: time.Unix(0, 0),
 		}
 		if err := tw.WriteHeader(hdr); err != nil {
-			_ = f.Close()
 			return Archive{}, fmt.Errorf("write tar header %s: %w", entry.path, err)
 		}
-		if _, err := io.Copy(tw, f); err != nil {
-			_ = f.Close()
-			return Archive{}, fmt.Errorf("write tar entry %s: %w", entry.path, err)
+		if data, ok := overlays[entry.path]; ok {
+			if _, err := tw.Write(data); err != nil {
+				return Archive{}, fmt.Errorf("write tar entry %s: %w", entry.path, err)
+			}
+			continue
 		}
-		if err := f.Close(); err != nil {
-			return Archive{}, fmt.Errorf("close %s: %w", entry.path, err)
+		if err := writeFileToTar(tw, dir, entry.path); err != nil {
+			return Archive{}, err
 		}
 	}
 	if err := tw.Close(); err != nil {
@@ -154,6 +532,18 @@ func buildArchive(dir, cookbookName string, includeFiles bool) (Archive, error) 
 		}
 	}
 	return Archive{Name: cookbookName + ".tgz", Bytes: buf.Bytes(), Files: files}, nil
+}
+
+func writeFileToTar(tw *tar.Writer, dir, entryPath string) error {
+	f, err := os.Open(filepath.Join(dir, filepath.FromSlash(entryPath)))
+	if err != nil {
+		return fmt.Errorf("open %s: %w", entryPath, err)
+	}
+	defer f.Close()
+	if _, err := io.Copy(tw, f); err != nil {
+		return fmt.Errorf("write tar entry %s: %w", entryPath, err)
+	}
+	return nil
 }
 
 // UploadableFromDir builds the cinc-api LocalCookbook value used by the API's
@@ -204,6 +594,26 @@ type archiveEntry struct {
 	size int64
 }
 
+func overlayEntries(entries []archiveEntry, overlays map[string][]byte) []archiveEntry {
+	if len(overlays) == 0 {
+		return entries
+	}
+	seen := make(map[string]bool, len(entries)+len(overlays))
+	for i, entry := range entries {
+		if data, ok := overlays[entry.path]; ok {
+			entries[i].size = int64(len(data))
+		}
+		seen[entry.path] = true
+	}
+	for path, data := range overlays {
+		if !seen[path] {
+			entries = append(entries, archiveEntry{path: path, size: int64(len(data))})
+		}
+	}
+	sortArchiveEntries(entries)
+	return entries
+}
+
 func archiveEntries(dir string) ([]archiveEntry, error) {
 	var entries []archiveEntry
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -234,10 +644,14 @@ func archiveEntries(dir string) ([]archiveEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("walk cookbook: %w", err)
 	}
+	sortArchiveEntries(entries)
+	return entries, nil
+}
+
+func sortArchiveEntries(entries []archiveEntry) {
 	slices.SortFunc(entries, func(a, b archiveEntry) int {
 		return strings.Compare(a.path, b.path)
 	})
-	return entries, nil
 }
 
 // ExtractArchiveFiles returns archive entry names. It is used by tests and
