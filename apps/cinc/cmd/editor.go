@@ -1,9 +1,13 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
+	"github.com/alecthomas/chroma/v2/formatters"
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/charmbracelet/bubbles/textarea"
 	tea "github.com/charmbracelet/bubbletea"
 	cinc "github.com/tas50/cinc-api"
@@ -59,11 +63,11 @@ func openDataBagItemJSONEditor(in cinc.DataBagItem) (cinc.DataBagItem, error) {
 }
 
 // runJSONEditor opens a TUI textarea seeded with initial. On Ctrl-D
-// it parses, validates, and reformats the buffer. If parsing or the
-// caller-supplied validate fails, the error is shown inline and the
-// user stays in the editor so nothing they typed is lost. On success
-// the editor returns the canonical pretty-printed form of the value.
-// Esc / Ctrl-C aborts with an error.
+// the buffer is parsed, validated, and reformatted. If validation
+// fails the error is shown inline and the user keeps editing — no
+// work is lost. On success the editor switches into a preview mode
+// that shows the canonical JSON with syntax highlighting; Enter (or
+// another Ctrl-D) confirms and exits, Esc returns to editing.
 func runJSONEditor(initial []byte, validate func([]byte) error) ([]byte, error) {
 	ta := textarea.New()
 	ta.SetValue(string(initial))
@@ -91,13 +95,16 @@ func runJSONEditor(initial []byte, validate func([]byte) error) ([]byte, error) 
 
 // jsonEditorModel is the bubbletea program state for the JSON
 // textarea editor. validate is invoked on each save attempt; when it
-// returns nil the buffer is auto-formatted and committed, otherwise
-// errMsg is set and the user keeps editing.
+// returns nil the buffer is auto-formatted and the model switches
+// into preview mode (pending non-empty), otherwise errMsg is set and
+// the user keeps editing.
 type jsonEditorModel struct {
 	textarea  textarea.Model
 	validate  func([]byte) error
 	errMsg    string
-	committed []byte
+	pending   []byte // canonical pretty JSON, set when preview is shown
+	preview   string // highlighted preview, non-empty in preview mode
+	committed []byte // set when the user confirms the preview
 	aborted   bool
 }
 
@@ -111,6 +118,20 @@ func (m jsonEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	if k, ok := msg.(tea.KeyMsg); ok {
+		if m.preview != "" {
+			switch k.Type {
+			case tea.KeyEnter, tea.KeyCtrlD:
+				m.committed = m.pending
+				return m, tea.Quit
+			case tea.KeyEsc, tea.KeyCtrlC:
+				// Drop preview, return to editing.
+				m.preview = ""
+				m.pending = nil
+				return m, nil
+			}
+			// Ignore other keys in preview mode.
+			return m, nil
+		}
 		switch k.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			m.aborted = true
@@ -121,8 +142,6 @@ func (m jsonEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.errMsg = err.Error()
 				return m, nil
 			}
-			// Validation passed — reformat into canonical pretty-
-			// printed JSON so the caller gets a stable shape.
 			var generic any
 			if err := json.Unmarshal(content, &generic); err != nil {
 				m.errMsg = err.Error()
@@ -133,8 +152,9 @@ func (m jsonEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.errMsg = err.Error()
 				return m, nil
 			}
-			m.committed = pretty
-			return m, tea.Quit
+			m.pending = pretty
+			m.preview = highlightJSON(pretty)
+			return m, nil
 		default:
 			// Any other key means the user is typing — clear the
 			// stale error message so it doesn't linger after a fix.
@@ -147,10 +167,40 @@ func (m jsonEditorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m jsonEditorModel) View() string {
-	header := "cinc edit — Ctrl-D save & submit, Esc/Ctrl-C abort\n"
+	if m.preview != "" {
+		return "Preview — Enter or Ctrl-D to confirm, Esc to keep editing\n\n" + m.preview
+	}
+	header := "cinc edit — Ctrl-D to validate & preview, Esc/Ctrl-C abort\n"
 	if m.errMsg != "" {
 		header += "Error: " + m.errMsg + "\n"
 	}
 	header += "\n"
 	return header + m.textarea.View()
+}
+
+// highlightJSON wraps b in chroma's terminal256 JSON highlighting. If
+// any step fails the raw bytes are returned so the preview is still
+// readable.
+func highlightJSON(b []byte) string {
+	lexer := lexers.Get("json")
+	if lexer == nil {
+		return string(b)
+	}
+	style := styles.Get("monokai")
+	if style == nil {
+		style = styles.Fallback
+	}
+	formatter := formatters.Get("terminal256")
+	if formatter == nil {
+		return string(b)
+	}
+	iterator, err := lexer.Tokenise(nil, string(b))
+	if err != nil {
+		return string(b)
+	}
+	var buf bytes.Buffer
+	if err := formatter.Format(&buf, style, iterator); err != nil {
+		return string(b)
+	}
+	return buf.String()
 }
