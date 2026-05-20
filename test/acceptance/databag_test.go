@@ -16,20 +16,20 @@ func TestDataBagListAgainstChefZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
-	human := runCinc(t, env.binary, "data-bag", "list", "--config", env.cfgPath)
+	human := runCinc(t, env.binary, "databag", "list", "--config", env.cfgPath)
 	if human != "apps\nusers\n" {
-		t.Errorf("data-bag list (human) = %q", human)
+		t.Errorf("databag list (human) = %q", human)
 	}
 
-	jsonOut := runCinc(t, env.binary, "data-bag", "list", "--config", env.cfgPath, "--format", "json")
+	jsonOut := runCinc(t, env.binary, "databag", "list", "--config", env.cfgPath, "--format", "json")
 	for _, name := range []string{"apps", "users"} {
 		if !strings.Contains(jsonOut, name) {
-			t.Errorf("data-bag list (json) missing %q\ngot: %s", name, jsonOut)
+			t.Errorf("databag list (json) missing %q\ngot: %s", name, jsonOut)
 		}
 	}
 }
 
-// TestDataBagItemEditAgainstChefZero exercises `cinc data-bag item
+// TestDataBagItemEditAgainstChefZero exercises `cinc databag item
 // edit` through its `--file` path. The seed populates `users`
 // with an "alice" item; the test PUTs a modified version and verifies
 // the command exits cleanly.
@@ -46,9 +46,24 @@ func TestDataBagItemEditAgainstChefZero(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out := runCinc(t, env.binary, "data-bag", "item", "edit", "users", "alice", "--file", itemPath, "--config", env.cfgPath)
+	out := runCinc(t, env.binary, "databag", "item", "edit", "users", "alice", "--file", itemPath, "--config", env.cfgPath)
 	if out != "Updated item \"alice\" in bag \"users\"\n" {
-		t.Errorf("data-bag item edit output = %q", out)
+		t.Errorf("databag item edit output = %q", out)
+	}
+}
+
+func TestDataBagCreateAgainstChefZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	out := runCinc(t, env.binary, "databag", "create", "secrets", "--config", env.cfgPath)
+	if out != "Created data bag \"secrets\"\n" {
+		t.Errorf("databag create output = %q", out)
+	}
+
+	listed := runCinc(t, env.binary, "databag", "list", "--config", env.cfgPath)
+	if !strings.Contains(listed, "secrets") {
+		t.Errorf("databag list missing new bag:\n%s", listed)
 	}
 }
 
@@ -56,13 +71,13 @@ func TestDataBagDeleteAgainstChefZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
-	out := runCinc(t, env.binary, "data-bag", "delete", "apps", "--config", env.cfgPath)
+	out := runCinc(t, env.binary, "databag", "delete", "apps", "--config", env.cfgPath)
 	if out != "Deleted data bag \"apps\"\n" {
-		t.Errorf("data-bag delete output = %q", out)
+		t.Errorf("databag delete output = %q", out)
 	}
 
-	after := runCinc(t, env.binary, "data-bag", "list", "--config", env.cfgPath)
+	after := runCinc(t, env.binary, "databag", "list", "--config", env.cfgPath)
 	if after != "users\n" {
-		t.Errorf("data-bag list after delete = %q, want apps absent", after)
+		t.Errorf("databag list after delete = %q, want apps absent", after)
 	}
 }

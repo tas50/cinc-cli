@@ -1,15 +1,15 @@
-## cinc data-bag delete
+## cinc databag create
 
-Delete a data bag from the server
+Create an empty data bag on the server
 
 ```
-cinc data-bag delete <name> [flags]
+cinc databag create <name> [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for delete
+  -h, --help   help for create
 ```
 
 ### Options inherited from parent commands
@@ -22,5 +22,5 @@ cinc data-bag delete <name> [flags]
 
 ### SEE ALSO
 
-* [cinc data-bag](cinc_data-bag.md)	 - Manage data bags on the Cinc/Chef Server
+* [cinc databag](cinc_databag.md)	 - Manage data bags on the Cinc/Chef Server
 

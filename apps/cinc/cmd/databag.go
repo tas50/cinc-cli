@@ -15,19 +15,45 @@ import (
 	"github.com/tas50/cinc-cli/cli/printer"
 )
 
-// newDataBagCmd builds the `cinc data-bag` command group.
+// newDataBagCmd builds the `cinc databag` command group.
 func newDataBagCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "data-bag",
+		Use:   "databag",
 		Short: "Manage data bags on the Cinc/Chef Server",
 	}
 	cmd.AddCommand(newDataBagListCmd())
+	cmd.AddCommand(newDataBagCreateCmd())
 	cmd.AddCommand(newDataBagDeleteCmd())
 	cmd.AddCommand(newDataBagItemCmd())
 	return cmd
 }
 
-// newDataBagItemCmd builds the `cinc data-bag item` command group.
+// newDataBagCreateCmd builds `cinc databag create <name>`. The
+// command POSTs an empty bag to /data; items can then be added via
+// `cinc databag item create` (TODO) or knife. Creating an existing
+// bag is the server's responsibility to reject — the CLI surfaces
+// that error verbatim.
+func newDataBagCreateCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "create <name>",
+		Short: "Create an empty data bag on the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+			if _, err := c.DataBags.Create(cmd.Context(), name); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Created data bag %q\n", name)
+			return nil
+		},
+	}
+}
+
+// newDataBagItemCmd builds the `cinc databag item` command group.
 // Data bag items are arbitrary JSON documents (always carrying an
 // "id" key) so the item-level verbs live under their own subgroup.
 func newDataBagItemCmd() *cobra.Command {
@@ -39,7 +65,7 @@ func newDataBagItemCmd() *cobra.Command {
 	return cmd
 }
 
-// newDataBagItemEditCmd builds `cinc data-bag item edit <bag> <id>`.
+// newDataBagItemEditCmd builds `cinc databag item edit <bag> <id>`.
 // It fetches the item, opens its JSON in the built-in editor (same
 // engine as `cinc client edit`), validates on save, and PUTs the
 // result back. `--file` reads the updated JSON from disk for
@@ -112,7 +138,7 @@ func validateDataBagItem(b []byte) error {
 	return nil
 }
 
-// newDataBagDeleteCmd builds the `cinc data-bag delete <name>` command.
+// newDataBagDeleteCmd builds the `cinc databag delete <name>` command.
 func newDataBagDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
@@ -133,7 +159,7 @@ func newDataBagDeleteCmd() *cobra.Command {
 	}
 }
 
-// newDataBagListCmd builds the `cinc data-bag list` command.
+// newDataBagListCmd builds the `cinc databag list` command.
 func newDataBagListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",

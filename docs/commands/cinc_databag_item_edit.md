@@ -1,15 +1,16 @@
-## cinc data-bag list
+## cinc databag item edit
 
-List data bags on the server
+Edit a data bag item on the server
 
 ```
-cinc data-bag list [flags]
+cinc databag item edit <bag> <id> [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for list
+      --file string   read the updated item JSON from this file instead of launching the editor
+  -h, --help          help for edit
 ```
 
 ### Options inherited from parent commands
@@ -22,5 +23,5 @@ cinc data-bag list [flags]
 
 ### SEE ALSO
 
-* [cinc data-bag](cinc_data-bag.md)	 - Manage data bags on the Cinc/Chef Server
+* [cinc databag item](cinc_databag_item.md)	 - Manage items within a data bag
 

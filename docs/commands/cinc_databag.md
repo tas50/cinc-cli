@@ -1,11 +1,11 @@
-## cinc data-bag
+## cinc databag
 
 Manage data bags on the Cinc/Chef Server
 
 ### Options
 
 ```
-  -h, --help   help for data-bag
+  -h, --help   help for databag
 ```
 
 ### Options inherited from parent commands
@@ -19,7 +19,8 @@ Manage data bags on the Cinc/Chef Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - cinc is a unified command-line tool for Cinc/Chef Infra
-* [cinc data-bag delete](cinc_data-bag_delete.md)	 - Delete a data bag from the server
-* [cinc data-bag item](cinc_data-bag_item.md)	 - Manage items within a data bag
-* [cinc data-bag list](cinc_data-bag_list.md)	 - List data bags on the server
+* [cinc databag create](cinc_databag_create.md)	 - Create an empty data bag on the server
+* [cinc databag delete](cinc_databag_delete.md)	 - Delete a data bag from the server
+* [cinc databag item](cinc_databag_item.md)	 - Manage items within a data bag
+* [cinc databag list](cinc_databag_list.md)	 - List data bags on the server
 

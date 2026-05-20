@@ -18,7 +18,7 @@ import (
 	cinc "github.com/tas50/cinc-api"
 )
 
-// databagServer starts an httptest server that serves a data-bag index
+// databagServer starts an httptest server that serves a databag index
 // for org "acme" and returns the server. The Chef API exposes data bags
 // under /data, not /data_bags.
 func databagServer(t *testing.T, names ...string) *httptest.Server {
@@ -61,6 +61,47 @@ func TestFetchDataBagNamesReturnsSortedNames(t *testing.T) {
 	}
 }
 
+func TestDataBagCreateCommandEndToEnd(t *testing.T) {
+	var created string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/data", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %q, want POST", r.Method)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var payload struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("unmarshal create body: %v", err)
+		}
+		created = payload.Name
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write(body)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"databag", "create", "secrets", "--config", writeDataBagConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc databag create: %v", err)
+	}
+	if created != "secrets" {
+		t.Errorf("server saw create of %q, want %q", created, "secrets")
+	}
+	if got := buf.String(); got != "Created data bag \"secrets\"\n" {
+		t.Errorf("databag create output = %q", got)
+	}
+}
+
 func TestDataBagDeleteCommandEndToEnd(t *testing.T) {
 	var deleted string
 	mux := http.NewServeMux()
@@ -88,16 +129,16 @@ client_key      = %q
 	root := newRootCmd()
 	var buf bytes.Buffer
 	root.SetOut(&buf)
-	root.SetArgs([]string{"data-bag", "delete", "users", "--config", cfgPath})
+	root.SetArgs([]string{"databag", "delete", "users", "--config", cfgPath})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc data-bag delete: %v", err)
+		t.Fatalf("cinc databag delete: %v", err)
 	}
 	if deleted != "users" {
 		t.Errorf("server saw delete of %q, want %q", deleted, "users")
 	}
 	if got := buf.String(); got != "Deleted data bag \"users\"\n" {
-		t.Errorf("data-bag delete output = %q", got)
+		t.Errorf("databag delete output = %q", got)
 	}
 }
 
@@ -171,10 +212,10 @@ func TestDataBagItemEditCommandPutsEditorResult(t *testing.T) {
 	root := newRootCmd()
 	var buf bytes.Buffer
 	root.SetOut(&buf)
-	root.SetArgs([]string{"data-bag", "item", "edit", "users", "alice", "--config", writeDataBagConfig(t, srv.URL)})
+	root.SetArgs([]string{"databag", "item", "edit", "users", "alice", "--config", writeDataBagConfig(t, srv.URL)})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc data-bag item edit: %v", err)
+		t.Fatalf("cinc databag item edit: %v", err)
 	}
 	if gotPath != "/organizations/acme/data/users/alice" {
 		t.Errorf("PUT path = %q", gotPath)
@@ -204,10 +245,10 @@ func TestDataBagItemEditCommandSkipsPutWhenUnchanged(t *testing.T) {
 	root := newRootCmd()
 	var buf bytes.Buffer
 	root.SetOut(&buf)
-	root.SetArgs([]string{"data-bag", "item", "edit", "users", "alice", "--config", writeDataBagConfig(t, srv.URL)})
+	root.SetArgs([]string{"databag", "item", "edit", "users", "alice", "--config", writeDataBagConfig(t, srv.URL)})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc data-bag item edit (unchanged): %v", err)
+		t.Fatalf("cinc databag item edit (unchanged): %v", err)
 	}
 	if gotPath != "" {
 		t.Errorf("server saw a PUT at %q for an unchanged edit", gotPath)
@@ -239,10 +280,10 @@ func TestDataBagItemEditCommandReadsFromFile(t *testing.T) {
 
 	root := newRootCmd()
 	root.SetOut(&bytes.Buffer{})
-	root.SetArgs([]string{"data-bag", "item", "edit", "users", "alice", "--file", filePath, "--config", writeDataBagConfig(t, srv.URL)})
+	root.SetArgs([]string{"databag", "item", "edit", "users", "alice", "--file", filePath, "--config", writeDataBagConfig(t, srv.URL)})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc data-bag item edit --file: %v", err)
+		t.Fatalf("cinc databag item edit --file: %v", err)
 	}
 	if gotPut["role"] != "editor" {
 		t.Errorf("PUT body role = %v, want editor", gotPut["role"])
@@ -266,7 +307,7 @@ func TestDataBagItemEditCommandRejectsFileMissingID(t *testing.T) {
 	root := newRootCmd()
 	root.SetOut(&bytes.Buffer{})
 	root.SetErr(&bytes.Buffer{})
-	root.SetArgs([]string{"data-bag", "item", "edit", "users", "alice", "--file", filePath, "--config", writeDataBagConfig(t, srv.URL)})
+	root.SetArgs([]string{"databag", "item", "edit", "users", "alice", "--file", filePath, "--config", writeDataBagConfig(t, srv.URL)})
 
 	if err := root.Execute(); err == nil {
 		t.Error("expected an error for a --file payload with no id")
@@ -292,12 +333,12 @@ client_key      = %q
 	root := newRootCmd()
 	var buf bytes.Buffer
 	root.SetOut(&buf)
-	root.SetArgs([]string{"data-bag", "list", "--config", cfgPath})
+	root.SetArgs([]string{"databag", "list", "--config", cfgPath})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc data-bag list: %v", err)
+		t.Fatalf("cinc databag list: %v", err)
 	}
 	if got := buf.String(); got != "apps\nsecrets\nusers\n" {
-		t.Errorf("data-bag list output = %q, want sorted data-bag names", got)
+		t.Errorf("databag list output = %q, want sorted databag names", got)
 	}
 }

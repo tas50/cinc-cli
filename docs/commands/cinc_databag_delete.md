@@ -1,11 +1,15 @@
-## cinc data-bag item
+## cinc databag delete
 
-Manage items within a data bag
+Delete a data bag from the server
+
+```
+cinc databag delete <name> [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for item
+  -h, --help   help for delete
 ```
 
 ### Options inherited from parent commands
@@ -18,6 +22,5 @@ Manage items within a data bag
 
 ### SEE ALSO
 
-* [cinc data-bag](cinc_data-bag.md)	 - Manage data bags on the Cinc/Chef Server
-* [cinc data-bag item edit](cinc_data-bag_item_edit.md)	 - Edit a data bag item on the server
+* [cinc databag](cinc_databag.md)	 - Manage data bags on the Cinc/Chef Server
 
