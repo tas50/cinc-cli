@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -21,7 +23,71 @@ func newClientCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newClientListCmd())
 	cmd.AddCommand(newClientCreateCmd())
+	cmd.AddCommand(newClientEditCmd())
 	cmd.AddCommand(newClientDeleteCmd())
+	return cmd
+}
+
+// newClientEditCmd builds the `cinc client edit <name>` command. It
+// fetches the named client, opens its JSON in the built-in TUI
+// editor (see editor.go), and PUTs the edited result back to the
+// server. With `--file` the JSON is read from a file unmodified,
+// which makes the command scriptable and testable without spawning
+// the TUI. If the editor exits with the JSON unchanged the command
+// prints a no-op message and skips the PUT.
+func newClientEditCmd() *cobra.Command {
+	var inputFile string
+	cmd := &cobra.Command{
+		Use:   "edit <name>",
+		Short: "Edit an API client on the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+
+			var updated cinc.APIClient
+			if inputFile != "" {
+				data, err := os.ReadFile(inputFile)
+				if err != nil {
+					return fmt.Errorf("cinc: read %s: %w", inputFile, err)
+				}
+				if err := json.Unmarshal(data, &updated); err != nil {
+					return fmt.Errorf("cinc: parse %s: %w", inputFile, err)
+				}
+			} else {
+				current, _, err := c.Clients.Get(cmd.Context(), name)
+				if err != nil {
+					return err
+				}
+				initial, err := json.MarshalIndent(current, "", "  ")
+				if err != nil {
+					return err
+				}
+				edited, err := editJSON(initial)
+				if err != nil {
+					return err
+				}
+				if bytes.Equal(bytes.TrimSpace(edited), bytes.TrimSpace(initial)) {
+					fmt.Fprintf(cmd.OutOrStdout(), "Client %q unchanged\n", name)
+					return nil
+				}
+				if err := json.Unmarshal(edited, &updated); err != nil {
+					return fmt.Errorf("cinc: parse edited JSON: %w", err)
+				}
+			}
+			updated.Name = name
+
+			if _, _, err := c.Clients.Update(cmd.Context(), &updated); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Updated client %q\n", name)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&inputFile, "file", "", "read the updated client JSON from this file instead of launching the editor")
 	return cmd
 }
 

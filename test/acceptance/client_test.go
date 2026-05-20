@@ -6,11 +6,14 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	cinc "github.com/tas50/cinc-api"
 )
 
 // TestClientListAgainstChefZero asserts the seeded clients are
@@ -70,6 +73,37 @@ func TestClientCreateAgainstChefZero(t *testing.T) {
 	listed := runCinc(t, env.binary, "client", "list", "--config", env.cfgPath)
 	if !strings.Contains(listed, "fresh") {
 		t.Errorf("client list after create missing %q\ngot: %s", "fresh", listed)
+	}
+}
+
+// TestClientEditAgainstChefZero exercises `cinc client edit` through
+// its `--file` path. The built-in TUI editor branch is unreachable
+// from `go test` (no real terminal attached), so the acceptance test
+// covers the scripted path; the TUI editor branch is exercised by
+// hand and by the unit tests that stub editJSON.
+func TestClientEditAgainstChefZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	keyPath := filepath.Join(t.TempDir(), "client.json")
+	body, err := json.Marshal(cinc.APIClient{Name: "worker-01", Validator: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(keyPath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	out := runCinc(t, env.binary, "client", "edit", "worker-01", "--file", keyPath, "--config", env.cfgPath)
+	if out != "Updated client \"worker-01\"\n" {
+		t.Errorf("client edit output = %q", out)
+	}
+
+	// The seeded client name should still be in `client list` — edit
+	// must not have created a new client or dropped the existing one.
+	listed := runCinc(t, env.binary, "client", "list", "--config", env.cfgPath)
+	if !strings.Contains(listed, "worker-01") {
+		t.Errorf("client list after edit missing worker-01:\n%s", listed)
 	}
 }
 
