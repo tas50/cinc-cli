@@ -223,6 +223,8 @@ func realRunFirstRunConfigure(cmd *cobra.Command, cincPath string) error {
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out)
 	fmt.Fprintf(out, "Wrote credentials profile %q to %s\n", answers.ProfileName, answers.ConfigPath)
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Cinc CLI is now configured and you're ready to go!")
 	return nil
 }
 

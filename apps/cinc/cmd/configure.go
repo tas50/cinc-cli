@@ -92,6 +92,8 @@ func newConfigureCmd() *cobra.Command {
 			out := cmd.OutOrStdout()
 			fmt.Fprintln(out)
 			fmt.Fprintf(out, "Wrote credentials profile %q to %s\n", profileName, cfgPath)
+			fmt.Fprintln(out)
+			fmt.Fprintln(out, "Cinc CLI is now configured and you're ready to go!")
 			return nil
 		},
 	}
