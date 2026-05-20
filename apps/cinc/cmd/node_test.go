@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	cinc "github.com/tas50/cinc-api"
@@ -184,6 +185,9 @@ func TestNodeSSHNoClientCommand(t *testing.T) {
 	if got, want := buf.String(), "web01\tok\nweb02\tok\n"; got != want {
 		t.Fatalf("stdout = %q, want %q", got, want)
 	}
+	slices.SortFunc(runner.calls, func(a, b remoteCall) int {
+		return strings.Compare(a.target.Host, b.target.Host)
+	})
 	if len(runner.calls) != 2 || runner.calls[0].target.Host != "web01" || runner.calls[1].target.Host != "web02" {
 		t.Fatalf("runner calls = %+v", runner.calls)
 	}
@@ -335,6 +339,7 @@ client_key      = %q
 }
 
 type recordingRunner struct {
+	mu     sync.Mutex
 	calls  []remoteCall
 	result remote.CommandResult
 }
@@ -346,8 +351,10 @@ type remoteCall struct {
 }
 
 func (r *recordingRunner) Run(_ context.Context, target remote.Target, command string, opts remote.SSHOptions) remote.CommandResult {
+	r.mu.Lock()
 	r.calls = append(r.calls, remoteCall{target: target, command: command, opts: opts})
 	result := r.result
+	r.mu.Unlock()
 	result.Host = target.Host
 	if result.ExitCode == 0 && result.Error == "" {
 		result.ExitCode = 0
