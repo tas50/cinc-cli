@@ -1,6 +1,15 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+
+	"github.com/spf13/cobra"
+
+	"github.com/tas50/cinc-cli/cli/config"
+)
 
 // newRootCmd builds the root `cinc` command and registers its
 // subcommands.
@@ -11,6 +20,11 @@ func newRootCmd() *cobra.Command {
 		// Errors are still printed by cobra; only the usage dump is
 		// suppressed so a runtime failure shows just the error.
 		SilenceUsage: true,
+		// When invoked with no subcommand we still want a chance to
+		// offer chef-credentials migration before falling back to the
+		// help text. Subcommands keep their own behavior — this RunE
+		// only fires for a bare `cinc` invocation.
+		RunE: rootRunE,
 	}
 
 	flags := root.PersistentFlags()
@@ -44,4 +58,20 @@ func Execute() error {
 // newRootCmd.
 func NewRootCmd() *cobra.Command {
 	return newRootCmd()
+}
+
+// rootRunE handles a bare `cinc` invocation. If the default
+// credentials file is missing it offers chef migration as a courtesy,
+// then prints the usage help so the user still sees what commands are
+// available. Migration failures are surfaced but do not block help.
+func rootRunE(cmd *cobra.Command, _ []string) error {
+	cincPath, err := config.DefaultPath()
+	if err == nil {
+		if _, err := os.Stat(cincPath); errors.Is(err, fs.ErrNotExist) {
+			if _, migErr := offerChefMigration(cmd, cincPath); migErr != nil {
+				fmt.Fprintln(cmd.ErrOrStderr(), migErr)
+			}
+		}
+	}
+	return cmd.Help()
 }
