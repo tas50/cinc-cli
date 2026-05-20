@@ -220,7 +220,9 @@ func realRunFirstRunConfigure(cmd *cobra.Command, cincPath string) error {
 	if err := config.WriteProfile(answers.ConfigPath, answers.ProfileName, profile); err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Wrote credentials profile %q to %s\n", answers.ProfileName, answers.ConfigPath)
+	out := cmd.OutOrStdout()
+	fmt.Fprintln(out)
+	fmt.Fprintf(out, "Wrote credentials profile %q to %s\n", answers.ProfileName, answers.ConfigPath)
 	return nil
 }
 

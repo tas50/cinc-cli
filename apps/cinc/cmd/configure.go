@@ -89,7 +89,9 @@ func newConfigureCmd() *cobra.Command {
 			if err := config.WriteProfile(cfgPath, profileName, profile); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Wrote credentials profile %q to %s\n", profileName, cfgPath)
+			out := cmd.OutOrStdout()
+			fmt.Fprintln(out)
+			fmt.Fprintf(out, "Wrote credentials profile %q to %s\n", profileName, cfgPath)
 			return nil
 		},
 	}
