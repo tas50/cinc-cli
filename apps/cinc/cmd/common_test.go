@@ -132,7 +132,7 @@ func TestResolveProfileWelcomesUserOnFirstRun(t *testing.T) {
 	if _, err := resolveProfile(c); err != nil {
 		t.Fatalf("resolveProfile: %v", err)
 	}
-	if !strings.Contains(stderr.String(), "Welcome to the cinc CLI!") {
+	if !strings.Contains(stderr.String(), "Welcome to the Cinc CLI!") {
 		t.Errorf("expected a welcome line on stderr, got:\n%s", stderr.String())
 	}
 }
@@ -258,7 +258,7 @@ func TestResolveProfileRunsConfigureWhenNoChefFile(t *testing.T) {
 	if p.Org != "acme" {
 		t.Errorf("post-configure profile = %+v", p)
 	}
-	if !strings.Contains(stderr.String(), "Welcome to the cinc CLI!") {
+	if !strings.Contains(stderr.String(), "Welcome to the Cinc CLI!") {
 		t.Errorf("expected welcome on stderr, got:\n%s", stderr.String())
 	}
 }

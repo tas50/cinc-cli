@@ -148,7 +148,7 @@ func offerFirstRun(cmd *cobra.Command, cincPath string) (bool, error) {
 	}
 
 	out := cmd.ErrOrStderr()
-	fmt.Fprintln(out, "Welcome to the cinc CLI!")
+	fmt.Fprintln(out, "Welcome to the Cinc CLI!")
 	fmt.Fprintln(out)
 
 	chefPath := filepath.Join(home, ".chef", "credentials")
