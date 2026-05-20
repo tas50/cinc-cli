@@ -65,6 +65,8 @@ all flags are documented in `docs/commands.md`.
 - `make build` — compile the binary; version metadata is injected via `-ldflags`.
 - `make test` / `go test ./...` — run the test suite.
 - `make vet`, `make fmt` — `go vet` and `gofmt`.
+- `make docs` — regenerate the per-command Markdown reference under
+  `docs/commands/` from the live cobra command tree.
 - `make help` — list all targets.
 
 Acceptance tests live under `test/acceptance/` and run the real binary
@@ -117,4 +119,7 @@ own fresh chef-zero instance.
 5. Add unit tests in `apps/cinc/cmd/<noun>_test.go` and acceptance
    tests in `test/acceptance/<noun>_test.go`. Both are required (see
    Conventions).
-6. Document the new command and any flags in `docs/commands.md`.
+6. Run `make docs` so the per-command reference under `docs/commands/`
+   picks up the new command, short/long help, and flags. CI also runs
+   this on every push to `main` and commits the result, but landing
+   the docs alongside the code keeps PR review honest.
