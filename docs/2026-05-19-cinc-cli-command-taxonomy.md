@@ -8,7 +8,7 @@
 
 ## Background
 
-The Chef/Cinc command-line experience is currently split across multiple
+The Cinc/Chef command-line experience is currently split across multiple
 existing ecosystem tools, which use two distinct and inconsistent grammars:
 
 - Server interaction (nodes, roles, cookbooks, data bags, users, ACLs) uses a
@@ -36,7 +36,7 @@ The taxonomy was settled through the following decisions:
 4. **Cookbook-internal scaffolding uses `cinc cookbook add <part>`.**
 5. **A short, documented set of global utility verbs** is allowed at the top
    level for commands that have no natural noun.
-6. **`exec` is dropped** — no "run inside the Chef/Cinc Ruby runtime" escape
+6. **`exec` is dropped** — no "run inside the Cinc/Chef Ruby runtime" escape
    hatch.
 
 ## Command Grammar & Conventions

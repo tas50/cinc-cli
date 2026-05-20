@@ -15,7 +15,7 @@
 
 ## The `cinc-api` Boundary
 
-The most important architectural rule: **all Chef/Cinc Server communication goes
+The most important architectural rule: **all Cinc/Chef Server communication goes
 through the `github.com/tas50/cinc-api` library.**
 
 `cinc-api` owns:

@@ -14,7 +14,7 @@ import (
 func newNodeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "node",
-		Short: "Manage nodes on the Chef/Cinc Server",
+		Short: "Manage nodes on the Cinc/Chef Server",
 	}
 	cmd.AddCommand(newNodeListCmd())
 	return cmd
