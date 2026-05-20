@@ -157,7 +157,10 @@ func promptConfigure(cmd *cobra.Command, defaults configureDefaults) (configureD
 			defaults.ChefServerURL = fmt.Sprintf("https://%s/organizations/%s", serverHost, serverOrg)
 		}
 	}
-	defaults.SSLVerifyMode, err = promptWithDefault(reader, out, "SSL verify mode (optional)", defaults.SSLVerifyMode)
+	if defaults.SSLVerifyMode == "" {
+		defaults.SSLVerifyMode = ":verify_peer"
+	}
+	defaults.SSLVerifyMode, err = promptWithDefault(reader, out, "SSL verify mode", defaults.SSLVerifyMode)
 	if err != nil {
 		return configureDefaults{}, err
 	}
