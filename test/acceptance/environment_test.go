@@ -26,6 +26,23 @@ func TestEnvironmentListAgainstChefZero(t *testing.T) {
 	}
 }
 
+func TestEnvironmentCreateAgainstChefZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	out := runCinc(t, env.binary, "environment", "create", "qa",
+		"--description", "QA environment",
+		"--config", env.cfgPath)
+	if out != "Created environment \"qa\"\n" {
+		t.Errorf("environment create output = %q", out)
+	}
+
+	after := runCinc(t, env.binary, "environment", "list", "--config", env.cfgPath)
+	if after != "_default\nprod\nqa\nstaging\n" {
+		t.Errorf("environment list after create = %q, want qa in the index", after)
+	}
+}
+
 func TestEnvironmentDeleteAgainstChefZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
