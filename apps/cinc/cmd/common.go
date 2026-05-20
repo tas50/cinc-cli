@@ -182,7 +182,7 @@ func runMigrationPrompt(cmd *cobra.Command, chefPath, cincPath string, out io.Wr
 // runConfigurePrompt drives the interactive configure flow when no
 // chef credentials file exists to migrate.
 func runConfigurePrompt(cmd *cobra.Command, cincPath string, out io.Writer) (bool, error) {
-	fmt.Fprintln(out, "We didn't find an existing Chef config, so let's set up a new one.")
+	fmt.Fprintln(out, "We didn't find an existing Cinc or Chef config, so let's set up a new one.")
 	fmt.Fprintln(out)
 	if err := runFirstRunConfigure(cmd, cincPath); err != nil {
 		return false, err

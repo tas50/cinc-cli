@@ -258,7 +258,7 @@ func TestResolveProfileRunsConfigureWhenNoChefFile(t *testing.T) {
 	if p.Org != "acme" {
 		t.Errorf("post-configure profile = %+v", p)
 	}
-	if !strings.Contains(stderr.String(), "didn't find an existing Chef config") {
+	if !strings.Contains(stderr.String(), "didn't find an existing Cinc or Chef config") {
 		t.Errorf("expected configure-fallback intro on stderr, got:\n%s", stderr.String())
 	}
 }

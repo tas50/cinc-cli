@@ -109,7 +109,7 @@ func TestBareCincRunsConfigureWhenChefAbsent(t *testing.T) {
 	if !strings.Contains(stderr, "Welcome to cinc!") {
 		t.Errorf("expected a welcome line on stderr, got:\n%s", stderr)
 	}
-	if !strings.Contains(stderr, "didn't find an existing Chef config") {
+	if !strings.Contains(stderr, "didn't find an existing Cinc or Chef config") {
 		t.Errorf("expected configure-fallback intro on stderr, got:\n%s", stderr)
 	}
 	if !strings.Contains(stdout, "cinc is a unified") {
