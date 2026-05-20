@@ -156,6 +156,7 @@ func offerChefMigration(cmd *cobra.Command, cincPath string) (bool, error) {
 	switch strings.ToLower(strings.TrimSpace(line)) {
 	case "n", "no":
 		fmt.Fprintln(out, "No problem — run `cinc configure` whenever you're ready to set up a profile.")
+		fmt.Fprintln(out)
 		return false, nil
 	}
 
@@ -164,6 +165,7 @@ func offerChefMigration(cmd *cobra.Command, cincPath string) (bool, error) {
 		return false, err
 	}
 	fmt.Fprintf(out, "Done! Wrote %d profile(s) to %s.\n", n, cincPath)
+	fmt.Fprintln(out)
 	return true, nil
 }
 
