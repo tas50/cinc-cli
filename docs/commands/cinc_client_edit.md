@@ -9,7 +9,7 @@ cinc client edit <name> [flags]
 ### Options
 
 ```
-      --file string   read the updated client JSON from this file instead of launching the editor
+      --file string   read the updated client JSON from this file instead of launching the form
   -h, --help          help for edit
 ```
 

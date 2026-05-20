@@ -1,11 +1,11 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -29,12 +29,12 @@ func newClientCmd() *cobra.Command {
 }
 
 // newClientEditCmd builds the `cinc client edit <name>` command. It
-// fetches the named client, opens its JSON in the built-in TUI
-// editor (see editor.go), and PUTs the edited result back to the
-// server. With `--file` the JSON is read from a file unmodified,
-// which makes the command scriptable and testable without spawning
-// the TUI. If the editor exits with the JSON unchanged the command
-// prints a no-op message and skips the PUT.
+// fetches the named client, presents the editable fields in a small
+// form (see editor.go), and PUTs the result back to the server.
+// With `--file` the JSON is read from a file unmodified, which makes
+// the command scriptable and keeps the unit/acceptance tests off the
+// TUI codepath. The form short-circuits with "unchanged" when the
+// user submits without modifying any field.
 func newClientEditCmd() *cobra.Command {
 	var inputFile string
 	cmd := &cobra.Command{
@@ -62,21 +62,15 @@ func newClientEditCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				initial, err := json.MarshalIndent(current, "", "  ")
+				edited, err := editClient(current)
 				if err != nil {
 					return err
 				}
-				edited, err := editJSON(initial)
-				if err != nil {
-					return err
-				}
-				if bytes.Equal(bytes.TrimSpace(edited), bytes.TrimSpace(initial)) {
+				if reflect.DeepEqual(*current, *edited) {
 					fmt.Fprintf(cmd.OutOrStdout(), "Client %q unchanged\n", name)
 					return nil
 				}
-				if err := json.Unmarshal(edited, &updated); err != nil {
-					return fmt.Errorf("cinc: parse edited JSON: %w", err)
-				}
+				updated = *edited
 			}
 			updated.Name = name
 
@@ -87,7 +81,7 @@ func newClientEditCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&inputFile, "file", "", "read the updated client JSON from this file instead of launching the editor")
+	cmd.Flags().StringVar(&inputFile, "file", "", "read the updated client JSON from this file instead of launching the form")
 	return cmd
 }
 

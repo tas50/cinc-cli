@@ -274,13 +274,13 @@ func clientEditServer(t *testing.T, name string, current cinc.APIClient, gotPut 
 	return srv
 }
 
-// withStubEditor replaces editJSON with stub for the duration of the
-// test and restores the original on cleanup.
-func withStubEditor(t *testing.T, stub func([]byte) ([]byte, error)) {
+// withStubEditor replaces editClient with stub for the duration of
+// the test and restores the original on cleanup.
+func withStubEditor(t *testing.T, stub func(*cinc.APIClient) (*cinc.APIClient, error)) {
 	t.Helper()
-	orig := editJSON
-	editJSON = stub
-	t.Cleanup(func() { editJSON = orig })
+	orig := editClient
+	editClient = stub
+	t.Cleanup(func() { editClient = orig })
 }
 
 func TestClientEditCommandPutsEditorResult(t *testing.T) {
@@ -289,13 +289,10 @@ func TestClientEditCommandPutsEditorResult(t *testing.T) {
 	current := cinc.APIClient{Name: "worker-01", Validator: false}
 	srv := clientEditServer(t, "worker-01", current, &gotPut, &gotPath)
 
-	withStubEditor(t, func(initial []byte) ([]byte, error) {
-		var c cinc.APIClient
-		if err := json.Unmarshal(initial, &c); err != nil {
-			return nil, err
-		}
-		c.Validator = true
-		return json.MarshalIndent(&c, "", "  ")
+	withStubEditor(t, func(in *cinc.APIClient) (*cinc.APIClient, error) {
+		updated := *in
+		updated.Validator = true
+		return &updated, nil
 	})
 
 	root := newRootCmd()
@@ -323,8 +320,9 @@ func TestClientEditCommandSkipsPutWhenUnchanged(t *testing.T) {
 	current := cinc.APIClient{Name: "worker-01", Validator: false}
 	srv := clientEditServer(t, "worker-01", current, &gotPut, &gotPath)
 
-	withStubEditor(t, func(initial []byte) ([]byte, error) {
-		return initial, nil
+	withStubEditor(t, func(in *cinc.APIClient) (*cinc.APIClient, error) {
+		copy := *in
+		return &copy, nil
 	})
 
 	root := newRootCmd()
@@ -351,7 +349,7 @@ func TestClientEditCommandReadsFromFile(t *testing.T) {
 
 	// Editor must NOT be invoked when --file is supplied; stub it to
 	// fail the test if it is.
-	withStubEditor(t, func([]byte) ([]byte, error) {
+	withStubEditor(t, func(*cinc.APIClient) (*cinc.APIClient, error) {
 		t.Fatal("editor was invoked despite --file")
 		return nil, nil
 	})
