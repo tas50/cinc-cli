@@ -69,6 +69,46 @@ func TestFetchCookbookNamesReturnsSortedNames(t *testing.T) {
 	}
 }
 
+func TestCookbookDeleteCommandEndToEnd(t *testing.T) {
+	var deletedPath string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/cookbooks/nginx/1.0.0", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %q, want DELETE", r.Method)
+		}
+		deletedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"name": "nginx"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"cookbook", "delete", "nginx", "1.0.0", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc cookbook delete: %v", err)
+	}
+	if deletedPath != "/organizations/acme/cookbooks/nginx/1.0.0" {
+		t.Errorf("server saw delete at %q", deletedPath)
+	}
+	if got := buf.String(); got != "Deleted cookbook \"nginx\" version 1.0.0\n" {
+		t.Errorf("cookbook delete output = %q", got)
+	}
+}
+
 func TestCookbookListCommandEndToEnd(t *testing.T) {
 	srv := cookbookServer(t, "nginx", "apache", "mysql")
 

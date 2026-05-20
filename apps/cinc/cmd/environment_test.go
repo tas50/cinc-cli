@@ -59,6 +59,46 @@ func TestFetchEnvironmentNamesReturnsSortedNames(t *testing.T) {
 	}
 }
 
+func TestEnvironmentDeleteCommandEndToEnd(t *testing.T) {
+	var deleted string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/environments/staging", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %q, want DELETE", r.Method)
+		}
+		deleted = "staging"
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"name": "staging"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"environment", "delete", "staging", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc environment delete: %v", err)
+	}
+	if deleted != "staging" {
+		t.Errorf("server saw delete of %q, want %q", deleted, "staging")
+	}
+	if got := buf.String(); got != "Deleted environment \"staging\"\n" {
+		t.Errorf("environment delete output = %q", got)
+	}
+}
+
 func TestEnvironmentListCommandEndToEnd(t *testing.T) {
 	srv := environmentServer(t, "prod", "_default", "staging")
 

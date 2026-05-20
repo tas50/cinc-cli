@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -17,7 +18,29 @@ func newRoleCmd() *cobra.Command {
 		Short: "Manage roles on the Cinc/Chef Server",
 	}
 	cmd.AddCommand(newRoleListCmd())
+	cmd.AddCommand(newRoleDeleteCmd())
 	return cmd
+}
+
+// newRoleDeleteCmd builds the `cinc role delete <name>` command.
+func newRoleDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete a role from the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+			if _, err := c.Roles.Delete(cmd.Context(), name); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted role %q\n", name)
+			return nil
+		},
+	}
 }
 
 // newRoleListCmd builds the `cinc role list` command.

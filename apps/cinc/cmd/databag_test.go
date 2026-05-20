@@ -60,6 +60,46 @@ func TestFetchDataBagNamesReturnsSortedNames(t *testing.T) {
 	}
 }
 
+func TestDataBagDeleteCommandEndToEnd(t *testing.T) {
+	var deleted string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/data/users", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %q, want DELETE", r.Method)
+		}
+		deleted = "users"
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"name": "users"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"data-bag", "delete", "users", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc data-bag delete: %v", err)
+	}
+	if deleted != "users" {
+		t.Errorf("server saw delete of %q, want %q", deleted, "users")
+	}
+	if got := buf.String(); got != "Deleted data bag \"users\"\n" {
+		t.Errorf("data-bag delete output = %q", got)
+	}
+}
+
 func TestDataBagListCommandEndToEnd(t *testing.T) {
 	srv := databagServer(t, "users", "apps", "secrets")
 

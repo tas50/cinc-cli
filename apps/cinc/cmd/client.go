@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -17,7 +18,29 @@ func newClientCmd() *cobra.Command {
 		Short: "Manage API clients on the Cinc/Chef Server",
 	}
 	cmd.AddCommand(newClientListCmd())
+	cmd.AddCommand(newClientDeleteCmd())
 	return cmd
+}
+
+// newClientDeleteCmd builds the `cinc client delete <name>` command.
+func newClientDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete an API client from the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+			if _, err := c.Clients.Delete(cmd.Context(), name); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted client %q\n", name)
+			return nil
+		},
+	}
 }
 
 // newClientListCmd builds the `cinc client list` command.
