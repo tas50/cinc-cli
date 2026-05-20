@@ -55,3 +55,13 @@ func (p *Printer) List(items []string) error {
 	}
 	return nil
 }
+
+// Value renders an arbitrary structured command result.
+func (p *Printer) Value(v any) error {
+	if p.format == FormatJSON {
+		enc := json.NewEncoder(p.w)
+		enc.SetIndent("", "  ")
+		return enc.Encode(v)
+	}
+	return fmt.Errorf("printer: human rendering is not implemented for %T", v)
+}

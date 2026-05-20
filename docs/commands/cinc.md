@@ -14,10 +14,12 @@ cinc is a unified command-line tool for Cinc/Chef Infra
 ### SEE ALSO
 
 * [cinc client](cinc_client.md)	 - Manage API clients on the Cinc/Chef Server
+* [cinc configure](cinc_configure.md)	 - Create or update a local credentials profile
 * [cinc cookbook](cinc_cookbook.md)	 - Manage cookbooks on the Cinc/Chef Server
 * [cinc databag](cinc_databag.md)	 - Manage data bags on the Cinc/Chef Server
 * [cinc environment](cinc_environment.md)	 - Manage environments on the Cinc/Chef Server
 * [cinc node](cinc_node.md)	 - Manage nodes on the Cinc/Chef Server
 * [cinc role](cinc_role.md)	 - Manage roles on the Cinc/Chef Server
+* [cinc supermarket](cinc_supermarket.md)	 - Manage cookbooks on Chef Supermarket
 * [cinc version](cinc_version.md)	 - Print cinc version information
 

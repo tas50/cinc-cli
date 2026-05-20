@@ -3,6 +3,8 @@
 BINARY      := cinc
 CMD_PKG     := ./apps/cinc
 LDFLAGS_PKG := github.com/tas50/cinc-cli/apps/cinc/cmd
+DIST_DIR    ?= dist
+PLATFORMS   := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 
 # Build metadata — override on the command line if needed.
 VERSION    ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -13,13 +15,28 @@ LDFLAGS := -X $(LDFLAGS_PKG).version=$(VERSION) \
            -X $(LDFLAGS_PKG).commit=$(COMMIT) \
            -X $(LDFLAGS_PKG).buildDate=$(BUILD_DATE)
 
-.PHONY: all build install test test-acceptance vet fmt tidy clean run docs help
+.PHONY: all build dist install test test-acceptance vet fmt tidy clean run docs help
 
 all: build
 
 ## build: compile the cinc binary with version metadata
 build:
 	go build -ldflags "$(LDFLAGS)" -o $(BINARY) $(CMD_PKG)
+
+## dist: build release archives for Linux and macOS
+dist:
+	rm -rf $(DIST_DIR)
+	mkdir -p $(DIST_DIR)
+	for platform in $(PLATFORMS); do \
+		goos=$${platform%/*}; \
+		goarch=$${platform#*/}; \
+		name="$(BINARY)_$(VERSION)_$${goos}_$${goarch}"; \
+		mkdir -p "$(DIST_DIR)/$$name"; \
+		CGO_ENABLED=0 GOOS=$$goos GOARCH=$$goarch go build -trimpath -ldflags "$(LDFLAGS) -s -w" -o "$(DIST_DIR)/$$name/$(BINARY)" $(CMD_PKG); \
+		tar -C "$(DIST_DIR)" -czf "$(DIST_DIR)/$$name.tar.gz" "$$name"; \
+		rm -rf "$(DIST_DIR)/$$name"; \
+	done
+	cd "$(DIST_DIR)" && shasum -a 256 *.tar.gz > SHA256SUMS
 
 ## install: install cinc into the Go bin directory
 install:
@@ -47,7 +64,7 @@ tidy:
 
 ## clean: remove build artifacts
 clean:
-	rm -f $(BINARY)
+	rm -rf $(BINARY) $(DIST_DIR)
 	go clean
 
 ## run: build and run cinc (pass flags via ARGS="...")

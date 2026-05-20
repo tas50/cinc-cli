@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
 
+	localcookbook "github.com/tas50/cinc-cli/cli/cookbook"
 	"github.com/tas50/cinc-cli/cli/printer"
 )
 
@@ -19,7 +20,64 @@ func newCookbookCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newCookbookListCmd())
 	cmd.AddCommand(newCookbookDeleteCmd())
+	cmd.AddCommand(newCookbookUploadCmd())
 	return cmd
+}
+
+// newCookbookUploadCmd builds the `cinc cookbook upload <name>...` command.
+func newCookbookUploadCmd() *cobra.Command {
+	var cookbookPath string
+	cmd := &cobra.Command{
+		Use:   "upload <name>...",
+		Short: "Upload cookbook versions to the Cinc/Chef Server",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			results := make([]cookbookUploadResult, 0, len(args))
+			for _, name := range args {
+				dir, err := localcookbook.Locate(name, cookbookPath)
+				if err != nil {
+					return err
+				}
+				version, err := localcookbook.ReadVersion(dir)
+				if err != nil {
+					return err
+				}
+				cb, err := localcookbook.UploadableFromDir(dir, version)
+				if err != nil {
+					return err
+				}
+				if err := c.Cookbooks.Upload(cmd.Context(), cb); err != nil {
+					return err
+				}
+				results = append(results, cookbookUploadResult{
+					Cookbook: name, Version: version, Uploaded: true,
+				})
+			}
+			if format == printer.FormatJSON {
+				return printer.New(cmd.OutOrStdout(), format).Value(results)
+			}
+			for _, result := range results {
+				fmt.Fprintf(cmd.OutOrStdout(), "Uploaded cookbook %q version %s\n", result.Cookbook, result.Version)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&cookbookPath, "cookbook-path", "", "directory or path list containing cookbooks (default current directory)")
+	return cmd
+}
+
+type cookbookUploadResult struct {
+	Cookbook string `json:"cookbook"`
+	Version  string `json:"version"`
+	Uploaded bool   `json:"uploaded"`
 }
 
 // newCookbookDeleteCmd builds the `cinc cookbook delete <name> <version>`
