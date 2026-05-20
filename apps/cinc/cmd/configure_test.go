@@ -87,6 +87,67 @@ func TestConfigureCommandAcceptsSupermarketURLAsServerURL(t *testing.T) {
 	}
 }
 
+func TestConfigureCommandSecondRunMutatesSameProfile(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "credentials")
+	firstKeyPath := filepath.Join(dir, "first.pem")
+	secondKeyPath := filepath.Join(dir, "second.pem")
+	for _, path := range []string{firstKeyPath, secondKeyPath} {
+		if err := os.WriteFile(path, []byte("key"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	first := newRootCmd()
+	first.SetOut(&bytes.Buffer{})
+	first.SetArgs([]string{
+		"configure",
+		"--server-url", "https://api.chef.io/organizations/old-org",
+		"--client-name", "old-client",
+		"--client-key", firstKeyPath,
+		"--profile", "supermarket",
+		"--config", cfgPath,
+	})
+	if err := first.Execute(); err != nil {
+		t.Fatalf("first cinc configure: %v", err)
+	}
+
+	second := newRootCmd()
+	second.SetOut(&bytes.Buffer{})
+	second.SetArgs([]string{
+		"configure",
+		"--server-url", "https://supermarket.chef.io",
+		"--client-name", "damacus",
+		"--client-key", secondKeyPath,
+		"--profile", "supermarket",
+		"--config", cfgPath,
+	})
+	if err := second.Execute(); err != nil {
+		t.Fatalf("second cinc configure: %v", err)
+	}
+
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		t.Fatalf("Load credentials: %v", err)
+	}
+	if len(cfg.Profiles) != 1 {
+		t.Fatalf("profiles = %+v, want only the mutated supermarket profile", cfg.Profiles)
+	}
+	p := cfg.Profiles["supermarket"]
+	if p.ServerURL != "" || p.Org != "" || p.SupermarketSite != "https://supermarket.chef.io" ||
+		p.ClientName != "damacus" || p.KeyPath != secondKeyPath {
+		t.Fatalf("profile = %+v, want second run to replace first run values", p)
+	}
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "old-org") || strings.Contains(string(data), firstKeyPath) ||
+		strings.Contains(string(data), "chef_server_url") {
+		t.Fatalf("credentials = %s, want stale first-run values removed", data)
+	}
+}
+
 func TestConfigureCommandOnboardsWithDefaults(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
