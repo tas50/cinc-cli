@@ -278,8 +278,8 @@ func TestConfigureInteractiveAddsNewProfileWhenFileExists(t *testing.T) {
 	}
 	stdout := out.String()
 	for _, want := range []string{
-		"You already have credentials at " + cfgPath,
-		"profiles: default",
+		"You already have credentials at " + cfgPath + " with profiles:",
+		"  - default",
 		"1) Add a new profile",
 		"2) Update an existing profile",
 		"3) Replace the credentials file",

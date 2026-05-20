@@ -212,8 +212,10 @@ func promptConfigure(cmd *cobra.Command, defaults configureDefaults) (configureD
 func promptExistingFileAction(reader *bufio.Reader, out io.Writer, path string, existing *config.Config, defaults configureDefaults) (configureDefaults, error) {
 	names := sortedProfileNames(existing)
 	fmt.Fprintln(out)
-	fmt.Fprintf(out, "You already have credentials at %s\n", path)
-	fmt.Fprintf(out, "with profiles: %s.\n", strings.Join(names, ", "))
+	fmt.Fprintf(out, "You already have credentials at %s with profiles:\n", path)
+	for _, name := range names {
+		fmt.Fprintf(out, "  - %s\n", name)
+	}
 	fmt.Fprintln(out)
 	fmt.Fprintln(out, "What would you like to do?")
 	fmt.Fprintln(out, "  1) Add a new profile")

@@ -10,6 +10,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func TestFirstRunExitsCleanlyBeforeServerCommandRuns(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	swapTTY(t, true)
+	swapConfigure(t, fakeConfigure(t))
+
+	root := newRootCmd()
+	var stdout, stderr bytes.Buffer
+	root.SetOut(&stdout)
+	root.SetErr(&stderr)
+	root.SetIn(strings.NewReader(""))
+	root.SetArgs([]string{"node", "list"})
+
+	if err := root.Execute(); err == nil || !strings.Contains(err.Error(), "first-run setup completed") {
+		t.Fatalf("expected first-run sentinel from cinc node list, got: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "Welcome to the Cinc CLI!") {
+		t.Errorf("expected welcome on stderr, got:\n%s", stderr.String())
+	}
+	if strings.Contains(stdout.String(), "name") || strings.Contains(stdout.String(), "node") {
+		t.Errorf("node list must not have run after first-run setup; stdout:\n%s", stdout.String())
+	}
+}
+
 func TestRootCommandRunsVersionSubcommand(t *testing.T) {
 	root := newRootCmd()
 	var buf bytes.Buffer
