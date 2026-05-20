@@ -7,11 +7,13 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	cinc "github.com/tas50/cinc-api"
@@ -82,6 +84,160 @@ client_key      = %q
 	}
 	if got := buf.String(); got != "admin\nworker-01\nworker-02\n" {
 		t.Errorf("client list output = %q, want sorted client names", got)
+	}
+}
+
+// clientCreateServer returns an httptest server whose POST handler
+// records the create request body it received and replies with the
+// supplied response body and 201 status. The recorded body lets each
+// test assert what the CLI actually sent (name, validator, public key).
+func clientCreateServer(t *testing.T, gotBody *[]byte, respBody string) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/clients", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %q, want POST", r.Method)
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		*gotBody = body
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, respBody)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func writeCreateConfig(t *testing.T, serverURL string) string {
+	t.Helper()
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, serverURL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return cfgPath
+}
+
+func TestClientCreateCommandPrintsPrivateKeyToStdout(t *testing.T) {
+	const privKey = "-----BEGIN RSA PRIVATE KEY-----\nMIIBOgIBAAJ...\n-----END RSA PRIVATE KEY-----\n"
+	var gotBody []byte
+	srv := clientCreateServer(t, &gotBody,
+		fmt.Sprintf(`{"uri":"http://x/clients/worker-01","chef_key":{"private_key":%q}}`, privKey))
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"client", "create", "worker-01", "--config", writeCreateConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc client create: %v", err)
+	}
+
+	var sent cinc.APIClient
+	if err := json.Unmarshal(gotBody, &sent); err != nil {
+		t.Fatalf("unmarshal request body: %v", err)
+	}
+	if sent.Name != "worker-01" || sent.Validator {
+		t.Errorf("server saw %+v, want name=worker-01 validator=false", sent)
+	}
+	if got := buf.String(); got != privKey {
+		t.Errorf("stdout = %q, want raw private key", got)
+	}
+}
+
+func TestClientCreateCommandWithValidatorFlag(t *testing.T) {
+	var gotBody []byte
+	srv := clientCreateServer(t, &gotBody,
+		`{"uri":"http://x/clients/validator1","chef_key":{"private_key":"-----BEGIN-----"}}`)
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"client", "create", "validator1", "--validator", "--config", writeCreateConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc client create --validator: %v", err)
+	}
+
+	var sent cinc.APIClient
+	if err := json.Unmarshal(gotBody, &sent); err != nil {
+		t.Fatalf("unmarshal request body: %v", err)
+	}
+	if !sent.Validator {
+		t.Errorf("server saw validator=%v, want true", sent.Validator)
+	}
+}
+
+func TestClientCreateCommandWritesKeyToFile(t *testing.T) {
+	const privKey = "-----BEGIN RSA PRIVATE KEY-----\nMIIBOgIBAAJ\n-----END RSA PRIVATE KEY-----\n"
+	var gotBody []byte
+	srv := clientCreateServer(t, &gotBody,
+		fmt.Sprintf(`{"uri":"http://x/clients/worker-02","chef_key":{"private_key":%q}}`, privKey))
+
+	keyPath := filepath.Join(t.TempDir(), "worker-02.pem")
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"client", "create", "worker-02", "--key-file", keyPath, "--config", writeCreateConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc client create --key-file: %v", err)
+	}
+	got, err := os.ReadFile(keyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != privKey {
+		t.Errorf("key file = %q, want raw private key", got)
+	}
+	info, err := os.Stat(keyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Errorf("key file mode = %o, want 0600", perm)
+	}
+	if out := buf.String(); !strings.Contains(out, "Created client \"worker-02\"") || !strings.Contains(out, keyPath) {
+		t.Errorf("stdout = %q, want confirmation referencing key file", out)
+	}
+}
+
+func TestClientCreateCommandWithPublicKeyFile(t *testing.T) {
+	pubPEM := []byte("-----BEGIN PUBLIC KEY-----\nMIIBIjAN\n-----END PUBLIC KEY-----\n")
+	pubPath := filepath.Join(t.TempDir(), "byo.pub")
+	if err := os.WriteFile(pubPath, pubPEM, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var gotBody []byte
+	srv := clientCreateServer(t, &gotBody,
+		`{"uri":"http://x/clients/worker-03"}`)
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"client", "create", "worker-03", "--public-key", pubPath, "--config", writeCreateConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc client create --public-key: %v", err)
+	}
+
+	var sent cinc.APIClient
+	if err := json.Unmarshal(gotBody, &sent); err != nil {
+		t.Fatalf("unmarshal request body: %v", err)
+	}
+	if sent.ChefKey.PublicKey != string(pubPEM) {
+		t.Errorf("server saw public_key %q, want %q", sent.ChefKey.PublicKey, pubPEM)
+	}
+	if got := buf.String(); got != "Created client \"worker-03\"\n" {
+		t.Errorf("stdout = %q", got)
 	}
 }
 
