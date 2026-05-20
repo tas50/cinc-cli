@@ -13,6 +13,11 @@ client_name     = "tim"
 client_key      = "/keys/tim.pem"
 cinc_server_url = "https://cinc.example.com/organizations/acme"
 
+[supermarket]
+client_name      = "tim"
+client_key       = "/keys/supermarket.pem"
+supermarket_site = "https://supermarket.chef.io"
+
 [staging]
 client_name     = "tim"
 client_key      = "/keys/staging.pem"
@@ -35,8 +40,8 @@ func TestLoadParsesProfiles(t *testing.T) {
 		t.Fatalf("Load: %v", err)
 	}
 
-	if len(cfg.Profiles) != 2 {
-		t.Fatalf("got %d profiles, want 2", len(cfg.Profiles))
+	if len(cfg.Profiles) != 3 {
+		t.Fatalf("got %d profiles, want 3", len(cfg.Profiles))
 	}
 	prod := cfg.Profiles["default"]
 	if prod.ServerURL != "https://cinc.example.com" || prod.Org != "acme" ||
@@ -46,6 +51,10 @@ func TestLoadParsesProfiles(t *testing.T) {
 	staging := cfg.Profiles["staging"]
 	if staging.SSLVerifyMode != ":verify_none" {
 		t.Errorf("staging ssl_verify_mode = %q, want %q", staging.SSLVerifyMode, ":verify_none")
+	}
+	supermarket := cfg.Profiles["supermarket"]
+	if supermarket.SupermarketSite != "https://supermarket.chef.io" || supermarket.KeyPath != "/keys/supermarket.pem" {
+		t.Errorf("supermarket profile parsed incorrectly: %+v", supermarket)
 	}
 }
 
@@ -170,13 +179,23 @@ cinc_server_url = "https://cinc.example.com"
 }
 
 func TestNewProfileParsesConfigureValues(t *testing.T) {
-	p, err := NewProfile("https://cinc.example.com/organizations/acme", "worker", "/keys/worker.pem", ":verify_peer")
+	p, err := NewProfile("https://cinc.example.com/organizations/acme", "worker", "/keys/worker.pem", ":verify_peer", "https://supermarket.example.test")
 	if err != nil {
 		t.Fatalf("NewProfile: %v", err)
 	}
 	if p.ServerURL != "https://cinc.example.com" || p.Org != "acme" || p.ClientName != "worker" ||
-		p.KeyPath != "/keys/worker.pem" || p.SSLVerifyMode != ":verify_peer" {
+		p.KeyPath != "/keys/worker.pem" || p.SSLVerifyMode != ":verify_peer" || p.SupermarketSite != "https://supermarket.example.test" {
 		t.Fatalf("profile = %+v", p)
+	}
+}
+
+func TestNewProfileTreatsServerURLWithoutOrganizationAsSupermarketSite(t *testing.T) {
+	p, err := NewProfile("https://supermarket.chef.io", "worker", "/keys/worker.pem", "", "")
+	if err != nil {
+		t.Fatalf("NewProfile: %v", err)
+	}
+	if p.ServerURL != "" || p.Org != "" || p.SupermarketSite != "https://supermarket.chef.io" {
+		t.Fatalf("profile = %+v, want supermarket-only profile", p)
 	}
 }
 
@@ -184,10 +203,11 @@ func TestWriteProfileCreatesCredentialsFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".cinc", "credentials")
 
 	err := WriteProfile(path, "worker", Profile{
-		ServerURL:  "https://cinc.example.com",
-		Org:        "acme",
-		ClientName: "worker",
-		KeyPath:    "/keys/worker.pem",
+		ServerURL:       "https://cinc.example.com",
+		Org:             "acme",
+		SupermarketSite: "https://supermarket.example.test",
+		ClientName:      "worker",
+		KeyPath:         "/keys/worker.pem",
 	})
 	if err != nil {
 		t.Fatalf("WriteProfile: %v", err)
@@ -205,15 +225,37 @@ func TestWriteProfileCreatesCredentialsFile(t *testing.T) {
 		t.Fatalf("Load written credentials: %v", err)
 	}
 	p := cfg.Profiles["worker"]
-	if p.ServerURL != "https://cinc.example.com" || p.Org != "acme" || p.ClientName != "worker" || p.KeyPath != "/keys/worker.pem" {
+	if p.ServerURL != "https://cinc.example.com" || p.Org != "acme" || p.SupermarketSite != "https://supermarket.example.test" || p.ClientName != "worker" || p.KeyPath != "/keys/worker.pem" {
 		t.Fatalf("written profile = %+v", p)
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "chef_server_url") {
-		t.Fatalf("credentials = %s, want chef_server_url for knife compatibility", data)
+	if !strings.Contains(string(data), "chef_server_url") || !strings.Contains(string(data), "supermarket_site") {
+		t.Fatalf("credentials = %s, want chef_server_url and supermarket_site", data)
+	}
+}
+
+func TestWriteProfileAllowsSupermarketOnlyProfile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".cinc", "credentials")
+
+	err := WriteProfile(path, "supermarket", Profile{
+		SupermarketSite: "https://supermarket.chef.io",
+		ClientName:      "worker",
+		KeyPath:         "/keys/worker.pem",
+	})
+	if err != nil {
+		t.Fatalf("WriteProfile: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load written credentials: %v", err)
+	}
+	p := cfg.Profiles["supermarket"]
+	if p.ServerURL != "" || p.Org != "" || p.SupermarketSite != "https://supermarket.chef.io" {
+		t.Fatalf("written profile = %+v", p)
 	}
 }
 
@@ -259,6 +301,23 @@ func TestProfileValidate(t *testing.T) {
 	for _, p := range incomplete {
 		if err := p.Validate(); err == nil {
 			t.Errorf("incomplete profile %+v should fail validation", p)
+		}
+	}
+}
+
+func TestProfileValidateIdentity(t *testing.T) {
+	complete := Profile{ClientName: "c", KeyPath: "k"}
+	if err := complete.ValidateIdentity(); err != nil {
+		t.Errorf("complete identity should validate, got: %v", err)
+	}
+
+	incomplete := []Profile{
+		{KeyPath: "k"},
+		{ClientName: "c"},
+	}
+	for _, p := range incomplete {
+		if err := p.ValidateIdentity(); err == nil {
+			t.Errorf("incomplete identity %+v should fail validation", p)
 		}
 	}
 }

@@ -58,8 +58,11 @@ type ShareResult struct {
 
 // New builds a Supermarket client using the configured profile identity.
 func New(profile config.Profile, site string) (*Client, error) {
-	if err := profile.Validate(); err != nil {
+	if err := profile.ValidateIdentity(); err != nil {
 		return nil, err
+	}
+	if site == "" {
+		site = profile.SupermarketSite
 	}
 	if site == "" {
 		site = DefaultSite

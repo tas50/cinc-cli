@@ -12,7 +12,7 @@ cinc supermarket share <cookbook> [category] [flags]
       --cookbook-path string      directory or path list containing cookbooks (default current directory)
       --dry-run                   build the cookbook tarball without uploading it
   -h, --help                      help for share
-      --supermarket-site string   URL of the Chef Supermarket site (default "https://supermarket.chef.io")
+      --supermarket-site string   URL of the Chef Supermarket site (default: profile supermarket_site, then https://supermarket.chef.io)
 ```
 
 ### Options inherited from parent commands

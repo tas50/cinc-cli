@@ -48,7 +48,7 @@ func newSupermarketShareCmd() *cobra.Command {
 				result, err = supermarket.DryRun(opts)
 			} else {
 				var profileErr error
-				profile, profileErr := resolveProfile(cmd)
+				profile, profileErr := resolveSupermarketProfile(cmd)
 				if profileErr != nil {
 					return profileErr
 				}
@@ -76,7 +76,7 @@ func newSupermarketShareCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&cookbookPath, "cookbook-path", "", "directory or path list containing cookbooks (default current directory)")
-	cmd.Flags().StringVar(&site, "supermarket-site", supermarket.DefaultSite, "URL of the Chef Supermarket site")
+	cmd.Flags().StringVar(&site, "supermarket-site", "", "URL of the Chef Supermarket site (default: profile supermarket_site, then https://supermarket.chef.io)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "build the cookbook tarball without uploading it")
 	return cmd
 }

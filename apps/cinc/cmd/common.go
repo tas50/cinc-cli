@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
 
@@ -28,15 +30,10 @@ func resolveClient(cmd *cobra.Command) (*cinc.Client, error) {
 // resolveProfile reads the selected profile from the --config and --profile
 // flags without constructing a server client.
 func resolveProfile(cmd *cobra.Command) (config.Profile, error) {
-	cfgPath, _ := cmd.Flags().GetString("config")
-	if cfgPath == "" {
-		p, err := config.DefaultPath()
-		if err != nil {
-			return config.Profile{}, err
-		}
-		cfgPath = p
+	cfgPath, err := configFilePath(cmd)
+	if err != nil {
+		return config.Profile{}, err
 	}
-
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		return config.Profile{}, err
@@ -48,4 +45,40 @@ func resolveProfile(cmd *cobra.Command) (config.Profile, error) {
 		return config.Profile{}, err
 	}
 	return profile, nil
+}
+
+// resolveSupermarketProfile prefers the explicit --profile or environment
+// profile when present. Otherwise it uses the conventional [supermarket]
+// profile, falling back to [default] for existing credentials files.
+func resolveSupermarketProfile(cmd *cobra.Command) (config.Profile, error) {
+	cfgPath, err := configFilePath(cmd)
+	if err != nil {
+		return config.Profile{}, err
+	}
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		return config.Profile{}, err
+	}
+
+	if profileName, _ := cmd.Flags().GetString("profile"); profileName != "" {
+		return cfg.Profile(profileName)
+	}
+	if profileName := os.Getenv("CINC_PROFILE"); profileName != "" {
+		return cfg.Profile(profileName)
+	}
+	if profileName := os.Getenv("CHEF_PROFILE"); profileName != "" {
+		return cfg.Profile(profileName)
+	}
+	if profile, err := cfg.Profile("supermarket"); err == nil {
+		return profile, nil
+	}
+	return cfg.Profile("default")
+}
+
+func configFilePath(cmd *cobra.Command) (string, error) {
+	cfgPath, _ := cmd.Flags().GetString("config")
+	if cfgPath != "" {
+		return cfgPath, nil
+	}
+	return config.DefaultPath()
 }

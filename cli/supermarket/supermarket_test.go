@@ -142,6 +142,21 @@ func TestShareSurfacesSupermarketValidationError(t *testing.T) {
 	}
 }
 
+func TestNewUsesSupermarketSiteFromProfileWithoutServerURL(t *testing.T) {
+	keyPath := writeSupermarketTestKey(t)
+	client, err := New(config.Profile{
+		SupermarketSite: "https://supermarket.example.test",
+		ClientName:      "tim",
+		KeyPath:         keyPath,
+	}, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if got := client.base.String(); got != "https://supermarket.example.test" {
+		t.Fatalf("base = %q, want profile SupermarketSite", got)
+	}
+}
+
 func writeSupermarketCookbook(t *testing.T, name string) string {
 	t.Helper()
 	root := t.TempDir()
@@ -177,6 +192,20 @@ func writeSupermarketCookbookFromMetadataRB(t *testing.T, name string) string {
 
 func supermarketTestClient(t *testing.T, site string) *Client {
 	t.Helper()
+	keyPath := writeSupermarketTestKey(t)
+	client, err := New(config.Profile{
+		SupermarketSite: site,
+		ClientName:      "tim",
+		KeyPath:         keyPath,
+	}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return client
+}
+
+func writeSupermarketTestKey(t *testing.T) string {
+	t.Helper()
 	keyPath := filepath.Join(t.TempDir(), "key.pem")
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -189,14 +218,5 @@ func supermarketTestClient(t *testing.T, site string) *Client {
 	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	client, err := New(config.Profile{
-		ServerURL:  "https://chef.example.test",
-		Org:        "acme",
-		ClientName: "tim",
-		KeyPath:    keyPath,
-	}, site)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return client
+	return keyPath
 }
