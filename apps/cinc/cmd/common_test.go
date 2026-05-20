@@ -132,7 +132,7 @@ func TestResolveProfileWelcomesUserOnFirstRun(t *testing.T) {
 	if _, err := resolveProfile(c); err != nil {
 		t.Fatalf("resolveProfile: %v", err)
 	}
-	if !strings.Contains(stderr.String(), "Welcome to cinc!") {
+	if !strings.Contains(stderr.String(), "Welcome to the cinc CLI!") {
 		t.Errorf("expected a welcome line on stderr, got:\n%s", stderr.String())
 	}
 }

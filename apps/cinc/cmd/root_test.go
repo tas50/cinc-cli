@@ -71,7 +71,7 @@ client_key      = "/k/t.pem"
 	if !called {
 		t.Error("expected migrateChef to be invoked on bare cinc")
 	}
-	if !strings.Contains(stderr, "Welcome to cinc!") {
+	if !strings.Contains(stderr, "Welcome to the cinc CLI!") {
 		t.Errorf("expected welcome on stderr, got:\n%s", stderr)
 	}
 	if !strings.Contains(stderr, "migrate it") {
@@ -106,7 +106,7 @@ func TestBareCincRunsConfigureWhenChefAbsent(t *testing.T) {
 	if strings.Contains(stderr, "migrate it") {
 		t.Errorf("did not expect a migration prompt, got stderr:\n%s", stderr)
 	}
-	if !strings.Contains(stderr, "Welcome to cinc!") {
+	if !strings.Contains(stderr, "Welcome to the cinc CLI!") {
 		t.Errorf("expected a welcome line on stderr, got:\n%s", stderr)
 	}
 	if !strings.Contains(stderr, "didn't find an existing Cinc or Chef config") {
@@ -137,7 +137,7 @@ func TestBareCincSkipsMigrationWhenCincCredentialsExist(t *testing.T) {
 	if strings.Contains(stderr, "migrate it") {
 		t.Errorf("did not expect a migration prompt, got stderr:\n%s", stderr)
 	}
-	if strings.Contains(stderr, "Welcome to cinc!") {
+	if strings.Contains(stderr, "Welcome to the cinc CLI!") {
 		t.Errorf("did not expect a welcome line when cinc creds already exist, got:\n%s", stderr)
 	}
 	if !strings.Contains(stdout, "cinc is a unified") {
