@@ -55,7 +55,7 @@ client_key      = %q
 	if err != nil {
 		t.Fatalf("cinc node list after migration prompt: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 	}
-	if !strings.Contains(stderr, "Welcome to cinc!") {
+	if !strings.Contains(stderr, "Welcome to the Cinc CLI!") {
 		t.Errorf("expected welcome on stderr, got:\n%s", stderr)
 	}
 	if !strings.Contains(stderr, "migrate it") {
