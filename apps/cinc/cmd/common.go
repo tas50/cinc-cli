@@ -127,12 +127,12 @@ func maybeMigrateChef(cmd *cobra.Command, cincPath string) error {
 	return nil
 }
 
-// offerChefMigration prompts the user to migrate ~/.chef/credentials
-// to cincPath when both an interactive terminal and a chef file are
-// present. It returns (true, nil) when a migration ran, (false, nil)
-// when no migration was attempted for any benign reason (non-TTY, no
-// chef file, declined), and (false, err) when migration was attempted
-// but failed.
+// offerChefMigration welcomes a first-time user and, when an
+// existing ~/.chef/credentials file is present, prompts them to
+// migrate it to cincPath. It returns (true, nil) when a migration
+// ran, (false, nil) when no migration was attempted for any benign
+// reason (non-TTY, no chef file, declined), and (false, err) when
+// migration was attempted but failed.
 func offerChefMigration(cmd *cobra.Command, cincPath string) (bool, error) {
 	if !stdinIsTTY() {
 		return false, nil
@@ -141,16 +141,20 @@ func offerChefMigration(cmd *cobra.Command, cincPath string) (bool, error) {
 	if err != nil {
 		return false, nil
 	}
+
+	out := cmd.ErrOrStderr()
+	fmt.Fprintln(out, "Welcome to cinc!")
+
 	chefPath := filepath.Join(home, ".chef", "credentials")
 	if _, err := os.Stat(chefPath); err != nil {
 		return false, nil
 	}
 
-	out := cmd.ErrOrStderr()
-	fmt.Fprintf(out, "Found %s. Migrate to %s? [Y/n] ", chefPath, cincPath)
+	fmt.Fprintf(out, "We found an existing Chef config at %s. Want us to migrate it to %s for you? [Y/n] ", chefPath, cincPath)
 	line, _ := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 	switch strings.ToLower(strings.TrimSpace(line)) {
 	case "n", "no":
+		fmt.Fprintln(out, "No problem — run `cinc configure` whenever you're ready to set up a profile.")
 		return false, nil
 	}
 
@@ -158,10 +162,10 @@ func offerChefMigration(cmd *cobra.Command, cincPath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	fmt.Fprintf(out, "Wrote %s with %d profile(s).\n", cincPath, n)
+	fmt.Fprintf(out, "Done! Wrote %d profile(s) to %s.\n", n, cincPath)
 	return true, nil
 }
 
 func missingCredentialsError(cincPath string) error {
-	return fmt.Errorf("no credentials at %s; run `cinc configure` to create one", cincPath)
+	return fmt.Errorf("no credentials yet at %s — run `cinc configure` to set one up", cincPath)
 }
