@@ -185,7 +185,7 @@ func TestConfigureCommandOnboardsWithDefaults(t *testing.T) {
 		"Profile name [default]",
 		"Supermarket site [https://supermarket.chef.io]",
 		"Client key path [" + keyPath + "]",
-		"Chef/Cinc Server URL (optional) []",
+		"Chef server host (optional, e.g. chef.example.com) []",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout = %q, want prompt %q", stdout, want)

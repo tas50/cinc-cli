@@ -144,9 +144,18 @@ func promptConfigure(cmd *cobra.Command, defaults configureDefaults) (configureD
 	if err != nil {
 		return configureDefaults{}, err
 	}
-	defaults.ChefServerURL, err = promptWithDefault(reader, out, "Chef/Cinc Server URL (optional)", defaults.ChefServerURL)
+	serverHost, err := promptWithDefault(reader, out, "Chef server host (optional, e.g. chef.example.com)", "")
 	if err != nil {
 		return configureDefaults{}, err
+	}
+	if serverHost != "" {
+		serverOrg, err := promptWithDefault(reader, out, "Chef server organization", "")
+		if err != nil {
+			return configureDefaults{}, err
+		}
+		if serverOrg != "" {
+			defaults.ChefServerURL = fmt.Sprintf("https://%s/organizations/%s", serverHost, serverOrg)
+		}
 	}
 	defaults.SSLVerifyMode, err = promptWithDefault(reader, out, "SSL verify mode (optional)", defaults.SSLVerifyMode)
 	if err != nil {
