@@ -19,7 +19,7 @@ import (
 func newDataBagCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "databag",
-		Short: "Manage data bags on the Cinc/Chef Server",
+		Short: "Manage data bags on the Cinc Server",
 	}
 	cmd.AddCommand(newDataBagListCmd())
 	cmd.AddCommand(newDataBagCreateCmd())

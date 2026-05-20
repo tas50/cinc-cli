@@ -19,7 +19,7 @@ import (
 func newClientCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "client",
-		Short: "Manage API clients on the Cinc/Chef Server",
+		Short: "Manage API clients on the Cinc Server",
 	}
 	cmd.AddCommand(newClientListCmd())
 	cmd.AddCommand(newClientCreateCmd())
