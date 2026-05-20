@@ -73,12 +73,13 @@ settings without rewriting the whole file.
 ## Usage
 
 Commands are noun-verb. The core verbs (`list`, `show`, `create`,
-`edit`, `delete`) mean the same thing on every noun. Every command and
-flag currently shipped is documented under
-[`docs/commands/`](docs/commands/) — start at
-[`cinc.md`](docs/commands/cinc.md). Those pages are regenerated from
-the live cobra command tree by `make docs` and refreshed automatically
-on every push to `main`.
+`edit`, `delete`) mean the same thing on every noun. For a guided
+walkthrough — profiles, output formats, common workflows — see
+[`docs/README.md`](docs/README.md). For the exhaustive per-command
+reference (every flag, every default), see
+[`docs/commands/`](docs/commands/). The reference pages are
+regenerated from the live cobra command tree by `make docs` and
+refreshed automatically on every push to `main`.
 
 ## Develop
 
