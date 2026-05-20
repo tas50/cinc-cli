@@ -10,7 +10,7 @@ authentication and transport.
 ## Why Cinc CLI
 
 The existing Chef toolchain works, but it carries a lot of historical
-weight. `cinc` is a fresh take on the same job, with four things we
+weight. `cinc` is a fresh take on the same job, with a few things we
 weren't willing to compromise on:
 
 - **Performance.** A native Go binary with no interpreter to spin up,
@@ -28,6 +28,14 @@ weren't willing to compromise on:
   management against a Cinc/Chef server. No migration helpers, no
   one-off subcommands for legacy workflows — just the verbs you
   reach for every day, kept consistent across every noun.
+- **Well documented.** Every command, subcommand, and flag has a
+  generated Markdown reference under [`docs/commands/`](docs/commands/),
+  rebuilt from the live cobra command tree on every change — so the
+  docs can't drift from what the binary actually does.
+- **Fully tested.** Every command ships with both unit tests against
+  an in-process HTTP server and acceptance tests that run the real
+  compiled binary against a live `chef-zero`, so behavior is verified
+  end-to-end before it lands.
 
 ## Status
 
