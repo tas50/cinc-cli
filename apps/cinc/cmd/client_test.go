@@ -241,6 +241,168 @@ func TestClientCreateCommandWithPublicKeyFile(t *testing.T) {
 	}
 }
 
+// clientEditServer returns an httptest server that responds to GET
+// with the supplied current client state and captures the PUT body
+// (decoded into *gotPut) for assertion. gotPath records the path of
+// the last PUT so tests can verify routing.
+func clientEditServer(t *testing.T, name string, current cinc.APIClient, gotPut *cinc.APIClient, gotPath *string) *httptest.Server {
+	t.Helper()
+	path := "/organizations/acme/clients/" + name
+	mux := http.NewServeMux()
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(current)
+		case http.MethodPut:
+			*gotPath = r.URL.Path
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(body, gotPut); err != nil {
+				t.Fatalf("unmarshal PUT body: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(body)
+		default:
+			t.Errorf("unexpected method %q on %s", r.Method, r.URL.Path)
+		}
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// withStubEditor replaces editClient with stub for the duration of
+// the test and restores the original on cleanup.
+func withStubEditor(t *testing.T, stub func(*cinc.APIClient) (*cinc.APIClient, error)) {
+	t.Helper()
+	orig := editClient
+	editClient = stub
+	t.Cleanup(func() { editClient = orig })
+}
+
+func TestClientEditCommandPutsEditorResult(t *testing.T) {
+	var gotPut cinc.APIClient
+	var gotPath string
+	current := cinc.APIClient{Name: "worker-01", Validator: false}
+	srv := clientEditServer(t, "worker-01", current, &gotPut, &gotPath)
+
+	withStubEditor(t, func(in *cinc.APIClient) (*cinc.APIClient, error) {
+		updated := *in
+		updated.Validator = true
+		return &updated, nil
+	})
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"client", "edit", "worker-01", "--config", writeCreateConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc client edit: %v", err)
+	}
+	if gotPath != "/organizations/acme/clients/worker-01" {
+		t.Errorf("PUT path = %q", gotPath)
+	}
+	if !gotPut.Validator || gotPut.Name != "worker-01" {
+		t.Errorf("PUT body = %+v, want validator=true name=worker-01", gotPut)
+	}
+	if got := buf.String(); got != "Updated client \"worker-01\"\n" {
+		t.Errorf("stdout = %q", got)
+	}
+}
+
+func TestClientEditCommandSkipsPutWhenUnchanged(t *testing.T) {
+	var gotPut cinc.APIClient
+	var gotPath string
+	current := cinc.APIClient{Name: "worker-01", Validator: false}
+	srv := clientEditServer(t, "worker-01", current, &gotPut, &gotPath)
+
+	withStubEditor(t, func(in *cinc.APIClient) (*cinc.APIClient, error) {
+		copy := *in
+		return &copy, nil
+	})
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"client", "edit", "worker-01", "--config", writeCreateConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc client edit (unchanged): %v", err)
+	}
+	if gotPath != "" {
+		t.Errorf("server saw a PUT at %q for an unchanged edit", gotPath)
+	}
+	if got := buf.String(); got != "Client \"worker-01\" unchanged\n" {
+		t.Errorf("stdout = %q", got)
+	}
+}
+
+func TestClientEditCommandReadsFromFile(t *testing.T) {
+	var gotPut cinc.APIClient
+	var gotPath string
+	current := cinc.APIClient{Name: "worker-01", Validator: false}
+	srv := clientEditServer(t, "worker-01", current, &gotPut, &gotPath)
+
+	// Editor must NOT be invoked when --file is supplied; stub it to
+	// fail the test if it is.
+	withStubEditor(t, func(*cinc.APIClient) (*cinc.APIClient, error) {
+		t.Fatal("editor was invoked despite --file")
+		return nil, nil
+	})
+
+	filePath := filepath.Join(t.TempDir(), "client.json")
+	body, err := json.Marshal(cinc.APIClient{Name: "ignored-in-file", Validator: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"client", "edit", "worker-01", "--file", filePath, "--config", writeCreateConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc client edit --file: %v", err)
+	}
+	if !gotPut.Validator {
+		t.Errorf("PUT body validator = %v, want true", gotPut.Validator)
+	}
+	if gotPut.Name != "worker-01" {
+		t.Errorf("PUT body name = %q, want worker-01 (path arg must win over file)", gotPut.Name)
+	}
+}
+
+func TestClientEditCommandRejectsInvalidFileJSON(t *testing.T) {
+	var gotPut cinc.APIClient
+	var gotPath string
+	current := cinc.APIClient{Name: "worker-01"}
+	srv := clientEditServer(t, "worker-01", current, &gotPut, &gotPath)
+
+	filePath := filepath.Join(t.TempDir(), "broken.json")
+	if err := os.WriteFile(filePath, []byte("{not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetErr(&bytes.Buffer{})
+	root.SetArgs([]string{"client", "edit", "worker-01", "--file", filePath, "--config", writeCreateConfig(t, srv.URL)})
+
+	if err := root.Execute(); err == nil {
+		t.Error("expected an error for malformed JSON in --file")
+	}
+	if gotPath != "" {
+		t.Errorf("server saw a PUT for a malformed --file at %q", gotPath)
+	}
+}
+
 func TestClientDeleteCommandEndToEnd(t *testing.T) {
 	var deleted string
 	mux := http.NewServeMux()
