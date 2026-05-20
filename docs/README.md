@@ -5,6 +5,51 @@ command-line tool. The top-level project [`README`](../README.md)
 covers install and a short overview; this page goes into how to
 actually use `cinc` day-to-day.
 
+## Getting started
+
+Three steps to your first successful command:
+
+**1. Install the binary.** Tagged releases ship prebuilt Linux and
+macOS archives at <https://github.com/tas50/cinc-cli/releases>.
+Download the archive for your platform, extract it, and drop
+`cinc` somewhere on your `PATH`:
+
+```sh
+curl -fsSL -o cinc.tar.gz \
+  https://github.com/tas50/cinc-cli/releases/latest/download/cinc_linux_amd64.tar.gz
+tar -xzf cinc.tar.gz
+sudo install cinc_*/cinc /usr/local/bin/cinc
+cinc version
+```
+
+If you have a Go toolchain handy, `make build` (or `make install`)
+from a checkout works too.
+
+**2. Point cinc at your server.** If you already have a Chef
+`~/.chef/credentials`, you can skip this — `cinc` reads that file
+unchanged. Otherwise, run the interactive configurator:
+
+```sh
+cinc config configure
+```
+
+It prompts for the server URL (including the `/organizations/<org>`
+segment), the client name, and the path to the client's PEM private
+key, then writes `~/.cinc/credentials`. Pass `--profile staging`
+(or any name) to set up additional profiles next to the default.
+
+**3. Verify and use it.** Sanity-check the profile, then run your
+first command:
+
+```sh
+cinc config validate     # parse the file and ping the server
+cinc node list           # list nodes on the configured server
+```
+
+If `validate` reports a problem, `cinc config configure` will let
+you fix it. From here, every other command follows the same
+noun-verb grammar described below.
+
 ## Where to find what
 
 - **[`commands/`](commands/)** — auto-generated reference for every
@@ -12,11 +57,21 @@ actually use `cinc` day-to-day.
   every push to `main`. Start at [`commands/cinc.md`](commands/cinc.md)
   for the root command, or jump straight to a resource:
   - [`cinc client`](commands/cinc_client.md) — API clients
+    (`create`, `delete`, `edit`, `list`)
+  - [`cinc config`](commands/cinc_config.md) — local configuration
+    (`configure`, `validate`)
   - [`cinc cookbook`](commands/cinc_cookbook.md) — cookbooks
+    (`delete`, `list`, `upload`)
   - [`cinc databag`](commands/cinc_databag.md) — data bags
+    (`create`, `delete`, `item edit`, `list`)
   - [`cinc environment`](commands/cinc_environment.md) — environments
+    (`create`, `delete`, `list`)
   - [`cinc node`](commands/cinc_node.md) — nodes
+    (`bootstrap`, `delete`, `list`, `ssh`)
   - [`cinc role`](commands/cinc_role.md) — roles
+    (`delete`, `list`)
+  - [`cinc supermarket`](commands/cinc_supermarket.md) — cookbooks on
+    Chef Supermarket (`share`)
   - [`cinc version`](commands/cinc_version.md) — version info
 - **[`dev/`](dev/)** — design background: the command taxonomy and
   internal architecture. Read these when changing the shape of the
