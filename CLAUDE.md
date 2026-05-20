@@ -27,10 +27,13 @@ This tool is for **cinc**. Treat chef as a compatibility target, not the focus:
   wins. The compatibility tables in README and tests are the source of
   truth for which knobs need a paired form.
 
-Design documents live in `docs/`:
+Design documents live in `docs/dev/`:
 
-- `docs/*-cinc-cli-command-taxonomy.md` — the user-facing command structure
-- `docs/*-cinc-cli-internal-architecture.md` — how the CLI is built
+- `docs/dev/*-cinc-cli-command-taxonomy.md` — the user-facing command structure
+- `docs/dev/*-cinc-cli-internal-architecture.md` — how the CLI is built
+
+User-facing usage docs live in `docs/`. The current command surface and
+all flags are documented in `docs/commands.md`.
 
 ## Repository layout
 
@@ -64,18 +67,36 @@ Design documents live in `docs/`:
 - `make vet`, `make fmt` — `go vet` and `gofmt`.
 - `make help` — list all targets.
 
-Acceptance tests (when present under `test/`) are gated behind the `acceptance`
-build tag and run the real binary against a `chef-zero` server; they need Ruby
-and the `chef-zero` gem:
+Acceptance tests live under `test/acceptance/` and run the real binary
+against a live `chef-zero` server. They are gated behind the
+`acceptance` build tag and need Ruby plus the `chef-zero` gem:
 
 ```
 go test -tags acceptance ./test/...
+# or
+make test-acceptance
 ```
+
+The chef-zero helper at `test/acceptance/chef-zero-server.rb` seeds a
+fixed set of nodes, roles, environments, clients, and data bags into
+the `acme` org; tests share that seed but each test runs against its
+own fresh chef-zero instance.
 
 ## Conventions
 
 - **Test-driven development.** Write a failing test first, watch it fail for the
   expected reason, then write the minimal code to pass.
+- **Every command needs both unit and acceptance tests.** Adding or
+  modifying a `cinc <noun> <verb>` command is not done until:
+  1. A unit test in `apps/cinc/cmd/<noun>_test.go` drives the cobra
+     command end-to-end against an `httptest` server (fast, deterministic,
+     no external dependencies).
+  2. An acceptance test in `test/acceptance/<noun>_test.go` runs the real
+     compiled binary against `chef-zero` and asserts on the same
+     behavior. If the chef-zero response shape or seed makes a code path
+     untestable in acceptance, document the gap inline and cover it in
+     the unit test instead.
+  3. `go test ./...` and `go test -tags acceptance ./test/...` both pass.
 - Run `gofmt` and `go vet ./...` before committing; both must be clean.
 - Configuration is a TOML file (`~/.cinc/credentials` by default) holding
   named profiles. Each top-level section is a profile carrying
@@ -93,3 +114,7 @@ go test -tags acceptance ./test/...
 3. Use `resolveClient(cmd)` and `resolveFormat(cmd)` from `common.go` to obtain a
    configured `cinc-api` client and the chosen output format.
 4. Render results through `cli/printer` — never format output inline.
+5. Add unit tests in `apps/cinc/cmd/<noun>_test.go` and acceptance
+   tests in `test/acceptance/<noun>_test.go`. Both are required (see
+   Conventions).
+6. Document the new command and any flags in `docs/commands.md`.

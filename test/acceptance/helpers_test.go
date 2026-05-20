@@ -16,38 +16,13 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
 // cincPackage is the import path of the cinc binary's main package.
 const cincPackage = "github.com/tas50/cinc-cli/apps/cinc"
-
-// TestNodeListAgainstChefZero runs the real cinc binary against a live
-// chef-zero server: it seeds three nodes, then asserts that `cinc node
-// list` reports them, in both output formats.
-func TestNodeListAgainstChefZero(t *testing.T) {
-	requireChefZero(t)
-
-	port := freePort(t)
-	stop := startChefZero(t, port)
-	defer stop()
-
-	binary := buildCinc(t)
-	cfgPath := writeAcceptanceConfig(t, port)
-
-	human := runCinc(t, binary, "node", "list", "--config", cfgPath)
-	if human != "db01\nweb01\nweb02\n" {
-		t.Errorf("node list (human) = %q, want sorted node names", human)
-	}
-
-	jsonOut := runCinc(t, binary, "node", "list", "--config", cfgPath, "--format", "json")
-	for _, name := range []string{"db01", "web01", "web02"} {
-		if !strings.Contains(jsonOut, name) {
-			t.Errorf("node list (json) missing %q\ngot: %s", name, jsonOut)
-		}
-	}
-}
 
 // requireChefZero skips the test unless Ruby and the chef-zero gem are
 // available.
@@ -72,8 +47,9 @@ func freePort(t *testing.T) int {
 	return l.Addr().(*net.TCPAddr).Port
 }
 
-// startChefZero launches the chef-zero helper on port and blocks until it
-// is serving requests. It returns a function that shuts the server down.
+// startChefZero launches the chef-zero helper on port and blocks until
+// it is serving requests. It returns a function that shuts the server
+// down.
 func startChefZero(t *testing.T, port int) func() {
 	t.Helper()
 
@@ -113,20 +89,38 @@ func startChefZero(t *testing.T, port int) func() {
 	return nil
 }
 
-// buildCinc compiles the cinc binary into a temp directory and returns its
-// path.
+// buildCinc compiles the cinc binary once per test run and returns its
+// path. Subsequent calls return the cached binary, which keeps the
+// acceptance suite fast as it grows.
+var (
+	cincBinaryOnce sync.Once
+	cincBinaryPath string
+	cincBinaryErr  error
+)
+
 func buildCinc(t *testing.T) string {
 	t.Helper()
-	binary := filepath.Join(t.TempDir(), "cinc")
-	out, err := exec.Command("go", "build", "-o", binary, cincPackage).CombinedOutput()
-	if err != nil {
-		t.Fatalf("building cinc: %v\n%s", err, out)
+	cincBinaryOnce.Do(func() {
+		dir, err := os.MkdirTemp("", "cinc-acceptance-*")
+		if err != nil {
+			cincBinaryErr = err
+			return
+		}
+		binary := filepath.Join(dir, "cinc")
+		if out, err := exec.Command("go", "build", "-o", binary, cincPackage).CombinedOutput(); err != nil {
+			cincBinaryErr = fmt.Errorf("building cinc: %v\n%s", err, out)
+			return
+		}
+		cincBinaryPath = binary
+	})
+	if cincBinaryErr != nil {
+		t.Fatal(cincBinaryErr)
 	}
-	return binary
+	return cincBinaryPath
 }
 
-// writeAcceptanceConfig writes a config file (and a throwaway signing key)
-// pointing at the chef-zero server, and returns the config path.
+// writeAcceptanceConfig writes a config file (and a throwaway signing
+// key) pointing at the chef-zero server, and returns the config path.
 func writeAcceptanceConfig(t *testing.T, port int) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -156,16 +150,46 @@ client_key      = %q
 	return cfgPath
 }
 
-// runCinc executes the cinc binary, fails the test on a non-zero exit, and
-// returns its standard output.
+// acceptanceEnv bundles everything an acceptance test needs to drive
+// the real cinc binary against a freshly seeded chef-zero server.
+type acceptanceEnv struct {
+	binary  string
+	cfgPath string
+}
+
+// startAcceptance does the per-test setup: skip if chef-zero is
+// missing, start chef-zero on a free port, build the cinc binary, and
+// write a credentials file pointing at the server. The returned stop
+// function tears chef-zero down; the caller should `defer stop()`.
+func startAcceptance(t *testing.T) (acceptanceEnv, func()) {
+	t.Helper()
+	requireChefZero(t)
+	port := freePort(t)
+	stop := startChefZero(t, port)
+	return acceptanceEnv{
+		binary:  buildCinc(t),
+		cfgPath: writeAcceptanceConfig(t, port),
+	}, stop
+}
+
+// runCinc executes the cinc binary, fails the test on a non-zero exit,
+// and returns its standard output.
 func runCinc(t *testing.T, binary string, args ...string) string {
 	t.Helper()
-	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(binary, args...)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("cinc %s failed: %v\nstderr: %s", strings.Join(args, " "), err, stderr.String())
+	stdout, stderr, err := runCincRaw(binary, args...)
+	if err != nil {
+		t.Fatalf("cinc %s failed: %v\nstderr: %s", strings.Join(args, " "), err, stderr)
 	}
-	return stdout.String()
+	return stdout
+}
+
+// runCincRaw runs the cinc binary without failing the test on a
+// non-zero exit, so tests can assert on the error path.
+func runCincRaw(binary string, args ...string) (stdout, stderr string, err error) {
+	var outBuf, errBuf bytes.Buffer
+	cmd := exec.Command(binary, args...)
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	err = cmd.Run()
+	return outBuf.String(), errBuf.String(), err
 }
