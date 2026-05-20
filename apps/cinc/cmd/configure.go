@@ -97,8 +97,8 @@ func newConfigureCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&serverURL, "server-url", "", "Chef/Cinc Server URL including /organizations/<org>")
-	cmd.Flags().StringVar(&serverURL, "chef-server-url", "", "Chef Server URL including /organizations/<org>")
+	cmd.Flags().StringVar(&serverURL, "server-url", "", "Cinc Server URL including /organizations/<org>")
+	cmd.Flags().StringVar(&serverURL, "chef-server-url", "", "Cinc Server URL including /organizations/<org>")
 	cmd.Flags().StringVar(&serverURL, "cinc-server-url", "", "Cinc Server URL including /organizations/<org>")
 	cmd.Flags().StringVar(&supermarketSite, "supermarket-site", "", "Chef Supermarket URL for cookbook uploads")
 	cmd.Flags().StringVar(&clientName, "client-name", "", "client name used to sign API requests")

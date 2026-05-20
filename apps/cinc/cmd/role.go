@@ -15,7 +15,7 @@ import (
 func newRoleCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "role",
-		Short: "Manage roles on the Cinc/Chef Server",
+		Short: "Manage roles on the Cinc Server",
 	}
 	cmd.AddCommand(newRoleListCmd())
 	cmd.AddCommand(newRoleDeleteCmd())

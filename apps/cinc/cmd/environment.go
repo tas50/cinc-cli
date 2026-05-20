@@ -15,7 +15,7 @@ import (
 func newEnvironmentCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "environment",
-		Short: "Manage environments on the Cinc/Chef Server",
+		Short: "Manage environments on the Cinc Server",
 	}
 	cmd.AddCommand(newEnvironmentListCmd())
 	cmd.AddCommand(newEnvironmentDeleteCmd())
