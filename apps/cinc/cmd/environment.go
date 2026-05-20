@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -17,7 +18,29 @@ func newEnvironmentCmd() *cobra.Command {
 		Short: "Manage environments on the Cinc/Chef Server",
 	}
 	cmd.AddCommand(newEnvironmentListCmd())
+	cmd.AddCommand(newEnvironmentDeleteCmd())
 	return cmd
+}
+
+// newEnvironmentDeleteCmd builds the `cinc environment delete <name>` command.
+func newEnvironmentDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete an environment from the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+			if _, err := c.Environments.Delete(cmd.Context(), name); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted environment %q\n", name)
+			return nil
+		},
+	}
 }
 
 // newEnvironmentListCmd builds the `cinc environment list` command.

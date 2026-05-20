@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -17,7 +18,29 @@ func newDataBagCmd() *cobra.Command {
 		Short: "Manage data bags on the Cinc/Chef Server",
 	}
 	cmd.AddCommand(newDataBagListCmd())
+	cmd.AddCommand(newDataBagDeleteCmd())
 	return cmd
+}
+
+// newDataBagDeleteCmd builds the `cinc data-bag delete <name>` command.
+func newDataBagDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete a data bag from the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+			if _, err := c.DataBags.Delete(cmd.Context(), name); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted data bag %q\n", name)
+			return nil
+		},
+	}
 }
 
 // newDataBagListCmd builds the `cinc data-bag list` command.

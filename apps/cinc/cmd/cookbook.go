@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -17,7 +18,31 @@ func newCookbookCmd() *cobra.Command {
 		Short: "Manage cookbooks on the Cinc/Chef Server",
 	}
 	cmd.AddCommand(newCookbookListCmd())
+	cmd.AddCommand(newCookbookDeleteCmd())
 	return cmd
+}
+
+// newCookbookDeleteCmd builds the `cinc cookbook delete <name> <version>`
+// command. The server identifies a cookbook by name and version, so both
+// are required.
+func newCookbookDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <name> <version>",
+		Short: "Delete a cookbook version from the server",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name, version := args[0], args[1]
+			if _, err := c.Cookbooks.Delete(cmd.Context(), name, version); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted cookbook %q version %s\n", name, version)
+			return nil
+		},
+	}
 }
 
 // newCookbookListCmd builds the `cinc cookbook list` command.

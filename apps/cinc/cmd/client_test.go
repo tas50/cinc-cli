@@ -85,6 +85,46 @@ client_key      = %q
 	}
 }
 
+func TestClientDeleteCommandEndToEnd(t *testing.T) {
+	var deleted string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/clients/worker-01", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %q, want DELETE", r.Method)
+		}
+		deleted = "worker-01"
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"name": "worker-01"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"client", "delete", "worker-01", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc client delete: %v", err)
+	}
+	if deleted != "worker-01" {
+		t.Errorf("server saw delete of %q, want %q", deleted, "worker-01")
+	}
+	if got := buf.String(); got != "Deleted client \"worker-01\"\n" {
+		t.Errorf("client delete output = %q", got)
+	}
+}
+
 func TestClientListCommandReportsConfigError(t *testing.T) {
 	root := newRootCmd()
 	root.SetOut(&bytes.Buffer{})

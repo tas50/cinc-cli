@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -17,6 +18,7 @@ func newNodeCmd() *cobra.Command {
 		Short: "Manage nodes on the Cinc/Chef Server",
 	}
 	cmd.AddCommand(newNodeListCmd())
+	cmd.AddCommand(newNodeDeleteCmd())
 	return cmd
 }
 
@@ -40,6 +42,27 @@ func newNodeListCmd() *cobra.Command {
 				return err
 			}
 			return printer.New(cmd.OutOrStdout(), format).List(names)
+		},
+	}
+}
+
+// newNodeDeleteCmd builds the `cinc node delete <name>` command.
+func newNodeDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete a node from the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+			if _, err := c.Nodes.Delete(cmd.Context(), name); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted node %q\n", name)
+			return nil
 		},
 	}
 }

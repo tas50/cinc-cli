@@ -59,6 +59,46 @@ func TestFetchRoleNamesReturnsSortedNames(t *testing.T) {
 	}
 }
 
+func TestRoleDeleteCommandEndToEnd(t *testing.T) {
+	var deleted string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/roles/web", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %q, want DELETE", r.Method)
+		}
+		deleted = "web"
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"name": "web"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"role", "delete", "web", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc role delete: %v", err)
+	}
+	if deleted != "web" {
+		t.Errorf("server saw delete of %q, want %q", deleted, "web")
+	}
+	if got := buf.String(); got != "Deleted role \"web\"\n" {
+		t.Errorf("role delete output = %q", got)
+	}
+}
+
 func TestRoleListCommandEndToEnd(t *testing.T) {
 	srv := roleServer(t, "web", "base", "db")
 
