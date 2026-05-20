@@ -28,29 +28,92 @@ func newDataBagCmd() *cobra.Command {
 	return cmd
 }
 
-// newDataBagCreateCmd builds `cinc databag create <name>`. The
-// command POSTs an empty bag to /data; items can then be added via
-// `cinc databag item create` (TODO) or knife. Creating an existing
-// bag is the server's responsibility to reject — the CLI surfaces
-// that error verbatim.
+// newDataBagCreateCmd builds `cinc databag create <bag> [item]`,
+// mirroring knife's `knife data bag create BAG [ITEM]`:
+//
+//   - One arg: POST an empty bag to /data. A 409 from the server is
+//     surfaced so the user knows the bag was already there.
+//   - Two args: ensure the bag exists (a 409 is silent — the user
+//     asked for an item too, so the bag's prior existence is fine),
+//     then create the named item. When no --file is supplied the
+//     built-in JSON editor opens with `{"id": "<item>"}` as the
+//     starting template.
 func newDataBagCreateCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "create <name>",
-		Short: "Create an empty data bag on the server",
-		Args:  cobra.ExactArgs(1),
+	var inputFile string
+	cmd := &cobra.Command{
+		Use:   "create <bag> [item]",
+		Short: "Create a data bag, optionally with an initial item",
+		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
 				return err
 			}
-			name := args[0]
-			if _, err := c.DataBags.Create(cmd.Context(), name); err != nil {
+			out := cmd.OutOrStdout()
+			bag := args[0]
+
+			bagErr := bagCreateOrPropagate(cmd, c, bag)
+			if len(args) == 1 {
+				if bagErr != nil {
+					return bagErr
+				}
+				fmt.Fprintf(out, "Created data bag %q\n", bag)
+				return nil
+			}
+			// 2-arg form: the bag must now exist, but it may have
+			// existed before this command ran. Only announce a fresh
+			// bag creation when one actually happened.
+			if bagErr != nil && !errors.Is(bagErr, cinc.ErrConflict) {
+				return bagErr
+			}
+			if bagErr == nil {
+				fmt.Fprintf(out, "Created data bag %q\n", bag)
+			}
+
+			id := args[1]
+			item, err := loadOrEditNewItem(id, inputFile)
+			if err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Created data bag %q\n", name)
+			item["id"] = id
+			if _, _, err := c.DataBags.Items(bag).Create(cmd.Context(), item); err != nil {
+				return err
+			}
+			fmt.Fprintf(out, "Created item %q in data bag %q\n", id, bag)
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&inputFile, "file", "", "read the new item JSON from this file instead of launching the editor (2-arg form only)")
+	return cmd
+}
+
+// bagCreateOrPropagate POSTs the bag and returns the error from the
+// server unchanged. Conflict (409) is returned as a normal error so
+// the caller can decide whether to surface or swallow it.
+func bagCreateOrPropagate(cmd *cobra.Command, c *cinc.Client, bag string) error {
+	_, err := c.DataBags.Create(cmd.Context(), bag)
+	return err
+}
+
+// loadOrEditNewItem produces a DataBagItem either by reading the
+// given file or by opening the editor on a stub item carrying just
+// the id field.
+func loadOrEditNewItem(id, inputFile string) (cinc.DataBagItem, error) {
+	if inputFile != "" {
+		data, err := os.ReadFile(inputFile)
+		if err != nil {
+			return nil, fmt.Errorf("cinc: read %s: %w", inputFile, err)
+		}
+		if err := validateDataBagItem(data); err != nil {
+			return nil, err
+		}
+		var item cinc.DataBagItem
+		if err := json.Unmarshal(data, &item); err != nil {
+			return nil, fmt.Errorf("cinc: parse %s: %w", inputFile, err)
+		}
+		return item, nil
+	}
+	return editDataBagItem(cinc.DataBagItem{"id": id})
 }
 
 // newDataBagItemCmd builds the `cinc databag item` command group.

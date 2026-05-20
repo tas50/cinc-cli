@@ -1,15 +1,16 @@
 ## cinc databag create
 
-Create an empty data bag on the server
+Create a data bag, optionally with an initial item
 
 ```
-cinc databag create <name> [flags]
+cinc databag create <bag> [item] [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for create
+      --file string   read the new item JSON from this file instead of launching the editor (2-arg form only)
+  -h, --help          help for create
 ```
 
 ### Options inherited from parent commands

@@ -67,6 +67,28 @@ func TestDataBagCreateAgainstChefZero(t *testing.T) {
 	}
 }
 
+// TestDataBagCreateWithItemAgainstChefZero exercises the two-arg
+// `databag create BAG ITEM` form through --file so it doesn't need
+// a real terminal for the editor.
+func TestDataBagCreateWithItemAgainstChefZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	itemPath := filepath.Join(t.TempDir(), "item.json")
+	body, _ := json.Marshal(cinc.DataBagItem{"id": "db-password", "password": "hunter2"})
+	if err := os.WriteFile(itemPath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	out := runCinc(t, env.binary, "databag", "create", "secrets", "db-password", "--file", itemPath, "--config", env.cfgPath)
+	if !strings.Contains(out, "Created data bag \"secrets\"") {
+		t.Errorf("expected bag-create line:\n%s", out)
+	}
+	if !strings.Contains(out, "Created item \"db-password\" in data bag \"secrets\"") {
+		t.Errorf("expected item-create line:\n%s", out)
+	}
+}
+
 func TestDataBagDeleteAgainstChefZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()

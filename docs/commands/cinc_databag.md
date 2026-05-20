@@ -19,7 +19,7 @@ Manage data bags on the Cinc/Chef Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - cinc is a unified command-line tool for Cinc/Chef Infra
-* [cinc databag create](cinc_databag_create.md)	 - Create an empty data bag on the server
+* [cinc databag create](cinc_databag_create.md)	 - Create a data bag, optionally with an initial item
 * [cinc databag delete](cinc_databag_delete.md)	 - Delete a data bag from the server
 * [cinc databag item](cinc_databag_item.md)	 - Manage items within a data bag
 * [cinc databag list](cinc_databag_list.md)	 - List data bags on the server
