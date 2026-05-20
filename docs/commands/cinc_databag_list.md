@@ -1,9 +1,9 @@
-## cinc data-bag list
+## cinc databag list
 
 List data bags on the server
 
 ```
-cinc data-bag list [flags]
+cinc databag list [flags]
 ```
 
 ### Options
@@ -22,5 +22,5 @@ cinc data-bag list [flags]
 
 ### SEE ALSO
 
-* [cinc data-bag](cinc_data-bag.md)	 - Manage data bags on the Cinc/Chef Server
+* [cinc databag](cinc_databag.md)	 - Manage data bags on the Cinc/Chef Server
 

@@ -73,7 +73,7 @@ cinc role          list  show  create  edit  delete   run-list <add|remove|set>
 
 cinc environment   list  show  create  edit  delete   compare
 
-cinc data-bag      list  show  create  edit  delete
+cinc databag      list  show  create  edit  delete
                    item <list|show|create|edit|delete>      (encrypted via --secret)
 
 cinc client        list  show  create  delete  reregister

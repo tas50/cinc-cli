@@ -13,7 +13,7 @@ actually use `cinc` day-to-day.
   for the root command, or jump straight to a resource:
   - [`cinc client`](commands/cinc_client.md) — API clients
   - [`cinc cookbook`](commands/cinc_cookbook.md) — cookbooks
-  - [`cinc data-bag`](commands/cinc_data-bag.md) — data bags
+  - [`cinc databag`](commands/cinc_databag.md) — data bags
   - [`cinc environment`](commands/cinc_environment.md) — environments
   - [`cinc node`](commands/cinc_node.md) — nodes
   - [`cinc role`](commands/cinc_role.md) — roles
@@ -118,7 +118,7 @@ cinc role list
 cinc environment list
 cinc client list
 cinc cookbook list
-cinc data-bag list
+cinc databag list
 ```
 
 ### Provisioning a new client identity

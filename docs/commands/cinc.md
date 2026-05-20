@@ -15,7 +15,7 @@ cinc is a unified command-line tool for Cinc/Chef Infra
 
 * [cinc client](cinc_client.md)	 - Manage API clients on the Cinc/Chef Server
 * [cinc cookbook](cinc_cookbook.md)	 - Manage cookbooks on the Cinc/Chef Server
-* [cinc data-bag](cinc_data-bag.md)	 - Manage data bags on the Cinc/Chef Server
+* [cinc databag](cinc_databag.md)	 - Manage data bags on the Cinc/Chef Server
 * [cinc environment](cinc_environment.md)	 - Manage environments on the Cinc/Chef Server
 * [cinc node](cinc_node.md)	 - Manage nodes on the Cinc/Chef Server
 * [cinc role](cinc_role.md)	 - Manage roles on the Cinc/Chef Server

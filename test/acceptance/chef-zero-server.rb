@@ -28,7 +28,13 @@ server.load_data({
   "roles"        => { "web" => {}, "db" => {}, "base" => {} },
   "environments" => { "prod" => {}, "staging" => {} },
   "clients"      => { "worker-01" => {}, "worker-02" => {} },
-  "data"         => { "users" => {}, "apps" => {} },
+  "data"         => {
+    "users" => {
+      "alice" => { "id" => "alice", "role" => "admin" },
+      "bob"   => { "id" => "bob",   "role" => "viewer" },
+    },
+    "apps"  => {},
+  },
 }, org)
 
 %w[INT TERM].each { |sig| trap(sig) { server.stop; exit } }

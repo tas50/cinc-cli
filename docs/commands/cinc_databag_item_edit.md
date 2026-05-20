@@ -1,11 +1,16 @@
-## cinc data-bag
+## cinc databag item edit
 
-Manage data bags on the Cinc/Chef Server
+Edit a data bag item on the server
+
+```
+cinc databag item edit <bag> <id> [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for data-bag
+      --file string   read the updated item JSON from this file instead of launching the editor
+  -h, --help          help for edit
 ```
 
 ### Options inherited from parent commands
@@ -18,7 +23,5 @@ Manage data bags on the Cinc/Chef Server
 
 ### SEE ALSO
 
-* [cinc](cinc.md)	 - cinc is a unified command-line tool for Cinc/Chef Infra
-* [cinc data-bag delete](cinc_data-bag_delete.md)	 - Delete a data bag from the server
-* [cinc data-bag list](cinc_data-bag_list.md)	 - List data bags on the server
+* [cinc databag item](cinc_databag_item.md)	 - Manage items within a data bag
 

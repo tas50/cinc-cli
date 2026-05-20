@@ -1,9 +1,9 @@
-## cinc data-bag delete
+## cinc databag delete
 
 Delete a data bag from the server
 
 ```
-cinc data-bag delete <name> [flags]
+cinc databag delete <name> [flags]
 ```
 
 ### Options
@@ -22,5 +22,5 @@ cinc data-bag delete <name> [flags]
 
 ### SEE ALSO
 
-* [cinc data-bag](cinc_data-bag.md)	 - Manage data bags on the Cinc/Chef Server
+* [cinc databag](cinc_databag.md)	 - Manage data bags on the Cinc/Chef Server
 
