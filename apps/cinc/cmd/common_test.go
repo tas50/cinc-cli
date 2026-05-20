@@ -40,6 +40,34 @@ func swapMigrate(t *testing.T, fn func(chefPath, cincPath string) (int, error)) 
 	t.Cleanup(func() { migrateChef = prev })
 }
 
+// swapConfigure sets runFirstRunConfigure for the duration of one
+// test so the no-chef-file branch can be exercised without driving
+// the full interactive prompt sequence.
+func swapConfigure(t *testing.T, fn func(cmd *cobra.Command, cincPath string) error) {
+	t.Helper()
+	prev := runFirstRunConfigure
+	runFirstRunConfigure = fn
+	t.Cleanup(func() { runFirstRunConfigure = prev })
+}
+
+// fakeConfigure is a runFirstRunConfigure stand-in that writes a
+// valid credentials file at cincPath so a subsequent config.Load
+// succeeds.
+func fakeConfigure(t *testing.T) func(*cobra.Command, string) error {
+	t.Helper()
+	return func(_ *cobra.Command, cincPath string) error {
+		dir := filepath.Dir(cincPath)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return err
+		}
+		return os.WriteFile(cincPath, []byte(`[default]
+chef_server_url = "https://x.example.com/organizations/acme"
+client_name     = "tim"
+client_key      = "/k/t.pem"
+`), 0o600)
+	}
+}
+
 // seedDefaultCreds writes a minimal valid credentials file at
 // $HOME/.cinc/credentials and returns the home tempdir.
 func seedDefaultCreds(t *testing.T) string {
@@ -97,11 +125,13 @@ func TestResolveProfileWelcomesUserOnFirstRun(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	swapTTY(t, true)
-	swapMigrate(t, func(_, _ string) (int, error) { return 0, nil })
+	swapConfigure(t, fakeConfigure(t))
 
 	stderr := new(bytes.Buffer)
 	c := fakeCmd("", "", "", stderr)
-	_, _ = resolveProfile(c)
+	if _, err := resolveProfile(c); err != nil {
+		t.Fatalf("resolveProfile: %v", err)
+	}
 	if !strings.Contains(stderr.String(), "Welcome to cinc!") {
 		t.Errorf("expected a welcome line on stderr, got:\n%s", stderr.String())
 	}
@@ -201,7 +231,7 @@ func TestResolveProfileDeclinedMigrationPointsAtConfigure(t *testing.T) {
 	}
 }
 
-func TestResolveProfilePointsAtConfigureWhenNoChefFile(t *testing.T) {
+func TestResolveProfileRunsConfigureWhenNoChefFile(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	swapTTY(t, true)
@@ -210,10 +240,26 @@ func TestResolveProfilePointsAtConfigureWhenNoChefFile(t *testing.T) {
 		return 0, nil
 	})
 
-	c := fakeCmd("", "", "", new(bytes.Buffer))
-	_, err := resolveProfile(c)
-	if err == nil || !strings.Contains(err.Error(), "cinc configure") {
-		t.Errorf("expected an error mentioning `cinc configure`, got: %v", err)
+	called := false
+	swapConfigure(t, func(cmd *cobra.Command, cincPath string) error {
+		called = true
+		return fakeConfigure(t)(cmd, cincPath)
+	})
+
+	stderr := new(bytes.Buffer)
+	c := fakeCmd("", "", "", stderr)
+	p, err := resolveProfile(c)
+	if err != nil {
+		t.Fatalf("resolveProfile: %v", err)
+	}
+	if !called {
+		t.Error("expected runFirstRunConfigure to be invoked when no chef file is present")
+	}
+	if p.Org != "acme" {
+		t.Errorf("post-configure profile = %+v", p)
+	}
+	if !strings.Contains(stderr.String(), "didn't find an existing Chef config") {
+		t.Errorf("expected configure-fallback intro on stderr, got:\n%s", stderr.String())
 	}
 }
 
@@ -226,6 +272,10 @@ func TestResolveProfilePointsAtConfigureWhenStdinNotTTY(t *testing.T) {
 	swapMigrate(t, func(_, _ string) (int, error) {
 		t.Error("migrateChef should not be called when stdin is not a TTY")
 		return 0, nil
+	})
+	swapConfigure(t, func(*cobra.Command, string) error {
+		t.Error("runFirstRunConfigure should not be called when stdin is not a TTY")
+		return nil
 	})
 
 	c := fakeCmd("", "", "y\n", new(bytes.Buffer))

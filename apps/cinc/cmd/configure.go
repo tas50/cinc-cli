@@ -118,9 +118,10 @@ func promptConfigure(cmd *cobra.Command, defaults configureDefaults) (configureD
 	reader := bufio.NewReader(cmd.InOrStdin())
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out, "Configure local Cinc credentials. Press Enter to accept a default.")
+	fmt.Fprintln(out)
 
 	var err error
-	defaults.ConfigPath, err = promptWithDefault(reader, out, "Credentials file", defaults.ConfigPath)
+	defaults.ConfigPath, err = promptWithDefault(reader, out, "Credentials file location", defaults.ConfigPath)
 	if err != nil {
 		return configureDefaults{}, err
 	}
@@ -189,7 +190,7 @@ func configureProfileNameForCommand(cmd *cobra.Command) string {
 	if configureProfileExplicit(cmd) {
 		return profileNameForCommand(cmd)
 	}
-	return "supermarket"
+	return "default"
 }
 
 func configureProfileExplicit(cmd *cobra.Command) bool {

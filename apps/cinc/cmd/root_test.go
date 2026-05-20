@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func TestRootCommandRunsVersionSubcommand(t *testing.T) {
@@ -80,7 +82,7 @@ client_key      = "/k/t.pem"
 	}
 }
 
-func TestBareCincShowsHelpWithoutPromptWhenChefAbsent(t *testing.T) {
+func TestBareCincRunsConfigureWhenChefAbsent(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	swapTTY(t, true)
 	swapMigrate(t, func(_, _ string) (int, error) {
@@ -88,15 +90,27 @@ func TestBareCincShowsHelpWithoutPromptWhenChefAbsent(t *testing.T) {
 		return 0, nil
 	})
 
+	called := false
+	swapConfigure(t, func(cmd *cobra.Command, cincPath string) error {
+		called = true
+		return fakeConfigure(t)(cmd, cincPath)
+	})
+
 	stdout, stderr, err := runBareCinc(t, "")
 	if err != nil {
 		t.Fatalf("bare cinc returned error: %v", err)
+	}
+	if !called {
+		t.Error("expected runFirstRunConfigure to be invoked when no chef file exists")
 	}
 	if strings.Contains(stderr, "migrate it") {
 		t.Errorf("did not expect a migration prompt, got stderr:\n%s", stderr)
 	}
 	if !strings.Contains(stderr, "Welcome to cinc!") {
 		t.Errorf("expected a welcome line on stderr, got:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "didn't find an existing Chef config") {
+		t.Errorf("expected configure-fallback intro on stderr, got:\n%s", stderr)
 	}
 	if !strings.Contains(stdout, "cinc is a unified") {
 		t.Errorf("expected help text on stdout, got:\n%s", stdout)

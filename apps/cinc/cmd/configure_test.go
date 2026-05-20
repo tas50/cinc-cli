@@ -181,7 +181,8 @@ func TestConfigureCommandOnboardsWithDefaults(t *testing.T) {
 	}
 	stdout := out.String()
 	for _, want := range []string{
-		"Profile name [supermarket]",
+		"Credentials file location [" + cfgPath + "]",
+		"Profile name [default]",
 		"Supermarket site [https://supermarket.chef.io]",
 		"Client key [" + keyPath + "]",
 		"Chef/Cinc Server URL (optional) []",

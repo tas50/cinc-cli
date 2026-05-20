@@ -61,15 +61,17 @@ func NewRootCmd() *cobra.Command {
 }
 
 // rootRunE handles a bare `cinc` invocation. If the default
-// credentials file is missing it offers chef migration as a courtesy,
-// then prints the usage help so the user still sees what commands are
-// available. Migration failures are surfaced but do not block help.
+// credentials file is missing it runs the first-run flow (chef
+// migration when a knife config is present, otherwise an inline
+// configure walk-through), then prints the usage help so the user
+// still sees what commands are available. First-run failures are
+// surfaced but do not block help.
 func rootRunE(cmd *cobra.Command, _ []string) error {
 	cincPath, err := config.DefaultPath()
 	if err == nil {
 		if _, err := os.Stat(cincPath); errors.Is(err, fs.ErrNotExist) {
-			if _, migErr := offerChefMigration(cmd, cincPath); migErr != nil {
-				fmt.Fprintln(cmd.ErrOrStderr(), migErr)
+			if _, runErr := offerFirstRun(cmd, cincPath); runErr != nil {
+				fmt.Fprintln(cmd.ErrOrStderr(), runErr)
 			}
 		}
 	}
