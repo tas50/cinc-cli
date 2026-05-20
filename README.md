@@ -1,7 +1,8 @@
 # cinc
 
-`cinc` is a single, unified command-line tool for Chef/Cinc Infra — one
-command with one consistent grammar. It is a Go binary built with
+`cinc` is a single, unified command-line tool for Cinc Infra (with full
+Chef Infra compatibility) — one command with one consistent grammar. It
+is a Go binary built with
 [Cobra](https://github.com/spf13/cobra) on top of the
 [`cinc-api`](https://github.com/tas50/cinc-api) client library, which owns
 authentication and transport.
@@ -31,7 +32,7 @@ via `-ldflags`; `cinc version` will print them.
 
 `cinc` reads a TOML credentials file (default `~/.cinc/credentials`)
 holding named profiles, in the same shape as Chef's `~/.chef/credentials`.
-Each top-level section is a profile that points at one Chef/Cinc Server.
+Each top-level section is a profile that points at one Cinc/Chef Server.
 
 ```toml
 [default]

@@ -13,7 +13,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Profile describes how to connect to a single Chef/Cinc Server. It is the
+// Profile describes how to connect to a single Cinc/Chef Server. It is the
 // resolved form of an on-disk credentials entry: the configured server URL
 // has already been split into a bare server URL and an organization name.
 type Profile struct {

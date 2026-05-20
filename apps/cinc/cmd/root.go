@@ -7,7 +7,7 @@ import "github.com/spf13/cobra"
 func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "cinc",
-		Short: "cinc is a unified command-line tool for Chef/Cinc Infra",
+		Short: "cinc is a unified command-line tool for Cinc/Chef Infra",
 		// Errors are still printed by cobra; only the usage dump is
 		// suppressed so a runtime failure shows just the error.
 		SilenceUsage: true,

@@ -1,4 +1,4 @@
-// Command cinc is a unified command-line tool for Chef/Cinc Infra.
+// Command cinc is a unified command-line tool for Cinc/Chef Infra.
 package main
 
 import (
