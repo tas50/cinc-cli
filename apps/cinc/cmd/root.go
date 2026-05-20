@@ -34,3 +34,12 @@ func newRootCmd() *cobra.Command {
 func Execute() error {
 	return newRootCmd().Execute()
 }
+
+// NewRootCmd returns a fresh root command tree. It exists so that
+// out-of-tree tools (for example the doc generator under
+// `tools/gendocs`) can walk the command tree without going through
+// Execute. Tests inside this package should keep using the unexported
+// newRootCmd.
+func NewRootCmd() *cobra.Command {
+	return newRootCmd()
+}

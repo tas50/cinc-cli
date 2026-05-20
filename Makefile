@@ -13,7 +13,7 @@ LDFLAGS := -X $(LDFLAGS_PKG).version=$(VERSION) \
            -X $(LDFLAGS_PKG).commit=$(COMMIT) \
            -X $(LDFLAGS_PKG).buildDate=$(BUILD_DATE)
 
-.PHONY: all build install test test-acceptance vet fmt tidy clean run help
+.PHONY: all build install test test-acceptance vet fmt tidy clean run docs help
 
 all: build
 
@@ -53,6 +53,10 @@ clean:
 ## run: build and run cinc (pass flags via ARGS="...")
 run: build
 	./$(BINARY) $(ARGS)
+
+## docs: regenerate the per-command Markdown reference under docs/commands/
+docs:
+	go run ./tools/gendocs
 
 ## help: list available targets
 help:
