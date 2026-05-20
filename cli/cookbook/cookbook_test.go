@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -164,6 +165,37 @@ func TestBuildArchiveCanOverlayGeneratedMetadataJSON(t *testing.T) {
 	}
 	if md.Name != "nginx" || md.Version != "1.2.0" {
 		t.Fatalf("archive metadata = %+v, want nginx 1.2.0", md)
+	}
+}
+
+func BenchmarkBuildUploadArchiveWithLargeGitDirectory(b *testing.B) {
+	dir := b.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "recipes"), 0o755); err != nil {
+		b.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "metadata.json"), []byte(`{"name":"nginx","version":"1.2.0"}`), 0o644); err != nil {
+		b.Fatal(err)
+	}
+	for i := 0; i < 50; i++ {
+		if err := os.WriteFile(filepath.Join(dir, "recipes", "recipe_"+strconv.Itoa(i)+".rb"), []byte("package 'nginx'\n"), 0o644); err != nil {
+			b.Fatal(err)
+		}
+	}
+	for i := 0; i < 2000; i++ {
+		path := filepath.Join(dir, ".git", "objects", strconv.Itoa(i%100), strconv.Itoa(i))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			b.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("ignored git object"), 0o644); err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := BuildUploadArchive(dir, "nginx"); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

@@ -621,6 +621,9 @@ func archiveEntries(dir string) ([]archiveEntry, error) {
 			return err
 		}
 		if d.IsDir() {
+			if d.Name() == ".git" {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		info, err := d.Info()
