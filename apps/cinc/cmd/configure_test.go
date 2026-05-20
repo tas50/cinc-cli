@@ -573,22 +573,3 @@ func TestConfigureNonInteractiveSkipsActionPrompt(t *testing.T) {
 		}
 	}
 }
-
-func TestConfigureCommandRejectsMissingClientKey(t *testing.T) {
-	root := newRootCmd()
-	root.SetArgs([]string{
-		"configure",
-		"--server-url", "https://api.chef.io/organizations/damacus",
-		"--client-name", "damacus",
-		"--client-key", filepath.Join(t.TempDir(), "missing.pem"),
-		"--config", filepath.Join(t.TempDir(), "credentials"),
-	})
-
-	err := root.Execute()
-	if err == nil {
-		t.Fatal("expected missing key to fail")
-	}
-	if !strings.Contains(err.Error(), "read client key") {
-		t.Fatalf("error = %q", err)
-	}
-}

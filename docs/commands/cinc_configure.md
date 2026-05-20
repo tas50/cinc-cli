@@ -15,7 +15,6 @@ cinc configure [flags]
       --client-name string        client name used to sign API requests
   -h, --help                      help for configure
       --server-url string         Cinc Server URL including /organizations/<org>
-      --skip-key-check            write the profile without checking that --client-key exists
       --ssl-verify-mode string    optional SSL verify mode such as :verify_peer or :verify_none
       --supermarket-site string   Chef Supermarket URL for cookbook uploads
 ```

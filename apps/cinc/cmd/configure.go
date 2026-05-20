@@ -27,7 +27,6 @@ func newConfigureCmd() *cobra.Command {
 		clientName      string
 		clientKey       string
 		sslVerifyMode   string
-		skipKeyCheck    bool
 	)
 	cmd := &cobra.Command{
 		Use:   "configure",
@@ -84,11 +83,6 @@ func newConfigureCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if !skipKeyCheck {
-				if err := requireReadableFile(clientKey); err != nil {
-					return err
-				}
-			}
 			profile, err := config.NewProfile(serverURL, clientName, clientKey, sslVerifyMode, supermarketSite)
 			if err != nil {
 				return err
@@ -116,7 +110,6 @@ func newConfigureCmd() *cobra.Command {
 	cmd.Flags().StringVar(&clientName, "client-name", "", "client name used to sign API requests")
 	cmd.Flags().StringVar(&clientKey, "client-key", "", "path to the PEM private key for the client")
 	cmd.Flags().StringVar(&sslVerifyMode, "ssl-verify-mode", "", "optional SSL verify mode such as :verify_peer or :verify_none")
-	cmd.Flags().BoolVar(&skipKeyCheck, "skip-key-check", false, "write the profile without checking that --client-key exists")
 	return cmd
 }
 
@@ -419,7 +412,6 @@ func configureOptionsChanged(cmd *cobra.Command) bool {
 		"client-name",
 		"client-key",
 		"ssl-verify-mode",
-		"skip-key-check",
 	} {
 		if cmd.Flags().Changed(name) {
 			return true
@@ -505,15 +497,4 @@ func profileNameForCommand(cmd *cobra.Command) string {
 		return profileName
 	}
 	return "default"
-}
-
-func requireReadableFile(path string) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("cinc: read client key: %w", err)
-	}
-	if info.IsDir() {
-		return fmt.Errorf("cinc: client key %s is a directory", path)
-	}
-	return nil
 }
