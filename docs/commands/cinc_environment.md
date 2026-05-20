@@ -19,6 +19,7 @@ Manage environments on the Cinc Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc environment create](cinc_environment_create.md)	 - Create an environment on the server
 * [cinc environment delete](cinc_environment_delete.md)	 - Delete an environment from the server
 * [cinc environment list](cinc_environment_list.md)	 - List environments on the server
 
