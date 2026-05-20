@@ -27,10 +27,13 @@ This tool is for **cinc**. Treat chef as a compatibility target, not the focus:
   wins. The compatibility tables in README and tests are the source of
   truth for which knobs need a paired form.
 
-Design documents live in `docs/`:
+Design documents live in `docs/dev/`:
 
-- `docs/*-cinc-cli-command-taxonomy.md` — the user-facing command structure
-- `docs/*-cinc-cli-internal-architecture.md` — how the CLI is built
+- `docs/dev/*-cinc-cli-command-taxonomy.md` — the user-facing command structure
+- `docs/dev/*-cinc-cli-internal-architecture.md` — how the CLI is built
+
+User-facing usage docs live in `docs/`. The current command surface and
+all flags are documented in `docs/commands.md`.
 
 ## Repository layout
 

@@ -9,9 +9,10 @@ authentication and transport.
 
 ## Status
 
-Early development. The command surface is being built out one noun group
-at a time. Today: `cinc version`, `cinc node list`. The taxonomy and
-internal architecture are described in [`docs/`](docs/).
+Early development. The command surface is being built out one noun
+group at a time. See [`docs/commands.md`](docs/commands.md) for the
+current command surface. The taxonomy and internal architecture are
+described in [`docs/dev/`](docs/dev/).
 
 ## Install
 
@@ -70,14 +71,10 @@ settings without rewriting the whole file.
 
 ## Usage
 
-Commands are noun-verb. The core verbs (`list`, `show`, `create`, `edit`,
-`delete`) mean the same thing on every noun.
-
-```sh
-cinc node list
-cinc node list --profile staging --format json
-cinc version
-```
+Commands are noun-verb. The core verbs (`list`, `show`, `create`,
+`edit`, `delete`) mean the same thing on every noun. Every command and
+flag currently shipped is documented in
+[`docs/commands.md`](docs/commands.md).
 
 ## Develop
 
@@ -99,7 +96,8 @@ Repository layout:
   is the single seam between CLI state and the API library; the CLI
   itself never builds or signs an HTTP request.
 - `cli/printer` — renders command output as human text or JSON.
-- `docs/` — command taxonomy and internal architecture design docs.
+- `docs/` — user-facing usage docs (`commands.md`) and, under `dev/`,
+  the command taxonomy and internal architecture design docs.
 - `test/` — acceptance tests, gated behind the `acceptance` build tag.
 
 See [`CLAUDE.md`](CLAUDE.md) for conventions followed when developing
