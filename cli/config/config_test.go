@@ -169,6 +169,81 @@ cinc_server_url = "https://cinc.example.com"
 	}
 }
 
+func TestNewProfileParsesConfigureValues(t *testing.T) {
+	p, err := NewProfile("https://cinc.example.com/organizations/acme", "worker", "/keys/worker.pem", ":verify_peer")
+	if err != nil {
+		t.Fatalf("NewProfile: %v", err)
+	}
+	if p.ServerURL != "https://cinc.example.com" || p.Org != "acme" || p.ClientName != "worker" ||
+		p.KeyPath != "/keys/worker.pem" || p.SSLVerifyMode != ":verify_peer" {
+		t.Fatalf("profile = %+v", p)
+	}
+}
+
+func TestWriteProfileCreatesCredentialsFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".cinc", "credentials")
+
+	err := WriteProfile(path, "worker", Profile{
+		ServerURL:  "https://cinc.example.com",
+		Org:        "acme",
+		ClientName: "worker",
+		KeyPath:    "/keys/worker.pem",
+	})
+	if err != nil {
+		t.Fatalf("WriteProfile: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat credentials: %v", err)
+	}
+	if perm := info.Mode().Perm(); perm != 0o600 {
+		t.Fatalf("credentials mode = %o, want 0600", perm)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load written credentials: %v", err)
+	}
+	p := cfg.Profiles["worker"]
+	if p.ServerURL != "https://cinc.example.com" || p.Org != "acme" || p.ClientName != "worker" || p.KeyPath != "/keys/worker.pem" {
+		t.Fatalf("written profile = %+v", p)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "chef_server_url") {
+		t.Fatalf("credentials = %s, want chef_server_url for knife compatibility", data)
+	}
+}
+
+func TestWriteProfilePreservesExistingProfiles(t *testing.T) {
+	path := writeConfig(t, sampleConfig)
+
+	err := WriteProfile(path, "worker", Profile{
+		ServerURL:  "https://cinc.example.com",
+		Org:        "acme",
+		ClientName: "worker",
+		KeyPath:    "/keys/worker.pem",
+	})
+	if err != nil {
+		t.Fatalf("WriteProfile: %v", err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load written credentials: %v", err)
+	}
+	if _, ok := cfg.Profiles["default"]; !ok {
+		t.Fatal("default profile was not preserved")
+	}
+	if _, ok := cfg.Profiles["staging"]; !ok {
+		t.Fatal("staging profile was not preserved")
+	}
+	if cfg.Profiles["worker"].ClientName != "worker" {
+		t.Fatalf("worker profile = %+v", cfg.Profiles["worker"])
+	}
+}
+
 func TestProfileValidate(t *testing.T) {
 	complete := Profile{ServerURL: "u", Org: "o", ClientName: "c", KeyPath: "k"}
 	if err := complete.Validate(); err != nil {

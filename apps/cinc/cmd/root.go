@@ -19,6 +19,7 @@ func newRootCmd() *cobra.Command {
 	flags.String("format", "human", "output format: human or json")
 
 	root.AddCommand(newVersionCmd())
+	root.AddCommand(newConfigureCmd())
 	root.AddCommand(newNodeCmd())
 	root.AddCommand(newClientCmd())
 	root.AddCommand(newRoleCmd())
