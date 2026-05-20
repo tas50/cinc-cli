@@ -9,9 +9,11 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/creack/pty v1.1.24
 	github.com/goruby/goruby v0.0.0-20210827060341-983436007185
+	github.com/kevinburke/ssh_config v1.6.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/spf13/cobra v1.10.2
 	github.com/tas50/cinc-api v0.0.0-20260519171711-123da42f384c
+	golang.org/x/crypto v0.51.0
 )
 
 require (
@@ -41,6 +43,6 @@ require (
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/sys v0.38.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 )

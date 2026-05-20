@@ -18,7 +18,7 @@ cinc [flags]
 ### SEE ALSO
 
 * [cinc client](cinc_client.md)	 - Manage API clients on the Cinc Server
-* [cinc configure](cinc_configure.md)	 - Create or update a local credentials profile
+* [cinc config](cinc_config.md)	 - Manage local Cinc configuration
 * [cinc cookbook](cinc_cookbook.md)	 - Manage cookbooks on the Cinc Server
 * [cinc databag](cinc_databag.md)	 - Manage data bags on the Cinc Server
 * [cinc environment](cinc_environment.md)	 - Manage environments on the Cinc Server

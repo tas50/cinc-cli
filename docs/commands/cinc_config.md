@@ -1,11 +1,11 @@
-## cinc node
+## cinc config
 
-Manage nodes on the Cinc Server
+Manage local Cinc configuration
 
 ### Options
 
 ```
-  -h, --help   help for node
+  -h, --help   help for config
 ```
 
 ### Options inherited from parent commands
@@ -19,8 +19,6 @@ Manage nodes on the Cinc Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
-* [cinc node bootstrap](cinc_node_bootstrap.md)	 - Bootstrap a node with Cinc Client over SSH
-* [cinc node delete](cinc_node_delete.md)	 - Delete a node from the server
-* [cinc node list](cinc_node_list.md)	 - List nodes on the server
-* [cinc node ssh](cinc_node_ssh.md)	 - Run an SSH command on nodes
+* [cinc config configure](cinc_config_configure.md)	 - Create or update a local credentials profile
+* [cinc config validate](cinc_config_validate.md)	 - Validate local Cinc TOML configuration and endpoint reachability
 
