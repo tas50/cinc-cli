@@ -253,8 +253,7 @@ type signRequest struct {
 
 func signHeaders(h http.Header, r signRequest, key *rsa.PrivateKey) error {
 	bodyHash := contentHash(r.Body)
-	digest := sha1.Sum([]byte(canonicalRequest(r, bodyHash)))
-	sig, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA1, digest[:])
+	sig, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.Hash(0), []byte(canonicalRequest(r, bodyHash)))
 	if err != nil {
 		return fmt.Errorf("supermarket: sign request: %w", err)
 	}
