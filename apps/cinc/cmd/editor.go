@@ -17,22 +17,37 @@ import (
 // in minimal environments without an editor on PATH.
 var editClient = openClientForm
 
-// openClientForm builds a huh form for the user-editable fields of
-// an APIClient. APIClient.Name is the resource identifier and is
-// pinned by the path argument, so the form treats it as read-only
-// context rather than an editable input. The chef_key block is
-// returned by the server on create and is not user-edited, so it is
-// likewise omitted from the form.
+// openClientForm builds a huh form covering every user-editable
+// field on an APIClient: the validator flag and the chef_key block
+// (key entry name, PEM public key, expiration date). Name is shown
+// as a read-only header because cinc-api derives the PUT URL from
+// APIClient.Name, so renaming via this command is not currently
+// expressible. PrivateKey is never sent on a PUT (the server returns
+// it on create only), so it is omitted as well.
 func openClientForm(in *cinc.APIClient) (*cinc.APIClient, error) {
 	updated := *in
 	form := huh.NewForm(
 		huh.NewGroup(
+			huh.NewNote().
+				Title("Editing client").
+				Description(in.Name),
 			huh.NewConfirm().
-				Title(fmt.Sprintf("Edit client %q", in.Name)).
-				Description("Validator client?").
+				Title("Validator client?").
 				Affirmative("yes").
 				Negative("no").
 				Value(&updated.Validator),
+			huh.NewInput().
+				Title("Chef key name").
+				Description("Identifier for the key entry (typically \"default\")").
+				Value(&updated.ChefKey.Name),
+			huh.NewText().
+				Title("Public key (PEM)").
+				Description("Replace to rotate the key; leave as-is to keep the existing one").
+				Value(&updated.ChefKey.PublicKey),
+			huh.NewInput().
+				Title("Expiration date").
+				Description("ISO 8601 timestamp, or \"infinity\"").
+				Value(&updated.ChefKey.ExpiresAt),
 		),
 	)
 	if err := form.Run(); err != nil {
