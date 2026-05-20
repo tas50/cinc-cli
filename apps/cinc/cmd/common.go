@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
 
@@ -30,14 +31,14 @@ var migrateChef = setup.MigrateChef
 // variable so tests can swap in a fake.
 var runFirstRunConfigure = realRunFirstRunConfigure
 
-// stdinIsTTY reports whether os.Stdin is attached to a character device.
-// Swapped by tests that exercise the migration branch without a real TTY.
+// stdinIsTTY reports whether os.Stdin is connected to an interactive
+// terminal. It uses the TCGETS ioctl via go-isatty so the answer is
+// the same whatever opaque file type the shell hands us — a regular
+// pty, a tmux/screen-allocated pty, or a Cygwin-style mintty terminal.
+// Tests swap this var directly.
 var stdinIsTTY = func() bool {
-	info, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return info.Mode()&os.ModeCharDevice != 0
+	fd := os.Stdin.Fd()
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
 // resolveFormat reads and validates the --format flag.
