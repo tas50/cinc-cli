@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/tas50/cinc-cli/cli/config"
 	"github.com/tas50/cinc-cli/cli/printer"
 	"github.com/tas50/cinc-cli/cli/setup"
+	"github.com/tas50/cinc-cli/cli/supermarket"
 )
 
 // migrateChef is the function used to migrate ~/.chef/credentials when the
@@ -23,14 +26,19 @@ import (
 // so tests can swap in a fake.
 var migrateChef = setup.MigrateChef
 
-// stdinIsTTY reports whether os.Stdin is attached to a character device.
-// Swapped by tests that exercise the migration branch without a real TTY.
+// runFirstRunConfigure interactively configures a fresh credentials
+// profile, the same way `cinc configure` does. It is a package-level
+// variable so tests can swap in a fake.
+var runFirstRunConfigure = realRunFirstRunConfigure
+
+// stdinIsTTY reports whether os.Stdin is connected to an interactive
+// terminal. It uses the TCGETS ioctl via go-isatty so the answer is
+// the same whatever opaque file type the shell hands us — a regular
+// pty, a tmux/screen-allocated pty, or a Cygwin-style mintty terminal.
+// Tests swap this var directly.
 var stdinIsTTY = func() bool {
-	info, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return info.Mode()&os.ModeCharDevice != 0
+	fd := os.Stdin.Fd()
+	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
 // resolveFormat reads and validates the --format flag.
@@ -86,10 +94,9 @@ func resolveSupermarketProfile(cmd *cobra.Command) (config.Profile, error) {
 
 // loadCredentials returns the parsed credentials file the command was
 // pointed at. If --config is empty (the default ~/.cinc/credentials
-// path) and the file is missing, the user is offered a one-shot
-// migration from ~/.chef/credentials before the load is retried. An
-// explicit --config pointing at a missing file is surfaced as the
-// raw config.Load error.
+// path) and the file is missing, the first-run flow runs before the
+// load is retried. An explicit --config pointing at a missing file is
+// surfaced as the raw config.Load error.
 func loadCredentials(cmd *cobra.Command) (*config.Config, error) {
 	cfgPath, _ := cmd.Flags().GetString("config")
 	usingDefault := cfgPath == ""
@@ -102,7 +109,7 @@ func loadCredentials(cmd *cobra.Command) (*config.Config, error) {
 	}
 	if usingDefault {
 		if _, err := os.Stat(cfgPath); errors.Is(err, fs.ErrNotExist) {
-			if err := maybeMigrateChef(cmd, cfgPath); err != nil {
+			if err := maybeFirstRun(cmd, cfgPath); err != nil {
 				return nil, err
 			}
 		}
@@ -110,30 +117,28 @@ func loadCredentials(cmd *cobra.Command) (*config.Config, error) {
 	return config.Load(cfgPath)
 }
 
-// maybeMigrateChef offers chef migration when the default cinc
-// credentials file is missing. If the user accepts and migration
-// succeeds the function returns nil. Otherwise — no TTY, no chef
-// file, declined, or write error — it returns an error pointing at
-// `cinc configure`, since the caller (a server-touching command)
-// cannot proceed.
-func maybeMigrateChef(cmd *cobra.Command, cincPath string) error {
-	migrated, err := offerChefMigration(cmd, cincPath)
+// maybeFirstRun runs the welcome flow when the default cinc
+// credentials file is missing. If credentials were set up (migrated
+// or configured), it returns nil. Otherwise — no TTY, declined
+// migration, or a write error — it returns an error pointing the
+// caller (a server-touching command) at `cinc configure`.
+func maybeFirstRun(cmd *cobra.Command, cincPath string) error {
+	succeeded, err := offerFirstRun(cmd, cincPath)
 	if err != nil {
 		return err
 	}
-	if !migrated {
+	if !succeeded {
 		return missingCredentialsError(cincPath)
 	}
 	return nil
 }
 
-// offerChefMigration welcomes a first-time user and, when an
-// existing ~/.chef/credentials file is present, prompts them to
-// migrate it to cincPath. It returns (true, nil) when a migration
-// ran, (false, nil) when no migration was attempted for any benign
-// reason (non-TTY, no chef file, declined), and (false, err) when
-// migration was attempted but failed.
-func offerChefMigration(cmd *cobra.Command, cincPath string) (bool, error) {
+// offerFirstRun welcomes a first-time user and either migrates an
+// existing ~/.chef/credentials file or walks them through the
+// configure prompts inline. Returns (true, nil) when credentials
+// were written, (false, nil) for benign no-ops (non-TTY, declined
+// migration), and (false, err) on failure.
+func offerFirstRun(cmd *cobra.Command, cincPath string) (bool, error) {
 	if !stdinIsTTY() {
 		return false, nil
 	}
@@ -143,14 +148,19 @@ func offerChefMigration(cmd *cobra.Command, cincPath string) (bool, error) {
 	}
 
 	out := cmd.ErrOrStderr()
-	fmt.Fprintln(out, "Welcome to cinc!")
+	fmt.Fprintln(out, "Welcome to the Cinc CLI!")
 	fmt.Fprintln(out)
 
 	chefPath := filepath.Join(home, ".chef", "credentials")
-	if _, err := os.Stat(chefPath); err != nil {
-		return false, nil
+	if _, err := os.Stat(chefPath); err == nil {
+		return runMigrationPrompt(cmd, chefPath, cincPath, out)
 	}
+	return runConfigurePrompt(cmd, cincPath, out)
+}
 
+// runMigrationPrompt asks the user whether to migrate ~/.chef/credentials
+// and either runs the migration or returns a friendly decline.
+func runMigrationPrompt(cmd *cobra.Command, chefPath, cincPath string, out io.Writer) (bool, error) {
 	fmt.Fprintf(out, "We found an existing Chef config at %s. Want us to migrate it to %s for you? [Y/n] ", chefPath, cincPath)
 	line, _ := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 	switch strings.ToLower(strings.TrimSpace(line)) {
@@ -167,6 +177,51 @@ func offerChefMigration(cmd *cobra.Command, cincPath string) (bool, error) {
 	fmt.Fprintf(out, "Done! Wrote %d profile(s) to %s.\n", n, cincPath)
 	fmt.Fprintln(out)
 	return true, nil
+}
+
+// runConfigurePrompt drives the interactive configure flow when no
+// chef credentials file exists to migrate. The welcome line above is
+// enough context to explain why the prompts are appearing; the
+// configure flow prints its own opener so we don't repeat ourselves
+// here.
+func runConfigurePrompt(cmd *cobra.Command, cincPath string, out io.Writer) (bool, error) {
+	if err := runFirstRunConfigure(cmd, cincPath); err != nil {
+		return false, err
+	}
+	fmt.Fprintln(out)
+	return true, nil
+}
+
+// realRunFirstRunConfigure delegates to the same prompt + write
+// machinery `cinc configure` uses, so the on-disk result matches.
+func realRunFirstRunConfigure(cmd *cobra.Command, cincPath string) error {
+	answers, err := promptConfigure(cmd, configureDefaults{
+		ConfigPath:      cincPath,
+		ProfileName:     "default",
+		SupermarketSite: supermarket.DefaultSite,
+		ClientName:      defaultClientName(),
+	})
+	if err != nil {
+		return err
+	}
+	if answers.ClientKey == "" {
+		answers.ClientKey = defaultClientKey(answers.ClientName)
+	}
+	profile, err := config.NewProfile(
+		answers.ChefServerURL,
+		answers.ClientName,
+		answers.ClientKey,
+		answers.SSLVerifyMode,
+		answers.SupermarketSite,
+	)
+	if err != nil {
+		return err
+	}
+	if err := config.WriteProfile(answers.ConfigPath, answers.ProfileName, profile); err != nil {
+		return err
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Wrote credentials profile %q to %s\n", answers.ProfileName, answers.ConfigPath)
+	return nil
 }
 
 func missingCredentialsError(cincPath string) error {
