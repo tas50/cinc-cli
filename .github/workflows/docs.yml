@@ -15,7 +15,11 @@ jobs:
       - name: Check out code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # DOCS_BOT_TOKEN is a PAT (or GitHub App token) whose owner is
+          # on main's branch-protection bypass list. The default
+          # GITHUB_TOKEN cannot push to main because branch protection
+          # requires status checks it can't satisfy from this workflow.
+          token: ${{ secrets.DOCS_BOT_TOKEN }}
 
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
@@ -28,9 +32,10 @@ jobs:
 
       # The "Commit if changed" step is a no-op when docs/commands
       # already matches the cobra command tree, so a clean run never
-      # produces a push. Pushes made with the default GITHUB_TOKEN do
-      # not trigger further workflow runs, so this won't recurse even
-      # when it does commit.
+      # produces a push. A push made by this workflow re-triggers
+      # docs.yml, but the follow-up run finds a clean tree and exits
+      # without pushing, so the loop terminates after one extra
+      # no-op run.
       - name: Commit if changed
         run: |
           if [[ -z "$(git status --porcelain docs/commands)" ]]; then
