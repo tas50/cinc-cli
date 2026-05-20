@@ -22,7 +22,7 @@ func TestConfigureCommandWritesTOMLCredentialsProfile(t *testing.T) {
 	var buf bytes.Buffer
 	root.SetOut(&buf)
 	root.SetArgs([]string{
-		"config", "configure",
+		"config", "create",
 		"--server-url", "https://api.chef.io/organizations/damacus",
 		"--supermarket-site", "https://supermarket.chef.io",
 		"--client-name", "damacus",
@@ -32,7 +32,7 @@ func TestConfigureCommandWritesTOMLCredentialsProfile(t *testing.T) {
 	})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc config configure: %v", err)
+		t.Fatalf("cinc config create: %v", err)
 	}
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
@@ -67,7 +67,7 @@ func TestConfigureCommandAcceptsSupermarketURLAsServerURL(t *testing.T) {
 	root := newRootCmd()
 	root.SetOut(&bytes.Buffer{})
 	root.SetArgs([]string{
-		"config", "configure",
+		"config", "create",
 		"--server-url", "https://supermarket.chef.io",
 		"--client-name", "damacus",
 		"--client-key", keyPath,
@@ -75,7 +75,7 @@ func TestConfigureCommandAcceptsSupermarketURLAsServerURL(t *testing.T) {
 	})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc config configure: %v", err)
+		t.Fatalf("cinc config create: %v", err)
 	}
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
@@ -101,7 +101,7 @@ func TestConfigureCommandSecondRunMutatesSameProfile(t *testing.T) {
 	first := newRootCmd()
 	first.SetOut(&bytes.Buffer{})
 	first.SetArgs([]string{
-		"config", "configure",
+		"config", "create",
 		"--server-url", "https://api.chef.io/organizations/old-org",
 		"--client-name", "old-client",
 		"--client-key", firstKeyPath,
@@ -109,13 +109,13 @@ func TestConfigureCommandSecondRunMutatesSameProfile(t *testing.T) {
 		"--config", cfgPath,
 	})
 	if err := first.Execute(); err != nil {
-		t.Fatalf("first cinc config configure: %v", err)
+		t.Fatalf("first cinc config create: %v", err)
 	}
 
 	second := newRootCmd()
 	second.SetOut(&bytes.Buffer{})
 	second.SetArgs([]string{
-		"config", "configure",
+		"config", "create",
 		"--server-url", "https://supermarket.chef.io",
 		"--client-name", "damacus",
 		"--client-key", secondKeyPath,
@@ -123,7 +123,7 @@ func TestConfigureCommandSecondRunMutatesSameProfile(t *testing.T) {
 		"--config", cfgPath,
 	})
 	if err := second.Execute(); err != nil {
-		t.Fatalf("second cinc config configure: %v", err)
+		t.Fatalf("second cinc config create: %v", err)
 	}
 
 	cfg, err := config.Load(cfgPath)
@@ -166,10 +166,10 @@ func TestConfigureCommandOnboardsWithDefaults(t *testing.T) {
 	var out bytes.Buffer
 	root.SetOut(&out)
 	root.SetIn(strings.NewReader("\n\n\n\n\n\n\n"))
-	root.SetArgs([]string{"config", "configure", "--config", cfgPath})
+	root.SetArgs([]string{"config", "create", "--config", cfgPath})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc config configure: %v", err)
+		t.Fatalf("cinc config create: %v", err)
 	}
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
@@ -212,7 +212,7 @@ func TestConfigureCommandPreservesExistingProfiles(t *testing.T) {
 	root := newRootCmd()
 	root.SetOut(&bytes.Buffer{})
 	root.SetArgs([]string{
-		"config", "configure",
+		"config", "create",
 		"--chef-server-url", "https://api.chef.io/organizations/damacus",
 		"--client-name", "damacus",
 		"--client-key", keyPath,
@@ -221,7 +221,7 @@ func TestConfigureCommandPreservesExistingProfiles(t *testing.T) {
 	})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc config configure: %v", err)
+		t.Fatalf("cinc config create: %v", err)
 	}
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
@@ -271,10 +271,10 @@ func TestConfigureInteractiveAddsNewProfileWhenFileExists(t *testing.T) {
 	//   chef server host        (empty)
 	//   ssl verify mode         (default)
 	root.SetIn(strings.NewReader("\n\nstaging\n\n\n\n\n\n"))
-	root.SetArgs([]string{"config", "configure", "--config", cfgPath})
+	root.SetArgs([]string{"config", "create", "--config", cfgPath})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc config configure: %v", err)
+		t.Fatalf("cinc config create: %v", err)
 	}
 	stdout := out.String()
 	for _, want := range []string{
@@ -350,10 +350,10 @@ func TestConfigureInteractiveUpdatesExistingProfile(t *testing.T) {
 	//   chef server org         (Enter -> keep existing)
 	//   ssl verify mode         (Enter -> keep existing)
 	root.SetIn(strings.NewReader("\n2\n2\n\n\n\n\n\n\n"))
-	root.SetArgs([]string{"config", "configure", "--config", cfgPath})
+	root.SetArgs([]string{"config", "create", "--config", cfgPath})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc config configure: %v", err)
+		t.Fatalf("cinc config create: %v", err)
 	}
 	stdout := out.String()
 	for _, want := range []string{
@@ -431,10 +431,10 @@ func TestConfigureInteractiveReplacesCredentialsFile(t *testing.T) {
 	//   chef server host        (empty)
 	//   ssl verify mode         (default)
 	root.SetIn(strings.NewReader("\n3\ny\nfresh\nhttps://supermarket.example.test\n\n\n\n\n"))
-	root.SetArgs([]string{"config", "configure", "--config", cfgPath})
+	root.SetArgs([]string{"config", "create", "--config", cfgPath})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc config configure: %v", err)
+		t.Fatalf("cinc config create: %v", err)
 	}
 	stdout := out.String()
 	for _, want := range []string{
@@ -498,10 +498,10 @@ func TestConfigureInteractiveAddNewWithCollisionOffersUpdate(t *testing.T) {
 	//   chef server org         (Enter -> existing)
 	//   ssl verify mode         (Enter -> existing)
 	root.SetIn(strings.NewReader("\n\ndefault\n\n\nnew-client\n\n\n\n\n"))
-	root.SetArgs([]string{"config", "configure", "--config", cfgPath})
+	root.SetArgs([]string{"config", "create", "--config", cfgPath})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc config configure: %v", err)
+		t.Fatalf("cinc config create: %v", err)
 	}
 	stdout := out.String()
 	for _, want := range []string{
@@ -550,7 +550,7 @@ func TestConfigureNonInteractiveSkipsActionPrompt(t *testing.T) {
 	var out bytes.Buffer
 	root.SetOut(&out)
 	root.SetArgs([]string{
-		"config", "configure",
+		"config", "create",
 		"--chef-server-url", "https://api.chef.io/organizations/damacus",
 		"--client-name", "damacus",
 		"--client-key", keyPath,
@@ -559,7 +559,7 @@ func TestConfigureNonInteractiveSkipsActionPrompt(t *testing.T) {
 	})
 
 	if err := root.Execute(); err != nil {
-		t.Fatalf("cinc config configure: %v", err)
+		t.Fatalf("cinc config create: %v", err)
 	}
 	stdout := out.String()
 	for _, forbidden := range []string{

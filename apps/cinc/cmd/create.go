@@ -17,10 +17,10 @@ import (
 	"github.com/tas50/cinc-cli/cli/supermarket"
 )
 
-// newConfigureCmd builds `cinc config configure`, the local workstation credentials
+// newConfigCreateCmd builds `cinc config create`, the local workstation credentials
 // setup command. It writes TOML credentials only; Cinc does not emit Ruby
 // config.rb/client.rb files.
-func newConfigureCmd() *cobra.Command {
+func newConfigCreateCmd() *cobra.Command {
 	var (
 		serverURL       string
 		supermarketSite string
@@ -29,7 +29,7 @@ func newConfigureCmd() *cobra.Command {
 		sslVerifyMode   string
 	)
 	cmd := &cobra.Command{
-		Use:   "configure",
+		Use:   "create",
 		Short: "Create or update a local credentials profile",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

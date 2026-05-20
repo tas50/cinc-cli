@@ -35,7 +35,7 @@ var errFirstRunCompleted = errors.New("cinc: first-run setup completed")
 var migrateChef = setup.MigrateChef
 
 // runFirstRunConfigure interactively configures a fresh credentials
-// profile, the same way `cinc config configure` does. It is a package-level
+// profile, the same way `cinc config create` does. It is a package-level
 // variable so tests can swap in a fake.
 var runFirstRunConfigure = realRunFirstRunConfigure
 
@@ -130,7 +130,7 @@ func loadCredentials(cmd *cobra.Command) (*config.Config, error) {
 // credentials file is missing. If credentials were set up (migrated
 // or configured), it returns nil. Otherwise — no TTY, declined
 // migration, or a write error — it returns an error pointing the
-// caller (a server-touching command) at `cinc config configure`.
+// caller (a server-touching command) at `cinc config create`.
 func maybeFirstRun(cmd *cobra.Command, cincPath string) error {
 	succeeded, err := offerFirstRun(cmd, cincPath)
 	if err != nil {
@@ -174,7 +174,7 @@ func runMigrationPrompt(cmd *cobra.Command, chefPath, cincPath string, out io.Wr
 	line, _ := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 	switch strings.ToLower(strings.TrimSpace(line)) {
 	case "n", "no":
-		fmt.Fprintln(out, "No problem — run `cinc config configure` whenever you're ready to set up a profile.")
+		fmt.Fprintln(out, "No problem — run `cinc config create` whenever you're ready to set up a profile.")
 		fmt.Fprintln(out)
 		return false, nil
 	}
@@ -202,7 +202,7 @@ func runConfigurePrompt(cmd *cobra.Command, cincPath string, out io.Writer) (boo
 }
 
 // realRunFirstRunConfigure delegates to the same prompt + write
-// machinery `cinc config configure` uses, so the on-disk result matches.
+// machinery `cinc config create` uses, so the on-disk result matches.
 func realRunFirstRunConfigure(cmd *cobra.Command, cincPath string) error {
 	answers, err := promptConfigure(cmd, configureDefaults{
 		ConfigPath:      cincPath,
@@ -238,5 +238,5 @@ func realRunFirstRunConfigure(cmd *cobra.Command, cincPath string) error {
 }
 
 func missingCredentialsError(cincPath string) error {
-	return fmt.Errorf("no credentials yet at %s — run `cinc config configure` to set one up", cincPath)
+	return fmt.Errorf("no credentials yet at %s — run `cinc config create` to set one up", cincPath)
 }
