@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -97,6 +98,181 @@ client_key      = %q
 	}
 	if got := buf.String(); got != "Deleted data bag \"users\"\n" {
 		t.Errorf("data-bag delete output = %q", got)
+	}
+}
+
+// databagItemServer serves GET of the supplied current item and
+// records the PUT body into *gotPut, *gotPath for assertion.
+func databagItemServer(t *testing.T, bag, id string, current cinc.DataBagItem, gotPut *cinc.DataBagItem, gotPath *string) *httptest.Server {
+	t.Helper()
+	path := "/organizations/acme/data/" + bag + "/" + id
+	mux := http.NewServeMux()
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(current)
+		case http.MethodPut:
+			*gotPath = r.URL.Path
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(body, gotPut); err != nil {
+				t.Fatalf("unmarshal PUT body: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(body)
+		default:
+			t.Errorf("unexpected method %q on %s", r.Method, r.URL.Path)
+		}
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func withStubDataBagItemEditor(t *testing.T, stub func(cinc.DataBagItem) (cinc.DataBagItem, error)) {
+	t.Helper()
+	orig := editDataBagItem
+	editDataBagItem = stub
+	t.Cleanup(func() { editDataBagItem = orig })
+}
+
+func writeDataBagConfig(t *testing.T, serverURL string) string {
+	t.Helper()
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, serverURL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return cfgPath
+}
+
+func TestDataBagItemEditCommandPutsEditorResult(t *testing.T) {
+	var gotPut cinc.DataBagItem
+	var gotPath string
+	current := cinc.DataBagItem{"id": "alice", "role": "admin"}
+	srv := databagItemServer(t, "users", "alice", current, &gotPut, &gotPath)
+
+	withStubDataBagItemEditor(t, func(in cinc.DataBagItem) (cinc.DataBagItem, error) {
+		out := cinc.DataBagItem{}
+		for k, v := range in {
+			out[k] = v
+		}
+		out["role"] = "editor"
+		return out, nil
+	})
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"data-bag", "item", "edit", "users", "alice", "--config", writeDataBagConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc data-bag item edit: %v", err)
+	}
+	if gotPath != "/organizations/acme/data/users/alice" {
+		t.Errorf("PUT path = %q", gotPath)
+	}
+	if gotPut["role"] != "editor" || gotPut["id"] != "alice" {
+		t.Errorf("PUT body = %+v, want id=alice role=editor", gotPut)
+	}
+	if got := buf.String(); got != "Updated item \"alice\" in bag \"users\"\n" {
+		t.Errorf("stdout = %q", got)
+	}
+}
+
+func TestDataBagItemEditCommandSkipsPutWhenUnchanged(t *testing.T) {
+	var gotPut cinc.DataBagItem
+	var gotPath string
+	current := cinc.DataBagItem{"id": "alice", "role": "admin"}
+	srv := databagItemServer(t, "users", "alice", current, &gotPut, &gotPath)
+
+	withStubDataBagItemEditor(t, func(in cinc.DataBagItem) (cinc.DataBagItem, error) {
+		out := cinc.DataBagItem{}
+		for k, v := range in {
+			out[k] = v
+		}
+		return out, nil
+	})
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"data-bag", "item", "edit", "users", "alice", "--config", writeDataBagConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc data-bag item edit (unchanged): %v", err)
+	}
+	if gotPath != "" {
+		t.Errorf("server saw a PUT at %q for an unchanged edit", gotPath)
+	}
+	if got := buf.String(); got != "Item \"alice\" in bag \"users\" unchanged\n" {
+		t.Errorf("stdout = %q", got)
+	}
+}
+
+func TestDataBagItemEditCommandReadsFromFile(t *testing.T) {
+	var gotPut cinc.DataBagItem
+	var gotPath string
+	current := cinc.DataBagItem{"id": "alice", "role": "admin"}
+	srv := databagItemServer(t, "users", "alice", current, &gotPut, &gotPath)
+
+	withStubDataBagItemEditor(t, func(cinc.DataBagItem) (cinc.DataBagItem, error) {
+		t.Fatal("editor was invoked despite --file")
+		return nil, nil
+	})
+
+	filePath := filepath.Join(t.TempDir(), "item.json")
+	body, err := json.Marshal(cinc.DataBagItem{"id": "ignored-in-file", "role": "editor"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"data-bag", "item", "edit", "users", "alice", "--file", filePath, "--config", writeDataBagConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc data-bag item edit --file: %v", err)
+	}
+	if gotPut["role"] != "editor" {
+		t.Errorf("PUT body role = %v, want editor", gotPut["role"])
+	}
+	if gotPut["id"] != "alice" {
+		t.Errorf("PUT body id = %v, want alice (path arg must win over file)", gotPut["id"])
+	}
+}
+
+func TestDataBagItemEditCommandRejectsFileMissingID(t *testing.T) {
+	var gotPut cinc.DataBagItem
+	var gotPath string
+	current := cinc.DataBagItem{"id": "alice"}
+	srv := databagItemServer(t, "users", "alice", current, &gotPut, &gotPath)
+
+	filePath := filepath.Join(t.TempDir(), "item.json")
+	if err := os.WriteFile(filePath, []byte(`{"role": "editor"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetErr(&bytes.Buffer{})
+	root.SetArgs([]string{"data-bag", "item", "edit", "users", "alice", "--file", filePath, "--config", writeDataBagConfig(t, srv.URL)})
+
+	if err := root.Execute(); err == nil {
+		t.Error("expected an error for a --file payload with no id")
+	}
+	if gotPath != "" {
+		t.Errorf("server saw a PUT %q despite validation failure", gotPath)
 	}
 }
 

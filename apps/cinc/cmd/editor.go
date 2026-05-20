@@ -37,6 +37,27 @@ func openClientJSONEditor(in *cinc.APIClient) (*cinc.APIClient, error) {
 	return &out, nil
 }
 
+// editDataBagItem opens a data bag item in the JSON editor.
+// Validation rejects malformed JSON and items missing an "id" key.
+// It is a package variable so tests can stub it.
+var editDataBagItem = openDataBagItemJSONEditor
+
+func openDataBagItemJSONEditor(in cinc.DataBagItem) (cinc.DataBagItem, error) {
+	initial, err := json.MarshalIndent(in, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	edited, err := runJSONEditor(initial, validateDataBagItem)
+	if err != nil {
+		return nil, err
+	}
+	var out cinc.DataBagItem
+	if err := json.Unmarshal(edited, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // runJSONEditor opens a TUI textarea seeded with initial. On Ctrl-D
 // it parses, validates, and reformats the buffer. If parsing or the
 // caller-supplied validate fails, the error is shown inline and the
