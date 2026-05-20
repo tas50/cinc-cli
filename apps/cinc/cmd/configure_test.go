@@ -184,7 +184,7 @@ func TestConfigureCommandOnboardsWithDefaults(t *testing.T) {
 		"Credentials file location [" + cfgPath + "]",
 		"Profile name [default]",
 		"Supermarket site [https://supermarket.chef.io]",
-		"Client key [" + keyPath + "]",
+		"Client key path [" + keyPath + "]",
 		"Chef/Cinc Server URL (optional) []",
 	} {
 		if !strings.Contains(stdout, want) {

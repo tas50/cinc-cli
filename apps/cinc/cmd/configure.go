@@ -140,7 +140,7 @@ func promptConfigure(cmd *cobra.Command, defaults configureDefaults) (configureD
 	if defaults.ClientKey == "" {
 		defaults.ClientKey = defaultClientKey(defaults.ClientName)
 	}
-	defaults.ClientKey, err = promptWithDefault(reader, out, "Client key", defaults.ClientKey)
+	defaults.ClientKey, err = promptWithDefault(reader, out, "Client key path", defaults.ClientKey)
 	if err != nil {
 		return configureDefaults{}, err
 	}
