@@ -69,7 +69,10 @@ client_key      = "/k/t.pem"
 	if !called {
 		t.Error("expected migrateChef to be invoked on bare cinc")
 	}
-	if !strings.Contains(stderr, "Migrate to") {
+	if !strings.Contains(stderr, "Welcome to cinc!") {
+		t.Errorf("expected welcome on stderr, got:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "migrate it") {
 		t.Errorf("expected migration prompt on stderr, got:\n%s", stderr)
 	}
 	if !strings.Contains(stdout, "cinc is a unified") {
@@ -89,8 +92,11 @@ func TestBareCincShowsHelpWithoutPromptWhenChefAbsent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bare cinc returned error: %v", err)
 	}
-	if strings.Contains(stderr, "Migrate to") {
+	if strings.Contains(stderr, "migrate it") {
 		t.Errorf("did not expect a migration prompt, got stderr:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "Welcome to cinc!") {
+		t.Errorf("expected a welcome line on stderr, got:\n%s", stderr)
 	}
 	if !strings.Contains(stdout, "cinc is a unified") {
 		t.Errorf("expected help text on stdout, got:\n%s", stdout)
@@ -114,8 +120,11 @@ func TestBareCincSkipsMigrationWhenCincCredentialsExist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bare cinc returned error: %v", err)
 	}
-	if strings.Contains(stderr, "Migrate to") {
+	if strings.Contains(stderr, "migrate it") {
 		t.Errorf("did not expect a migration prompt, got stderr:\n%s", stderr)
+	}
+	if strings.Contains(stderr, "Welcome to cinc!") {
+		t.Errorf("did not expect a welcome line when cinc creds already exist, got:\n%s", stderr)
 	}
 	if !strings.Contains(stdout, "cinc is a unified") {
 		t.Errorf("expected help text on stdout, got:\n%s", stdout)

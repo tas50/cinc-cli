@@ -93,6 +93,20 @@ func TestResolveProfileSkipsMigrationWhenExplicitConfigMissing(t *testing.T) {
 	}
 }
 
+func TestResolveProfileWelcomesUserOnFirstRun(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	swapTTY(t, true)
+	swapMigrate(t, func(_, _ string) (int, error) { return 0, nil })
+
+	stderr := new(bytes.Buffer)
+	c := fakeCmd("", "", "", stderr)
+	_, _ = resolveProfile(c)
+	if !strings.Contains(stderr.String(), "Welcome to cinc!") {
+		t.Errorf("expected a welcome line on stderr, got:\n%s", stderr.String())
+	}
+}
+
 func TestResolveProfileRunsMigrationWhenDefaultMissingAndChefExists(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
@@ -132,7 +146,7 @@ client_key      = "/k/t.pem"
 	if p.Org != "acme" {
 		t.Errorf("post-migration profile = %+v", p)
 	}
-	if !strings.Contains(stderr.String(), "Migrate to") {
+	if !strings.Contains(stderr.String(), "migrate it") {
 		t.Errorf("expected migration prompt on stderr, got:\n%s", stderr.String())
 	}
 }
@@ -176,10 +190,14 @@ func TestResolveProfileDeclinedMigrationPointsAtConfigure(t *testing.T) {
 		return 0, nil
 	})
 
-	c := fakeCmd("", "", "n\n", new(bytes.Buffer))
+	stderr := new(bytes.Buffer)
+	c := fakeCmd("", "", "n\n", stderr)
 	_, err := resolveProfile(c)
 	if err == nil || !strings.Contains(err.Error(), "cinc configure") {
 		t.Errorf("expected an error mentioning `cinc configure`, got: %v", err)
+	}
+	if !strings.Contains(stderr.String(), "No problem") {
+		t.Errorf("expected a friendly acknowledgement after decline, got:\n%s", stderr.String())
 	}
 }
 

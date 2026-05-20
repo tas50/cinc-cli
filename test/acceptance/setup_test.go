@@ -55,7 +55,10 @@ client_key      = %q
 	if err != nil {
 		t.Fatalf("cinc node list after migration prompt: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 	}
-	if !strings.Contains(stderr, "Migrate to") {
+	if !strings.Contains(stderr, "Welcome to cinc!") {
+		t.Errorf("expected welcome on stderr, got:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "migrate it") {
 		t.Errorf("expected migration prompt on stderr, got:\n%s", stderr)
 	}
 	cincFile := filepath.Join(home, ".cinc", "credentials")
