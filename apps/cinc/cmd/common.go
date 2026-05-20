@@ -110,21 +110,40 @@ func loadCredentials(cmd *cobra.Command) (*config.Config, error) {
 	return config.Load(cfgPath)
 }
 
-// maybeMigrateChef offers to migrate ~/.chef/credentials when the
-// default cinc credentials file is missing. If stdin is not
-// interactive, if no chef file exists, or if the user declines, it
-// returns an error pointing them at `cinc configure`.
+// maybeMigrateChef offers chef migration when the default cinc
+// credentials file is missing. If the user accepts and migration
+// succeeds the function returns nil. Otherwise — no TTY, no chef
+// file, declined, or write error — it returns an error pointing at
+// `cinc configure`, since the caller (a server-touching command)
+// cannot proceed.
 func maybeMigrateChef(cmd *cobra.Command, cincPath string) error {
-	if !stdinIsTTY() {
-		return missingCredentialsError(cincPath)
-	}
-	home, err := os.UserHomeDir()
+	migrated, err := offerChefMigration(cmd, cincPath)
 	if err != nil {
 		return err
 	}
+	if !migrated {
+		return missingCredentialsError(cincPath)
+	}
+	return nil
+}
+
+// offerChefMigration prompts the user to migrate ~/.chef/credentials
+// to cincPath when both an interactive terminal and a chef file are
+// present. It returns (true, nil) when a migration ran, (false, nil)
+// when no migration was attempted for any benign reason (non-TTY, no
+// chef file, declined), and (false, err) when migration was attempted
+// but failed.
+func offerChefMigration(cmd *cobra.Command, cincPath string) (bool, error) {
+	if !stdinIsTTY() {
+		return false, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return false, nil
+	}
 	chefPath := filepath.Join(home, ".chef", "credentials")
 	if _, err := os.Stat(chefPath); err != nil {
-		return missingCredentialsError(cincPath)
+		return false, nil
 	}
 
 	out := cmd.ErrOrStderr()
@@ -132,15 +151,15 @@ func maybeMigrateChef(cmd *cobra.Command, cincPath string) error {
 	line, _ := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 	switch strings.ToLower(strings.TrimSpace(line)) {
 	case "n", "no":
-		return missingCredentialsError(cincPath)
+		return false, nil
 	}
 
 	n, err := migrateChef(chefPath, cincPath)
 	if err != nil {
-		return err
+		return false, err
 	}
 	fmt.Fprintf(out, "Wrote %s with %d profile(s).\n", cincPath, n)
-	return nil
+	return true, nil
 }
 
 func missingCredentialsError(cincPath string) error {
