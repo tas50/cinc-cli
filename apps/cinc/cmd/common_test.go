@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -129,8 +130,8 @@ func TestResolveProfileWelcomesUserOnFirstRun(t *testing.T) {
 
 	stderr := new(bytes.Buffer)
 	c := fakeCmd("", "", "", stderr)
-	if _, err := resolveProfile(c); err != nil {
-		t.Fatalf("resolveProfile: %v", err)
+	if _, err := resolveProfile(c); !errors.Is(err, errFirstRunCompleted) {
+		t.Fatalf("resolveProfile after first run = %v, want errFirstRunCompleted", err)
 	}
 	if !strings.Contains(stderr.String(), "Welcome to the Cinc CLI!") {
 		t.Errorf("expected a welcome line on stderr, got:\n%s", stderr.String())
@@ -166,15 +167,11 @@ client_key      = "/k/t.pem"
 
 	stderr := new(bytes.Buffer)
 	c := fakeCmd("", "", "y\n", stderr)
-	p, err := resolveProfile(c)
-	if err != nil {
-		t.Fatalf("resolveProfile: %v", err)
+	if _, err := resolveProfile(c); !errors.Is(err, errFirstRunCompleted) {
+		t.Fatalf("resolveProfile after migration = %v, want errFirstRunCompleted", err)
 	}
 	if !called {
 		t.Error("expected migrateChef to be invoked")
-	}
-	if p.Org != "acme" {
-		t.Errorf("post-migration profile = %+v", p)
 	}
 	if !strings.Contains(stderr.String(), "migrate it") {
 		t.Errorf("expected migration prompt on stderr, got:\n%s", stderr.String())
@@ -200,8 +197,8 @@ client_key      = "/k/t.pem"
 	})
 
 	c := fakeCmd("", "", "\n", new(bytes.Buffer))
-	if _, err := resolveProfile(c); err != nil {
-		t.Fatalf("resolveProfile: %v", err)
+	if _, err := resolveProfile(c); !errors.Is(err, errFirstRunCompleted) {
+		t.Fatalf("resolveProfile = %v, want errFirstRunCompleted", err)
 	}
 	if !called {
 		t.Error("blank answer should default to yes; expected migrateChef call")
@@ -248,15 +245,11 @@ func TestResolveProfileRunsConfigureWhenNoChefFile(t *testing.T) {
 
 	stderr := new(bytes.Buffer)
 	c := fakeCmd("", "", "", stderr)
-	p, err := resolveProfile(c)
-	if err != nil {
-		t.Fatalf("resolveProfile: %v", err)
+	if _, err := resolveProfile(c); !errors.Is(err, errFirstRunCompleted) {
+		t.Fatalf("resolveProfile after configure = %v, want errFirstRunCompleted", err)
 	}
 	if !called {
 		t.Error("expected runFirstRunConfigure to be invoked when no chef file is present")
-	}
-	if p.Org != "acme" {
-		t.Errorf("post-configure profile = %+v", p)
 	}
 	if !strings.Contains(stderr.String(), "Welcome to the Cinc CLI!") {
 		t.Errorf("expected welcome on stderr, got:\n%s", stderr.String())

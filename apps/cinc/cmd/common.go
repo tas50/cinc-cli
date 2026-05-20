@@ -21,6 +21,14 @@ import (
 	"github.com/tas50/cinc-cli/cli/supermarket"
 )
 
+// errFirstRunCompleted is a sentinel returned by loadCredentials after
+// the first-run flow has written the credentials file. It signals the
+// caller (and ultimately Execute) that the user has been welcomed and
+// the invocation should exit cleanly without running the original
+// server-touching command, so a fresh user isn't surprised by their
+// `cinc node list` running against a server they just typed in.
+var errFirstRunCompleted = errors.New("cinc: first-run setup completed")
+
 // migrateChef is the function used to migrate ~/.chef/credentials when the
 // default cinc credentials file is missing. It is a package-level variable
 // so tests can swap in a fake.
@@ -112,6 +120,7 @@ func loadCredentials(cmd *cobra.Command) (*config.Config, error) {
 			if err := maybeFirstRun(cmd, cfgPath); err != nil {
 				return nil, err
 			}
+			return nil, errFirstRunCompleted
 		}
 	}
 	return config.Load(cfgPath)

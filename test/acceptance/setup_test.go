@@ -22,8 +22,10 @@ import (
 
 // TestSetupMigratesChefCredentialsOnFirstRun seeds ~/.chef/credentials
 // in a tempdir HOME, runs `cinc node list` with a pseudo-tty on stdin
-// so the migration prompt actually fires, answers "y", and expects a
-// successful node list.
+// so the migration prompt actually fires, answers "y", and expects
+// the first invocation to write the cinc credentials file and exit
+// cleanly without running the node list. A second invocation then
+// proves the migrated profile actually works.
 func TestSetupMigratesChefCredentialsOnFirstRun(t *testing.T) {
 	requireChefZero(t)
 	port := freePort(t)
@@ -61,6 +63,9 @@ client_key      = %q
 	if !strings.Contains(stderr, "migrate it") {
 		t.Errorf("expected migration prompt on stderr, got:\n%s", stderr)
 	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("first-run invocation must not run the requested node list; stdout:\n%s", stdout)
+	}
 	cincFile := filepath.Join(home, ".cinc", "credentials")
 	cincContents, err := os.ReadFile(cincFile)
 	if err != nil {
@@ -68,6 +73,13 @@ client_key      = %q
 	}
 	if !strings.Contains(string(cincContents), "chef_server_url") {
 		t.Errorf("migrated credentials should contain a server URL, got:\n%s", cincContents)
+	}
+
+	followUp := exec.Command(binary, "node", "list")
+	followUp.Env = append(os.Environ(), "HOME="+home)
+	out, err := followUp.CombinedOutput()
+	if err != nil {
+		t.Fatalf("post-migration cinc node list: %v\noutput: %s", err, out)
 	}
 }
 

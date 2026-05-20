@@ -17,9 +17,11 @@ func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "cinc",
 		Short: "Cinc is a unified command-line tool for Cinc/Chef Infra",
-		// Errors are still printed by cobra; only the usage dump is
-		// suppressed so a runtime failure shows just the error.
-		SilenceUsage: true,
+		// Execute prints errors itself so it can swallow the
+		// first-run sentinel; cobra's own error reporting is silenced
+		// here to avoid double-printing or leaking the sentinel.
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		// When invoked with no subcommand we still want a chance to
 		// offer chef-credentials migration before falling back to the
 		// help text. Subcommands keep their own behavior — this RunE
@@ -46,9 +48,20 @@ func newRootCmd() *cobra.Command {
 }
 
 // Execute builds and runs the root command. It is the single entry point
-// called by main().
+// called by main(). The first-run sentinel is swallowed so a fresh
+// user who just got walked through `cinc configure` exits at the
+// "you're ready to go" message instead of having their original
+// server-touching command run on the brand-new profile.
 func Execute() error {
-	return newRootCmd().Execute()
+	root := newRootCmd()
+	err := root.Execute()
+	if errors.Is(err, errFirstRunCompleted) {
+		return nil
+	}
+	if err != nil {
+		fmt.Fprintln(root.ErrOrStderr(), "Error:", err)
+	}
+	return err
 }
 
 // NewRootCmd returns a fresh root command tree. It exists so that
