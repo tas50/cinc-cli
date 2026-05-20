@@ -35,7 +35,6 @@ func newRootCmd() *cobra.Command {
 	flags.String("format", "human", "output format: human or json")
 
 	root.AddCommand(newVersionCmd())
-	root.AddCommand(newConfigureCmd())
 	root.AddCommand(newConfigCmd())
 	root.AddCommand(newNodeCmd())
 	root.AddCommand(newClientCmd())
@@ -50,7 +49,7 @@ func newRootCmd() *cobra.Command {
 
 // Execute builds and runs the root command. It is the single entry point
 // called by main(). The first-run sentinel is swallowed so a fresh
-// user who just got walked through `cinc configure` exits at the
+// user who just got walked through `cinc config configure` exits at the
 // "you're ready to go" message instead of having their original
 // server-touching command run on the brand-new profile.
 func Execute() error {

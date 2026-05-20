@@ -162,7 +162,7 @@ func TestNodeListCommandReportsConfigError(t *testing.T) {
 	}
 }
 
-func TestNodeSSHNoClientCommand(t *testing.T) {
+func TestNodeSSHSkipSearchCommand(t *testing.T) {
 	runner := &recordingRunner{result: remote.CommandResult{Stdout: "ok\n"}}
 	old := nodeRemoteRunner
 	nodeRemoteRunner = runner
@@ -173,7 +173,7 @@ func TestNodeSSHNoClientCommand(t *testing.T) {
 	root.SetOut(&buf)
 	root.SetArgs([]string{
 		"node", "ssh", "web01 web02", "uptime",
-		"--no-client",
+		"--skip-search",
 		"--ssh-user", "ubuntu",
 		"--ssh-agent-socket", "/tmp/cinc-agent.sock",
 		"--no-host-key-verify",

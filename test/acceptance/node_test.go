@@ -53,12 +53,12 @@ func TestNodeDeleteAgainstChefZero(t *testing.T) {
 	}
 }
 
-func TestNodeSSHNoClientAgainstSSHServer(t *testing.T) {
+func TestNodeSSHSkipSearchAgainstSSHServer(t *testing.T) {
 	server := startAcceptanceSSHServer(t, "hello from ssh\n")
 
 	out := runCinc(t, buildCinc(t),
 		"node", "ssh", "127.0.0.1", "echo hello",
-		"--no-client",
+		"--skip-search",
 		"--ssh-user", "tester",
 		"--ssh-password", "secret",
 		"--ssh-port", fmt.Sprint(server.port),

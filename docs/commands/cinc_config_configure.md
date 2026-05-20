@@ -1,9 +1,9 @@
-## cinc configure
+## cinc config configure
 
 Create or update a local credentials profile
 
 ```
-cinc configure [flags]
+cinc config configure [flags]
 ```
 
 ### Options
@@ -29,5 +29,5 @@ cinc configure [flags]
 
 ### SEE ALSO
 
-* [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc config](cinc_config.md)	 - Manage local Cinc configuration
 

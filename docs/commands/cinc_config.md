@@ -19,5 +19,6 @@ Manage local Cinc configuration
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
-* [cinc config validate](cinc_config_validate.md)	 - Validate a local Cinc TOML configuration file
+* [cinc config configure](cinc_config_configure.md)	 - Create or update a local credentials profile
+* [cinc config validate](cinc_config_validate.md)	 - Validate local Cinc TOML configuration and endpoint reachability
 

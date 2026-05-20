@@ -2,7 +2,7 @@
 // detects an existing ~/.chef/credentials file and writes the
 // equivalent ~/.cinc/credentials file by delegating to cli/config.
 // Guided setup of a fresh profile is handled separately by the
-// `cinc configure` command.
+// `cinc config configure` command.
 package setup
 
 import (
@@ -30,7 +30,7 @@ type chefRawProfile struct {
 // file to cincPath. Each profile is built via config.NewProfile (which
 // validates client name, key path, and either a Chef server URL or a
 // Supermarket site) and then persisted via config.WriteProfile, so the
-// resulting file is byte-identical to what `cinc configure` would
+// resulting file is byte-identical to what `cinc config configure` would
 // produce for the same inputs. Returns the number of profiles
 // migrated.
 func MigrateChef(chefPath, cincPath string) (int, error) {

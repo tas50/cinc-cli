@@ -1,6 +1,6 @@
 ## cinc config validate
 
-Validate a local Cinc TOML configuration file
+Validate local Cinc TOML configuration and endpoint reachability
 
 ```
 cinc config validate [path] [flags]

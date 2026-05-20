@@ -17,7 +17,7 @@ import (
 	"github.com/tas50/cinc-cli/cli/supermarket"
 )
 
-// newConfigureCmd builds `cinc configure`, the local workstation credentials
+// newConfigureCmd builds `cinc config configure`, the local workstation credentials
 // setup command. It writes TOML credentials only; Cinc does not emit Ruby
 // config.rb/client.rb files.
 func newConfigureCmd() *cobra.Command {

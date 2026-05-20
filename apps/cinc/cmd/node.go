@@ -42,7 +42,7 @@ type nodeSSHFlags struct {
 	useAgent     bool
 	verifyHost   bool
 	noVerifyHost bool
-	noClient     bool
+	skipSearch   bool
 	attribute    string
 	concurrency  int
 	exitOnError  bool
@@ -82,7 +82,7 @@ func newNodeSSHCmd() *cobra.Command {
 		},
 	}
 	addNodeSSHFlags(cmd, &flags)
-	cmd.Flags().BoolVar(&flags.noClient, "no-client", false, "treat search query as a space-separated host list and skip Cinc Server lookup")
+	cmd.Flags().BoolVar(&flags.skipSearch, "skip-search", false, "skip Cinc Server search and treat search query as a space-separated host list")
 	cmd.Flags().StringVar(&flags.attribute, "attribute", "fqdn", "node attribute used as the SSH host")
 	cmd.Flags().IntVar(&flags.concurrency, "concurrency", 10, "maximum concurrent SSH sessions")
 	cmd.Flags().BoolVar(&flags.exitOnError, "exit-on-error", false, "stop launching new SSH sessions after the first failure")
@@ -322,7 +322,7 @@ func promptNodeBootstrap(cmd *cobra.Command, target *string, flags *nodeBootstra
 }
 
 func nodeSSHTargets(cmd *cobra.Command, query string, flags nodeSSHFlags) ([]remote.Target, error) {
-	if flags.noClient {
+	if flags.skipSearch {
 		hosts := strings.Fields(query)
 		targets := make([]remote.Target, 0, len(hosts))
 		for _, host := range hosts {

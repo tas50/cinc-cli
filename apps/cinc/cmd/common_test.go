@@ -220,8 +220,8 @@ func TestResolveProfileDeclinedMigrationPointsAtConfigure(t *testing.T) {
 	stderr := new(bytes.Buffer)
 	c := fakeCmd("", "", "n\n", stderr)
 	_, err := resolveProfile(c)
-	if err == nil || !strings.Contains(err.Error(), "cinc configure") {
-		t.Errorf("expected an error mentioning `cinc configure`, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "cinc config configure") {
+		t.Errorf("expected an error mentioning `cinc config configure`, got: %v", err)
 	}
 	if !strings.Contains(stderr.String(), "No problem") {
 		t.Errorf("expected a friendly acknowledgement after decline, got:\n%s", stderr.String())
@@ -273,7 +273,7 @@ func TestResolveProfilePointsAtConfigureWhenStdinNotTTY(t *testing.T) {
 
 	c := fakeCmd("", "", "y\n", new(bytes.Buffer))
 	_, err := resolveProfile(c)
-	if err == nil || !strings.Contains(err.Error(), "cinc configure") {
-		t.Errorf("expected an error mentioning `cinc configure`, got: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "cinc config configure") {
+		t.Errorf("expected an error mentioning `cinc config configure`, got: %v", err)
 	}
 }
