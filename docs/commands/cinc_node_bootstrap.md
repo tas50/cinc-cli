@@ -21,6 +21,7 @@ cinc node bootstrap [target] [flags]
       --policy-name string         policyfile name for first run
       --run-list string            comma-separated first run-list
       --ssh-agent                  use SSH agent authentication (default true)
+      --ssh-agent-socket string    SSH agent socket path
       --ssh-identity-file string   SSH identity file
       --ssh-password string        SSH password
       --ssh-port int               SSH port (default 22)

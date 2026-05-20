@@ -14,9 +14,10 @@ cinc node ssh [search-query] [command] [flags]
       --exit-on-error              stop launching new SSH sessions after the first failure
   -h, --help                       help for ssh
       --host-key-verify            verify SSH host keys using known_hosts (default true)
-      --manual-list                treat search query as a space-separated host list
+      --no-client                  treat search query as a space-separated host list and skip Cinc Server lookup
       --no-host-key-verify         disable SSH host key verification
       --ssh-agent                  use SSH agent authentication (default true)
+      --ssh-agent-socket string    SSH agent socket path
       --ssh-identity-file string   SSH identity file
       --ssh-password string        SSH password
       --ssh-port int               SSH port (default 22)

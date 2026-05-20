@@ -80,6 +80,30 @@ type Config struct {
 	Profiles map[string]Profile
 }
 
+// ValidationIssue describes one profile-level configuration problem.
+type ValidationIssue struct {
+	Profile string `json:"profile"`
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+// Validate reports configuration problems across every loaded profile. It is
+// intentionally local-only: it validates TOML shape and URL/profile fields but
+// does not perform network calls or authenticate.
+func (c *Config) Validate() []ValidationIssue {
+	if len(c.Profiles) == 0 {
+		return []ValidationIssue{{
+			Field:   "profiles",
+			Message: "config has no profiles",
+		}}
+	}
+	var issues []ValidationIssue
+	for name, profile := range c.Profiles {
+		issues = append(issues, validateProfile(name, profile)...)
+	}
+	return issues
+}
+
 // DefaultPath returns the default credentials file location,
 // ~/.cinc/credentials.
 func DefaultPath() (string, error) {
@@ -283,4 +307,32 @@ func envProfile() string {
 		return v
 	}
 	return os.Getenv("CHEF_PROFILE")
+}
+
+func validateProfile(name string, p Profile) []ValidationIssue {
+	var issues []ValidationIssue
+	add := func(field, message string) {
+		issues = append(issues, ValidationIssue{Profile: name, Field: field, Message: message})
+	}
+	if p.ClientName == "" {
+		add("client_name", "client_name is required")
+	}
+	if p.KeyPath == "" {
+		add("client_key", "client_key is required")
+	}
+	if p.ServerURL == "" && p.Org == "" && p.SupermarketSite == "" {
+		add("endpoint", "configure cinc_server_url, chef_server_url, or supermarket_site")
+	}
+	if (p.ServerURL == "") != (p.Org == "") {
+		add("cinc_server_url", "server URL must include /organizations/<org>")
+	}
+	if p.SupermarketSite != "" {
+		if err := validateSiteURL(p.SupermarketSite); err != nil {
+			add("supermarket_site", err.Error())
+		}
+	}
+	if p.SSLVerifyMode != "" && p.SSLVerifyMode != ":verify_peer" && p.SSLVerifyMode != ":verify_none" {
+		add("ssl_verify_mode", "ssl_verify_mode must be :verify_peer or :verify_none")
+	}
+	return issues
 }

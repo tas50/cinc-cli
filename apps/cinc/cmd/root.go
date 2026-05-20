@@ -20,6 +20,7 @@ func newRootCmd() *cobra.Command {
 
 	root.AddCommand(newVersionCmd())
 	root.AddCommand(newConfigureCmd())
+	root.AddCommand(newConfigCmd())
 	root.AddCommand(newNodeCmd())
 	root.AddCommand(newClientCmd())
 	root.AddCommand(newRoleCmd())
