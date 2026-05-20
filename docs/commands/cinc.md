@@ -19,5 +19,6 @@ cinc is a unified command-line tool for Cinc/Chef Infra
 * [cinc environment](cinc_environment.md)	 - Manage environments on the Cinc/Chef Server
 * [cinc node](cinc_node.md)	 - Manage nodes on the Cinc/Chef Server
 * [cinc role](cinc_role.md)	 - Manage roles on the Cinc/Chef Server
+* [cinc supermarket](cinc_supermarket.md)	 - Manage cookbooks on Chef Supermarket
 * [cinc version](cinc_version.md)	 - Print cinc version information
 

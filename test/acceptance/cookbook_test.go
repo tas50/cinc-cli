@@ -3,14 +3,14 @@
 package acceptance
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
 // TestCookbookListAgainstChefZero asserts that an empty server returns
-// an empty list in both formats. Cookbooks are not seeded because
-// chef-zero needs a full version manifest per cookbook and there is no
-// `cinc cookbook upload` command yet to populate one from the CLI.
+// an empty list in both formats.
 func TestCookbookListAgainstChefZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
@@ -26,11 +26,30 @@ func TestCookbookListAgainstChefZero(t *testing.T) {
 	}
 }
 
+func TestCookbookUploadDeleteAgainstChefZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	cookbookPath := writeAcceptanceCookbook(t, "nginx")
+	upload := runCinc(t, env.binary, "cookbook", "upload", "nginx", "--cookbook-path", cookbookPath, "--config", env.cfgPath)
+	if upload != "Uploaded cookbook \"nginx\" version 1.2.0\n" {
+		t.Errorf("cookbook upload output = %q", upload)
+	}
+
+	list := runCinc(t, env.binary, "cookbook", "list", "--config", env.cfgPath)
+	if !strings.Contains(list, "nginx\n") {
+		t.Fatalf("cookbook list after upload = %q, want nginx", list)
+	}
+
+	deleteOut := runCinc(t, env.binary, "cookbook", "delete", "nginx", "1.2.0", "--config", env.cfgPath)
+	if deleteOut != "Deleted cookbook \"nginx\" version 1.2.0\n" {
+		t.Errorf("cookbook delete output = %q", deleteOut)
+	}
+}
+
 // TestCookbookDeleteMissingAgainstChefZero exercises the delete code
 // path against a real server when the cookbook does not exist. The
-// command must exit non-zero and surface the server's 404. Once cinc
-// gains an upload verb this should be expanded to seed a cookbook,
-// delete it, and assert it disappears from the list.
+// command must exit non-zero and surface the server's 404.
 func TestCookbookDeleteMissingAgainstChefZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
@@ -42,4 +61,20 @@ func TestCookbookDeleteMissingAgainstChefZero(t *testing.T) {
 	if !strings.Contains(stderr, "404") && !strings.Contains(stderr, "not found") {
 		t.Errorf("cookbook delete stderr does not mention 404/not found: %s", stderr)
 	}
+}
+
+func writeAcceptanceCookbook(t *testing.T, name string) string {
+	t.Helper()
+	root := t.TempDir()
+	dir := filepath.Join(root, name)
+	if err := os.MkdirAll(filepath.Join(dir, "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "metadata.rb"), []byte("name '"+name+"'\nversion '1.2.0'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "recipes", "default.rb"), []byte("package 'nginx'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return root
 }

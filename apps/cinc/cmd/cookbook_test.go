@@ -3,10 +3,12 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -106,6 +108,87 @@ client_key      = %q
 	}
 	if got := buf.String(); got != "Deleted cookbook \"nginx\" version 1.0.0\n" {
 		t.Errorf("cookbook delete output = %q", got)
+	}
+}
+
+func TestCookbookUploadCommandEndToEnd(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "nginx", "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	metadataContent := []byte("name 'nginx'\nversion '1.2.0'\n")
+	recipeContent := []byte("package 'nginx'\n")
+	if err := os.WriteFile(filepath.Join(dir, "nginx", "metadata.rb"), metadataContent, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "nginx", "recipes", "default.rb"), recipeContent, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	metadataChecksum := fmt.Sprintf("%x", md5.Sum(metadataContent))
+	var sawManifest bool
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/sandboxes", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("sandbox method = %q, want POST", r.Method)
+		}
+		uploadURL := "http://" + r.Host + "/upload/" + metadataChecksum
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, `{"sandbox_id":"sb1","checksums":{"`+metadataChecksum+`":{"needs_upload":true,"url":"`+uploadURL+`"}}}`)
+	})
+	mux.HandleFunc("/upload/"+metadataChecksum, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("upload method = %q, want PUT", r.Method)
+		}
+		body, _ := io.ReadAll(r.Body)
+		if string(body) != string(metadataContent) {
+			t.Errorf("uploaded body = %q, want metadata.rb", body)
+		}
+	})
+	mux.HandleFunc("/organizations/acme/sandboxes/sb1", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("commit method = %q, want PUT", r.Method)
+		}
+		_, _ = io.WriteString(w, `{}`)
+	})
+	mux.HandleFunc("/organizations/acme/cookbooks/nginx/1.2.0", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("manifest method = %q, want PUT", r.Method)
+		}
+		sawManifest = true
+		body, _ := io.ReadAll(r.Body)
+		if !bytes.Contains(body, []byte(`"chef_type":"cookbook_version"`)) {
+			t.Errorf("manifest body = %s", body)
+		}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, `{}`)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"cookbook", "upload", "nginx", "--cookbook-path", dir, "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc cookbook upload: %v", err)
+	}
+	if !sawManifest {
+		t.Fatal("expected cookbook manifest upload")
+	}
+	if got := buf.String(); got != "Uploaded cookbook \"nginx\" version 1.2.0\n" {
+		t.Errorf("cookbook upload output = %q", got)
 	}
 }
 

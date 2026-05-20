@@ -25,6 +25,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(newEnvironmentCmd())
 	root.AddCommand(newCookbookCmd())
 	root.AddCommand(newDataBagCmd())
+	root.AddCommand(newSupermarketCmd())
 
 	return root
 }

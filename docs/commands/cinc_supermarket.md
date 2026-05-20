@@ -1,11 +1,11 @@
-## cinc cookbook
+## cinc supermarket
 
-Manage cookbooks on the Cinc/Chef Server
+Manage cookbooks on Chef Supermarket
 
 ### Options
 
 ```
-  -h, --help   help for cookbook
+  -h, --help   help for supermarket
 ```
 
 ### Options inherited from parent commands
@@ -19,7 +19,5 @@ Manage cookbooks on the Cinc/Chef Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - cinc is a unified command-line tool for Cinc/Chef Infra
-* [cinc cookbook delete](cinc_cookbook_delete.md)	 - Delete a cookbook version from the server
-* [cinc cookbook list](cinc_cookbook_list.md)	 - List cookbooks on the server
-* [cinc cookbook upload](cinc_cookbook_upload.md)	 - Upload cookbook versions to the Cinc/Chef Server
+* [cinc supermarket share](cinc_supermarket_share.md)	 - Share a cookbook on Chef Supermarket
 
