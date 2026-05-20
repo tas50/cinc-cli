@@ -30,6 +30,25 @@ make install
 `make` injects version, commit, and build-date metadata into the binary
 via `-ldflags`; `cinc version` will print them.
 
+### Install in GitHub Actions
+
+Tagged releases publish prebuilt Linux and macOS archives. A workflow can install
+the Linux AMD64 binary without installing Go:
+
+```yaml
+- name: Install cinc
+  env:
+    CINC_VERSION: v0.1.0
+  run: |
+    archive="cinc_${CINC_VERSION}_linux_amd64.tar.gz"
+    curl -fsSL -o "$archive" "https://github.com/tas50/cinc-cli/releases/download/${CINC_VERSION}/${archive}"
+    tar -xzf "$archive"
+    sudo install "cinc_${CINC_VERSION}_linux_amd64/cinc" /usr/local/bin/cinc
+    cinc version
+```
+
+Release archives are built by `make dist` and include `SHA256SUMS`.
+
 ## Configure
 
 `cinc` reads a TOML credentials file (default `~/.cinc/credentials`)
