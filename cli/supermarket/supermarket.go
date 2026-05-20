@@ -7,7 +7,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
+	"crypto/sha1"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -206,7 +206,7 @@ func (c *Client) upload(ctx context.Context, cookbook, category string, archive 
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	req.Header.Set("User-Agent", "cinc-cli")
 	if err := signHeaders(req.Header, signRequest{
-		Method: http.MethodPost, Path: "/api/v1/cookbooks", Body: bodyBytes,
+		Method: http.MethodPost, Path: "/api/v1/cookbooks", Body: archive.Bytes,
 		UserID: c.userID, Timestamp: c.timestamp(),
 	}, c.key); err != nil {
 		return 0, err
@@ -248,16 +248,15 @@ type signRequest struct {
 
 func signHeaders(h http.Header, r signRequest, key *rsa.PrivateKey) error {
 	bodyHash := contentHash(r.Body)
-	digest := sha256.Sum256([]byte(canonicalRequest(r, bodyHash)))
-	sig, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
+	digest := sha1.Sum([]byte(canonicalRequest(r, bodyHash)))
+	sig, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA1, digest[:])
 	if err != nil {
 		return fmt.Errorf("supermarket: sign request: %w", err)
 	}
-	h.Set("X-Ops-Sign", "version=1.3")
-	h.Set("X-Ops-UserId", r.UserID)
+	h.Set("X-Ops-Sign", "algorithm=sha1;version=1.0;")
+	h.Set("X-Ops-Userid", r.UserID)
 	h.Set("X-Ops-Timestamp", r.Timestamp)
 	h.Set("X-Ops-Content-Hash", bodyHash)
-	h.Set("X-Ops-Server-API-Version", "1")
 	for i, chunk := range chunk60(base64.StdEncoding.EncodeToString(sig)) {
 		h.Set("X-Ops-Authorization-"+strconv.Itoa(i+1), chunk)
 	}
@@ -266,24 +265,29 @@ func signHeaders(h http.Header, r signRequest, key *rsa.PrivateKey) error {
 
 func canonicalRequest(r signRequest, contentHash string) string {
 	p := canonicalPath(r.Path)
+	pathHash := contentHashString(p)
 	var b strings.Builder
-	b.Grow(len(r.Method) + len(p) + len(contentHash) + len(r.Timestamp) + len(r.UserID) + 132)
+	b.Grow(len(r.Method) + len(pathHash) + len(contentHash) + len(r.Timestamp) + len(r.UserID) + 98)
 	b.WriteString("Method:")
 	b.WriteString(r.Method)
-	b.WriteString("\nPath:")
-	b.WriteString(p)
+	b.WriteString("\nHashed Path:")
+	b.WriteString(pathHash)
 	b.WriteString("\nX-Ops-Content-Hash:")
 	b.WriteString(contentHash)
-	b.WriteString("\nX-Ops-Sign:version=1.3\nX-Ops-Timestamp:")
+	b.WriteString("\nX-Ops-Timestamp:")
 	b.WriteString(r.Timestamp)
 	b.WriteString("\nX-Ops-UserId:")
 	b.WriteString(r.UserID)
-	b.WriteString("\nX-Ops-Server-API-Version:1")
 	return b.String()
 }
 
 func contentHash(body []byte) string {
-	sum := sha256.Sum256(body)
+	sum := sha1.Sum(body)
+	return base64.StdEncoding.EncodeToString(sum[:])
+}
+
+func contentHashString(s string) string {
+	sum := sha1.Sum([]byte(s))
 	return base64.StdEncoding.EncodeToString(sum[:])
 }
 
