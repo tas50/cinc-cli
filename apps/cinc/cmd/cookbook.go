@@ -16,7 +16,7 @@ import (
 func newCookbookCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cookbook",
-		Short: "Manage cookbooks on the Cinc/Chef Server",
+		Short: "Manage cookbooks on the Cinc Server",
 	}
 	cmd.AddCommand(newCookbookListCmd())
 	cmd.AddCommand(newCookbookDeleteCmd())
@@ -29,7 +29,7 @@ func newCookbookUploadCmd() *cobra.Command {
 	var cookbookPath string
 	cmd := &cobra.Command{
 		Use:   "upload <name>...",
-		Short: "Upload cookbook versions to the Cinc/Chef Server",
+		Short: "Upload cookbook versions to the Cinc Server",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)

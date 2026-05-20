@@ -82,7 +82,7 @@ func configValidatePath(cmd *cobra.Command, args []string) (string, error) {
 	if len(args) > 0 {
 		return expandHome(args[0])
 	}
-	cfgPath, err := configFilePath(cmd)
+	cfgPath, err := configPathForCommand(cmd)
 	if err != nil {
 		return "", err
 	}

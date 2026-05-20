@@ -1,15 +1,17 @@
-## cinc environment delete
+## cinc environment create
 
-Delete an environment from the server
+Create an environment on the server
 
 ```
-cinc environment delete <name> [flags]
+cinc environment create <name> [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for delete
+  -d, --description string   human-readable description for the new environment
+      --file string          read the full environment JSON from this file instead of using flags
+  -h, --help                 help for create
 ```
 
 ### Options inherited from parent commands

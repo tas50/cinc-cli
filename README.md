@@ -7,6 +7,36 @@ is a Go binary built with
 [`cinc-api`](https://github.com/tas50/cinc-api) client library, which owns
 authentication and transport.
 
+## Why Cinc CLI
+
+The existing Chef toolchain works, but it carries a lot of historical
+weight. `cinc` is a fresh take on the same job, with a few things we
+weren't willing to compromise on:
+
+- **Performance.** A native Go binary with no interpreter to spin up,
+  so configuring a system or scripting against the server feels
+  instant instead of sluggish.
+- **Ease of installation.** A single static binary with no runtime
+  dependencies. Nothing to break when the system Ruby is upgraded,
+  no gem environment to babysit, and no multi-step bootstrap in your
+  CI pipelines — drop the binary in and go.
+- **Ease of setup.** `cinc configure` walks you through credentials,
+  server URL, and SSL settings interactively, so a new user (or an
+  existing Chef user pointing at a new server) is productive in
+  minutes instead of losing an afternoon to troubleshooting.
+- **Focused experience.** Scoped to day-to-day node and cookbook
+  management against a Cinc/Chef server. No migration helpers, no
+  one-off subcommands for legacy workflows — just the verbs you
+  reach for every day, kept consistent across every noun.
+- **Well documented.** Every command, subcommand, and flag has a
+  generated Markdown reference under [`docs/commands/`](docs/commands/),
+  rebuilt from the live cobra command tree on every change — so the
+  docs can't drift from what the binary actually does.
+- **Fully tested.** Every command ships with both unit tests against
+  an in-process HTTP server and acceptance tests that run the real
+  compiled binary against a live `chef-zero`, so behavior is verified
+  end-to-end before it lands.
+
 ## Status
 
 Early development. The command surface is being built out one noun
