@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -19,7 +22,259 @@ func newSupermarketCmd() *cobra.Command {
 	cmd.AddCommand(newSupermarketShareCmd())
 	cmd.AddCommand(newSupermarketExploreCmd())
 	cmd.AddCommand(newSupermarketDownloadCmd())
+	cmd.AddCommand(newSupermarketListCmd())
+	cmd.AddCommand(newSupermarketSearchCmd())
+	cmd.AddCommand(newSupermarketShowCmd())
 	return cmd
+}
+
+// newSupermarketListCmd builds `cinc supermarket list`.
+func newSupermarketListCmd() *cobra.Command {
+	var (
+		site    string
+		order   string
+		user    string
+		limit   int
+		verbose bool
+	)
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List cookbooks on Chef Supermarket",
+		Long: "Lists every cookbook on Chef Supermarket. With --verbose the\n" +
+			"output also includes the maintainer and latest published version\n" +
+			"of each cookbook (one extra request to /universe, fast).",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			client, err := supermarket.NewAnonymous(site)
+			if err != nil {
+				return err
+			}
+			result, err := client.List(cmd.Context(), supermarket.ListOptions{
+				Order: order, User: user, Limit: limit, Verbose: verbose,
+			})
+			if err != nil {
+				return err
+			}
+			if format == printer.FormatJSON {
+				return printer.New(cmd.OutOrStdout(), format).Value(result)
+			}
+			return printSupermarketEntries(cmd.OutOrStdout(), result.Entries, verbose)
+		},
+	}
+	cmd.Flags().StringVar(&site, "supermarket-site", "", "URL of the Chef Supermarket site (default: https://supermarket.chef.io)")
+	cmd.Flags().StringVar(&order, "order", "", "sort order: recently_updated, recently_added, most_downloaded, most_followed")
+	cmd.Flags().StringVar(&user, "user", "", "only show cookbooks owned by this Supermarket username")
+	cmd.Flags().IntVar(&limit, "limit", 0, "cap the number of entries returned (default: all)")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "include maintainer and latest version per cookbook")
+	return cmd
+}
+
+// newSupermarketSearchCmd builds `cinc supermarket search`.
+func newSupermarketSearchCmd() *cobra.Command {
+	var (
+		site    string
+		limit   int
+		verbose bool
+	)
+	cmd := &cobra.Command{
+		Use:   "search <query>",
+		Short: "Search cookbooks on Chef Supermarket",
+		Long: "Fuzzy-searches cookbook name, description, and maintainer on\n" +
+			"Chef Supermarket. With --verbose the output also includes the\n" +
+			"maintainer and latest published version of each hit.",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			client, err := supermarket.NewAnonymous(site)
+			if err != nil {
+				return err
+			}
+			result, err := client.Search(cmd.Context(), supermarket.SearchOptions{
+				Query: args[0], Limit: limit, Verbose: verbose,
+			})
+			if err != nil {
+				return err
+			}
+			if format == printer.FormatJSON {
+				return printer.New(cmd.OutOrStdout(), format).Value(result)
+			}
+			return printSupermarketEntries(cmd.OutOrStdout(), result.Entries, verbose)
+		},
+	}
+	cmd.Flags().StringVar(&site, "supermarket-site", "", "URL of the Chef Supermarket site (default: https://supermarket.chef.io)")
+	cmd.Flags().IntVar(&limit, "limit", 0, "cap the number of entries returned (default: all matches)")
+	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "include maintainer and latest version per cookbook")
+	return cmd
+}
+
+// newSupermarketShowCmd builds `cinc supermarket show`.
+func newSupermarketShowCmd() *cobra.Command {
+	var site string
+	cmd := &cobra.Command{
+		Use:   "show <cookbook> [version]",
+		Short: "Show a cookbook (or one of its versions) on Chef Supermarket",
+		Long: "Without a version argument, shows the cookbook record: maintainer,\n" +
+			"description, latest version, total downloads, and the versions\n" +
+			"published. With a version argument, shows that version's license,\n" +
+			"tarball size, dependencies, and supported platforms.",
+		Args: cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			client, err := supermarket.NewAnonymous(site)
+			if err != nil {
+				return err
+			}
+			opts := supermarket.ShowOptions{Cookbook: args[0]}
+			if len(args) == 2 {
+				opts.Version = args[1]
+			}
+			result, err := client.Show(cmd.Context(), opts)
+			if err != nil {
+				return err
+			}
+			if format == printer.FormatJSON {
+				return printer.New(cmd.OutOrStdout(), format).Value(result)
+			}
+			return printSupermarketShow(cmd.OutOrStdout(), result)
+		},
+	}
+	cmd.Flags().StringVar(&site, "supermarket-site", "", "URL of the Chef Supermarket site (default: https://supermarket.chef.io)")
+	return cmd
+}
+
+// printSupermarketEntries renders list/search results in human mode.
+// Without verbose: one cookbook name per line. With verbose: an
+// aligned NAME / MAINTAINER / LATEST table.
+func printSupermarketEntries(w io.Writer, entries []supermarket.ListEntry, verbose bool) error {
+	if !verbose {
+		names := make([]string, 0, len(entries))
+		for _, e := range entries {
+			names = append(names, e.Name)
+		}
+		return printer.New(w, printer.FormatHuman).List(names)
+	}
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	if _, err := fmt.Fprintln(tw, "NAME\tMAINTAINER\tLATEST"); err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\n", e.Name, e.Maintainer, e.LatestVersion); err != nil {
+			return err
+		}
+	}
+	return tw.Flush()
+}
+
+// printSupermarketShow renders show results in human mode. Cookbook
+// vs version is determined by which field of ShowResult is populated.
+func printSupermarketShow(w io.Writer, r supermarket.ShowResult) error {
+	if r.Version != nil {
+		return printSupermarketVersion(w, r.Version)
+	}
+	return printSupermarketCookbook(w, r.Cookbook)
+}
+
+func printSupermarketCookbook(w io.Writer, cb *supermarket.Cookbook) error {
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	row := func(k, v string) {
+		fmt.Fprintf(tw, "%s\t%s\n", k+":", v)
+	}
+	row("Name", cb.Name)
+	row("Maintainer", cb.Maintainer)
+	if cb.Description != "" {
+		row("Description", cb.Description)
+	}
+	row("Category", cb.Category)
+	row("Latest version", supermarket.VersionFromURL(cb.LatestVersion))
+	row("Updated", cb.UpdatedAt.Format("2006-01-02"))
+	row("Downloads", formatThousands(cb.Metrics.Downloads.Total))
+	if cb.ExternalURL != "" {
+		row("Source URL", cb.ExternalURL)
+	}
+	versionList := supermarket.VersionListFromURLs(cb.Versions)
+	row("Versions", strings.Join(firstN(versionList, 5), ", "))
+	if extra := len(versionList) - 5; extra > 0 {
+		fmt.Fprintf(tw, "\t... (%d more)\n", extra)
+	}
+	return tw.Flush()
+}
+
+func printSupermarketVersion(w io.Writer, v *supermarket.CookbookVersion) error {
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	row := func(k, val string) {
+		fmt.Fprintf(tw, "%s\t%s\n", k+":", val)
+	}
+	row("Version", v.Version)
+	if v.License != "" {
+		row("License", v.License)
+	}
+	if v.TarballSize > 0 {
+		row("Tarball size", formatBytes(v.TarballSize))
+	}
+	if len(v.Dependencies) > 0 {
+		row("Dependencies", "")
+		for name, constraint := range v.Dependencies {
+			fmt.Fprintf(tw, "  %s\t%s\n", name, constraint)
+		}
+	}
+	if len(v.Platforms) > 0 {
+		row("Platforms", "")
+		for name, constraint := range v.Platforms {
+			fmt.Fprintf(tw, "  %s\t%s\n", name, constraint)
+		}
+	}
+	return tw.Flush()
+}
+
+func firstN(s []string, n int) []string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
+}
+
+// formatThousands renders an integer with comma thousands separators.
+func formatThousands(n int) string {
+	s := fmt.Sprintf("%d", n)
+	if len(s) <= 3 {
+		return s
+	}
+	// Walk from the right, inserting a comma every 3 digits.
+	var b strings.Builder
+	first := len(s) % 3
+	if first == 0 {
+		first = 3
+	}
+	b.WriteString(s[:first])
+	for i := first; i < len(s); i += 3 {
+		b.WriteByte(',')
+		b.WriteString(s[i : i+3])
+	}
+	return b.String()
+}
+
+// formatBytes renders a byte count as a short human-friendly string.
+func formatBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for k := n / unit; k >= unit; k /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 
 // newSupermarketDownloadCmd builds `cinc supermarket download`.
