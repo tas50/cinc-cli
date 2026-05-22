@@ -19,5 +19,6 @@ Manage cookbooks on Chef Supermarket
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc supermarket explore](cinc_supermarket_explore.md)	 - Browse Chef Supermarket cookbooks in a terminal UI
 * [cinc supermarket share](cinc_supermarket_share.md)	 - Share a cookbook on Chef Supermarket
 
