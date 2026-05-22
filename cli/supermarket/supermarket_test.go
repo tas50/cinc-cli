@@ -53,6 +53,102 @@ func TestShareDryRunGeneratesMetadataJSONFromMetadataRB(t *testing.T) {
 	}
 }
 
+func TestDryRunPackagesCookbookWithoutClient(t *testing.T) {
+	cookbookRoot := writeSupermarketCookbook(t, "nginx")
+
+	result, err := DryRun(ShareOptions{
+		Cookbook: "nginx", CookbookPath: cookbookRoot,
+	})
+	if err != nil {
+		t.Fatalf("DryRun: %v", err)
+	}
+	if result.Uploaded || result.Status != 0 {
+		t.Fatalf("DryRun result reports upload: %+v", result)
+	}
+	if result.Tarball != "nginx.tgz" {
+		t.Fatalf("tarball = %q, want nginx.tgz", result.Tarball)
+	}
+	if result.Category != "Other" {
+		t.Fatalf("category = %q, want default Other", result.Category)
+	}
+	if len(result.Files) == 0 {
+		t.Fatal("DryRun result has no files listed")
+	}
+}
+
+func TestShareFallsBackToOtherWhenCookbookUnknownOnServer(t *testing.T) {
+	cookbookRoot := writeSupermarketCookbook(t, "nginx")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/cookbooks/nginx":
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, `{"error_code":"NOT_FOUND","error_messages":["Resource not found"]}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/cookbooks":
+			reader, err := r.MultipartReader()
+			if err != nil {
+				t.Fatalf("MultipartReader: %v", err)
+			}
+			for {
+				part, err := reader.NextPart()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				data, _ := io.ReadAll(part)
+				if part.FormName() == "cookbook" && string(data) != `{"category":"Other"}` {
+					t.Errorf("cookbook field = %q, want Other fallback category", data)
+				}
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{}`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := supermarketTestClient(t, srv.URL)
+	result, err := client.Share(context.Background(), ShareOptions{
+		Cookbook: "nginx", CookbookPath: cookbookRoot,
+	})
+	if err != nil {
+		t.Fatalf("Share: %v", err)
+	}
+	if result.Category != "Other" {
+		t.Fatalf("result.Category = %q, want Other", result.Category)
+	}
+}
+
+func TestNewRejectsInvalidSupermarketSite(t *testing.T) {
+	_, err := New(config.Profile{
+		SupermarketSite: "not a url",
+		ClientName:      "tim",
+		KeyPath:         writeSupermarketTestKey(t),
+	}, "")
+	if err == nil {
+		t.Fatal("expected invalid site URL error")
+	}
+	if !strings.Contains(err.Error(), "invalid site URL") {
+		t.Fatalf("error = %q, want invalid site URL", err)
+	}
+}
+
+func TestNewRejectsProfileMissingIdentity(t *testing.T) {
+	_, err := New(config.Profile{
+		SupermarketSite: "https://supermarket.example.test",
+		KeyPath:         "/keys/missing.pem",
+	}, "")
+	if err == nil {
+		t.Fatal("expected validate identity error")
+	}
+	if !strings.Contains(err.Error(), "client_name") {
+		t.Fatalf("error = %q, want client_name in message", err)
+	}
+}
+
 func TestShareInfersCategoryAndPostsMultipartUpload(t *testing.T) {
 	cookbookRoot := writeSupermarketCookbook(t, "nginx")
 	var sawUpload bool

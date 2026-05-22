@@ -286,6 +286,59 @@ func TestWriteProfilePreservesExistingProfiles(t *testing.T) {
 	}
 }
 
+func TestWriteProfileRequiresName(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "credentials")
+
+	err := WriteProfile(path, "", Profile{
+		ServerURL:  "https://cinc.example.com",
+		Org:        "acme",
+		ClientName: "tim",
+		KeyPath:    "/keys/tim.pem",
+	})
+	if err == nil {
+		t.Fatal("expected name-required error")
+	}
+	if !strings.Contains(err.Error(), "profile name is required") {
+		t.Fatalf("error = %q, want name-required message", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("credentials file should not have been created, stat = %v", err)
+	}
+}
+
+func TestWriteProfileRejectsIncompleteIdentity(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "credentials")
+
+	err := WriteProfile(path, "worker", Profile{
+		ServerURL: "https://cinc.example.com",
+		Org:       "acme",
+		KeyPath:   "/keys/worker.pem",
+	})
+	if err == nil {
+		t.Fatal("expected validate-identity error")
+	}
+	if !strings.Contains(err.Error(), "client_name") {
+		t.Fatalf("error = %q, want client_name in message", err)
+	}
+}
+
+func TestWriteProfileRejectsExistingMalformedFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "credentials")
+	if err := os.WriteFile(path, []byte("[broken"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := WriteProfile(path, "worker", Profile{
+		ServerURL:  "https://cinc.example.com",
+		Org:        "acme",
+		ClientName: "tim",
+		KeyPath:    "/keys/tim.pem",
+	})
+	if err == nil {
+		t.Fatal("expected parse error on malformed existing file")
+	}
+}
+
 func TestProfileValidate(t *testing.T) {
 	complete := Profile{ServerURL: "u", Org: "o", ClientName: "c", KeyPath: "k"}
 	if err := complete.Validate(); err != nil {
