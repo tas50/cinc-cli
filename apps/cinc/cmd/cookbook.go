@@ -19,9 +19,40 @@ func newCookbookCmd() *cobra.Command {
 		Short: "Manage cookbooks on the Cinc Server",
 	}
 	cmd.AddCommand(newCookbookListCmd())
+	cmd.AddCommand(newCookbookShowCmd())
 	cmd.AddCommand(newCookbookDeleteCmd())
 	cmd.AddCommand(newCookbookUploadCmd())
 	return cmd
+}
+
+// newCookbookShowCmd builds the `cinc cookbook show <name> [version]`
+// command. With no version the command resolves the special "_latest"
+// sentinel that the Chef Server exposes for the highest semver.
+func newCookbookShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <name> [version]",
+		Short: "Show a cookbook version manifest",
+		Args:  cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			version := "_latest"
+			if len(args) == 2 {
+				version = args[1]
+			}
+			cb, _, err := c.Cookbooks.Get(cmd.Context(), args[0], version)
+			if err != nil {
+				return err
+			}
+			return printer.New(cmd.OutOrStdout(), format).Value(cb)
+		},
+	}
 }
 
 // newCookbookUploadCmd builds the `cinc cookbook upload <name>...` command.
