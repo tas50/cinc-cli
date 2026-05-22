@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -253,6 +254,79 @@ func TestResolveProfileRunsConfigureWhenNoChefFile(t *testing.T) {
 	}
 	if !strings.Contains(stderr.String(), "Welcome to the Cinc CLI!") {
 		t.Errorf("expected welcome on stderr, got:\n%s", stderr.String())
+	}
+}
+
+func TestResolveClientReportsMissingKeyFile(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	cincDir := filepath.Join(home, ".cinc")
+	if err := os.MkdirAll(cincDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cfgPath := filepath.Join(cincDir, "credentials")
+	keyPath := filepath.Join(home, "missing.pem")
+	body := fmt.Sprintf(`[default]
+chef_server_url = "https://x.example.com/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, keyPath)
+	if err := os.WriteFile(cfgPath, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	c := fakeCmd("", "", "", new(bytes.Buffer))
+	_, err := resolveClient(c)
+	if err == nil {
+		t.Fatal("expected an error when the key file does not exist")
+	}
+	msg := err.Error()
+	for _, want := range []string{keyPath, cfgPath, "client_key"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error %q must mention %q", msg, want)
+		}
+	}
+	if strings.Contains(msg, "no such file or directory") {
+		t.Errorf("error should be conversational, not surface the raw os error: %s", msg)
+	}
+}
+
+func TestResolveClientReportsUnreadableKeyFile(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root bypasses file permissions")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	cincDir := filepath.Join(home, ".cinc")
+	if err := os.MkdirAll(cincDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cfgPath := filepath.Join(cincDir, "credentials")
+	keyPath := filepath.Join(home, "locked.pem")
+	if err := os.WriteFile(keyPath, []byte("placeholder"), 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(keyPath, 0o600) })
+
+	body := fmt.Sprintf(`[default]
+chef_server_url = "https://x.example.com/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, keyPath)
+	if err := os.WriteFile(cfgPath, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	c := fakeCmd("", "", "", new(bytes.Buffer))
+	_, err := resolveClient(c)
+	if err == nil {
+		t.Fatal("expected an error when the key file is unreadable")
+	}
+	msg := err.Error()
+	for _, want := range []string{keyPath, cfgPath, "permission"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("error %q must mention %q", msg, want)
+		}
 	}
 }
 
