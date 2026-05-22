@@ -95,7 +95,7 @@ func (c *Client) Share(ctx context.Context, opts ShareOptions) (ShareResult, err
 	if opts.DryRun {
 		return result, nil
 	}
-	status, err := c.upload(ctx, opts.Cookbook, category, archive)
+	status, err := c.upload(ctx, opts.Cookbook, result.Category, archive)
 	if err != nil {
 		return ShareResult{}, err
 	}
