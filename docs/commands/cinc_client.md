@@ -23,4 +23,5 @@ Manage API clients on the Cinc Server
 * [cinc client delete](cinc_client_delete.md)	 - Delete an API client from the server
 * [cinc client edit](cinc_client_edit.md)	 - Edit an API client on the server
 * [cinc client list](cinc_client_list.md)	 - List API clients on the server
+* [cinc client show](cinc_client_show.md)	 - Show an API client
 

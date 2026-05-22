@@ -3,8 +3,11 @@
 package acceptance
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
+
+	cinc "github.com/tas50/cinc-api"
 )
 
 func TestEnvironmentListAgainstChefZero(t *testing.T) {
@@ -23,6 +26,27 @@ func TestEnvironmentListAgainstChefZero(t *testing.T) {
 		if !strings.Contains(jsonOut, name) {
 			t.Errorf("environment list (json) missing %q\ngot: %s", name, jsonOut)
 		}
+	}
+}
+
+// TestEnvironmentShowAgainstChefZero fetches a seeded environment and
+// asserts on both the default (pretty JSON) and `--format json` outputs.
+func TestEnvironmentShowAgainstChefZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	human := runCinc(t, env.binary, "environment", "show", "prod", "--config", env.cfgPath)
+	if !strings.Contains(human, "\"name\": \"prod\"") {
+		t.Errorf("environment show (human) missing name field:\n%s", human)
+	}
+
+	jsonOut := runCinc(t, env.binary, "environment", "show", "prod", "--config", env.cfgPath, "--format", "json")
+	var got cinc.Environment
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("environment show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.Name != "prod" {
+		t.Errorf("environment show returned name=%q, want prod", got.Name)
 	}
 }
 

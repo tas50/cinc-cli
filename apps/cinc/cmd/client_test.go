@@ -443,6 +443,63 @@ client_key      = %q
 	}
 }
 
+func TestClientShowCommandEndToEnd(t *testing.T) {
+	current := cinc.APIClient{Name: "worker-01", Validator: false}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/clients/worker-01", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %q, want GET", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(current)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"client", "show", "worker-01", "--config", writeCreateConfig(t, srv.URL), "--format", "json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc client show: %v", err)
+	}
+
+	var got cinc.APIClient
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("show output is not valid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if got.Name != "worker-01" || got.Validator {
+		t.Errorf("show returned %+v, want name=worker-01 validator=false", got)
+	}
+}
+
+func TestClientShowCommandHumanFormatIsPrettyJSON(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/clients/worker-01", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(cinc.APIClient{Name: "worker-01", Validator: true})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"client", "show", "worker-01", "--config", writeCreateConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc client show: %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "\"name\": \"worker-01\"") {
+		t.Errorf("human show output missing pretty-printed name field:\n%s", out)
+	}
+	if !strings.Contains(out, "\"validator\": true") {
+		t.Errorf("human show output missing validator field:\n%s", out)
+	}
+}
+
 func TestClientListCommandReportsConfigError(t *testing.T) {
 	root := newRootCmd()
 	root.SetOut(&bytes.Buffer{})

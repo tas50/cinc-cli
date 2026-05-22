@@ -239,6 +239,54 @@ client_key      = %q
 	}
 }
 
+func TestEnvironmentShowCommandEndToEnd(t *testing.T) {
+	want := cinc.Environment{
+		Name:             "prod",
+		Description:      "Production",
+		CookbookVersions: map[string]string{"apache2": "= 1.2.0"},
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/environments/prod", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %q, want GET", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(want)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"environment", "show", "prod", "--config", cfgPath, "--format", "json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc environment show: %v", err)
+	}
+
+	var got cinc.Environment
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("show output is not valid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if got.Name != "prod" || got.Description != "Production" {
+		t.Errorf("show returned %+v, want name=prod description=Production", got)
+	}
+	if got.CookbookVersions["apache2"] != "= 1.2.0" {
+		t.Errorf("show cookbook_versions[apache2] = %q", got.CookbookVersions["apache2"])
+	}
+}
+
 func TestEnvironmentListCommandEndToEnd(t *testing.T) {
 	srv := environmentServer(t, "prod", "_default", "staging")
 

@@ -68,3 +68,32 @@ func TestPrinterListJSONEmptyIsArrayNotNull(t *testing.T) {
 		t.Errorf("empty json List = %q, want %q", got, "[]")
 	}
 }
+
+func TestPrinterValueHumanWritesPrettyJSON(t *testing.T) {
+	type sample struct {
+		Name    string   `json:"name"`
+		RunList []string `json:"run_list"`
+	}
+	var buf bytes.Buffer
+	if err := New(&buf, FormatHuman).Value(sample{Name: "web", RunList: []string{"recipe[apache]"}}); err != nil {
+		t.Fatalf("Value (human): %v", err)
+	}
+
+	want := "{\n  \"name\": \"web\",\n  \"run_list\": [\n    \"recipe[apache]\"\n  ]\n}\n"
+	if buf.String() != want {
+		t.Errorf("human Value =\n%q\nwant\n%q", buf.String(), want)
+	}
+}
+
+func TestPrinterValueJSONWritesPrettyJSON(t *testing.T) {
+	type sample struct {
+		Name string `json:"name"`
+	}
+	var buf bytes.Buffer
+	if err := New(&buf, FormatJSON).Value(sample{Name: "web"}); err != nil {
+		t.Fatalf("Value (json): %v", err)
+	}
+	if got := buf.String(); got != "{\n  \"name\": \"web\"\n}\n" {
+		t.Errorf("json Value = %q", got)
+	}
+}

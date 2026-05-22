@@ -1,11 +1,15 @@
-## cinc role
+## cinc environment show
 
-Manage roles on the Cinc Server
+Show an environment
+
+```
+cinc environment show <name> [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for role
+  -h, --help   help for show
 ```
 
 ### Options inherited from parent commands
@@ -18,8 +22,5 @@ Manage roles on the Cinc Server
 
 ### SEE ALSO
 
-* [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
-* [cinc role delete](cinc_role_delete.md)	 - Delete a role from the server
-* [cinc role list](cinc_role_list.md)	 - List roles on the server
-* [cinc role show](cinc_role_show.md)	 - Show a role
+* [cinc environment](cinc_environment.md)	 - Manage environments on the Cinc Server
 
