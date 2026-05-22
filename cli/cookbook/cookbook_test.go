@@ -168,6 +168,77 @@ func TestBuildArchiveCanOverlayGeneratedMetadataJSON(t *testing.T) {
 	}
 }
 
+func TestBuildArchiveRespectsChefignore(t *testing.T) {
+	dir := t.TempDir()
+	for _, sub := range []string{"recipes", "spec/fixtures", ".kitchen"} {
+		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files := map[string]string{
+		"metadata.json":          `{"name":"nginx","version":"1.0.0"}`,
+		"chefignore":             "*.bak\nspec/*\n.kitchen\nBerksfile.lock\n",
+		"recipes/default.rb":     "package 'nginx'\n",
+		"recipes/default.bak":    "old\n",
+		"Berksfile.lock":         "lock\n",
+		"spec/spec_helper.rb":    "# spec\n",
+		"spec/fixtures/foo.json": "{}\n",
+		".kitchen/state.yml":     "state\n",
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	archive, err := BuildArchive(dir, "nginx")
+	if err != nil {
+		t.Fatalf("BuildArchive: %v", err)
+	}
+	got, err := ExtractArchiveFiles(archive.Bytes)
+	if err != nil {
+		t.Fatalf("ExtractArchiveFiles: %v", err)
+	}
+	want := []string{"nginx/chefignore", "nginx/metadata.json", "nginx/recipes/default.rb"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("archive files = %v, want %v", got, want)
+	}
+}
+
+func TestBuildArchiveSkipChefignoreIncludesEverything(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"metadata.json":       `{"name":"nginx","version":"1.0.0"}`,
+		"chefignore":          "*.bak\n",
+		"recipes/default.rb":  "package 'nginx'\n",
+		"recipes/default.bak": "old\n",
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	archive, err := BuildArchiveWithOptions(dir, "nginx", ArchiveOptions{
+		IncludeFiles:   true,
+		SkipChefignore: true,
+	})
+	if err != nil {
+		t.Fatalf("BuildArchiveWithOptions: %v", err)
+	}
+	got, err := ExtractArchiveFiles(archive.Bytes)
+	if err != nil {
+		t.Fatalf("ExtractArchiveFiles: %v", err)
+	}
+	want := []string{"nginx/chefignore", "nginx/metadata.json", "nginx/recipes/default.bak", "nginx/recipes/default.rb"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("archive files = %v, want %v", got, want)
+	}
+}
+
 func BenchmarkBuildUploadArchiveWithLargeGitDirectory(b *testing.B) {
 	dir := b.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "recipes"), 0o755); err != nil {

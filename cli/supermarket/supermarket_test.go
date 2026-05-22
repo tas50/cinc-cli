@@ -53,6 +53,67 @@ func TestShareDryRunGeneratesMetadataJSONFromMetadataRB(t *testing.T) {
 	}
 }
 
+func TestShareDryRunRespectsChefignore(t *testing.T) {
+	root := writeSupermarketCookbookWithChefignore(t, "nginx")
+	client := supermarketTestClient(t, "https://supermarket.example.test")
+
+	result, err := client.Share(context.Background(), ShareOptions{
+		Cookbook: "nginx", Category: "Other", CookbookPath: root, DryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("Share: %v", err)
+	}
+	for _, f := range result.Files {
+		if strings.HasSuffix(f, ".bak") {
+			t.Fatalf("dry-run files included %s, expected chefignore filter", f)
+		}
+	}
+}
+
+func TestShareDryRunSkipChefignoreIncludesEverything(t *testing.T) {
+	root := writeSupermarketCookbookWithChefignore(t, "nginx")
+	client := supermarketTestClient(t, "https://supermarket.example.test")
+
+	result, err := client.Share(context.Background(), ShareOptions{
+		Cookbook: "nginx", Category: "Other", CookbookPath: root, DryRun: true,
+		SkipChefignore: true,
+	})
+	if err != nil {
+		t.Fatalf("Share: %v", err)
+	}
+	var sawBak bool
+	for _, f := range result.Files {
+		if strings.HasSuffix(f, ".bak") {
+			sawBak = true
+			break
+		}
+	}
+	if !sawBak {
+		t.Fatalf("expected .bak file in archive when SkipChefignore is set, got %v", result.Files)
+	}
+}
+
+func writeSupermarketCookbookWithChefignore(t *testing.T, name string) string {
+	t.Helper()
+	root := t.TempDir()
+	dir := filepath.Join(root, name)
+	if err := os.MkdirAll(filepath.Join(dir, "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"metadata.json":       `{"name":"` + name + `","version":"1.0.0"}`,
+		"chefignore":          "*.bak\n",
+		"recipes/default.rb":  "package 'nginx'\n",
+		"recipes/default.bak": "old\n",
+	}
+	for sub, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, sub), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
+}
+
 func TestDryRunPackagesCookbookWithoutClient(t *testing.T) {
 	cookbookRoot := writeSupermarketCookbook(t, "nginx")
 

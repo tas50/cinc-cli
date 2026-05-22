@@ -453,27 +453,50 @@ func ReadVersion(dir string) (string, error) {
 
 var metadataRBVersion = regexp.MustCompile(`(?m)^\s*version\s+['"]([^'"]+)['"]`)
 
+// ArchiveOptions configures cookbook archive construction.
+type ArchiveOptions struct {
+	// MetadataJSON, when non-empty, overlays this content at metadata.json.
+	MetadataJSON []byte
+	// IncludeFiles retains the manifest of archived files on the returned
+	// Archive — useful for dry-run output, not needed for plain uploads.
+	IncludeFiles bool
+	// SkipChefignore disables reading and applying the cookbook's
+	// chefignore file. By default (false), chefignore is honored.
+	SkipChefignore bool
+}
+
 // BuildArchive builds a deterministic cookbook tarball rooted at cookbookName/.
 func BuildArchive(dir, cookbookName string) (Archive, error) {
-	return buildArchive(dir, cookbookName, true, nil)
+	return BuildArchiveWithOptions(dir, cookbookName, ArchiveOptions{IncludeFiles: true})
 }
 
 // BuildUploadArchive builds the upload tarball without retaining a separate
 // file-name manifest, which is only needed for dry-run output.
 func BuildUploadArchive(dir, cookbookName string) (Archive, error) {
-	return buildArchive(dir, cookbookName, false, nil)
+	return BuildArchiveWithOptions(dir, cookbookName, ArchiveOptions{})
 }
 
 // BuildArchiveWithMetadata builds a tarball and overlays metadataJSON at
 // metadata.json, which lets callers package generated metadata without
 // modifying the cookbook directory.
 func BuildArchiveWithMetadata(dir, cookbookName string, metadataJSON []byte) (Archive, error) {
-	return buildArchive(dir, cookbookName, true, metadataOverlay(metadataJSON))
+	return BuildArchiveWithOptions(dir, cookbookName, ArchiveOptions{
+		MetadataJSON: metadataJSON,
+		IncludeFiles: true,
+	})
 }
 
 // BuildUploadArchiveWithMetadata is BuildUploadArchive with a metadata overlay.
 func BuildUploadArchiveWithMetadata(dir, cookbookName string, metadataJSON []byte) (Archive, error) {
-	return buildArchive(dir, cookbookName, false, metadataOverlay(metadataJSON))
+	return BuildArchiveWithOptions(dir, cookbookName, ArchiveOptions{
+		MetadataJSON: metadataJSON,
+	})
+}
+
+// BuildArchiveWithOptions is the configurable form used when callers need to
+// override defaults — most notably to skip chefignore.
+func BuildArchiveWithOptions(dir, cookbookName string, opts ArchiveOptions) (Archive, error) {
+	return buildArchive(dir, cookbookName, opts)
 }
 
 func metadataOverlay(metadataJSON []byte) map[string][]byte {
@@ -483,8 +506,17 @@ func metadataOverlay(metadataJSON []byte) map[string][]byte {
 	return map[string][]byte{"metadata.json": metadataJSON}
 }
 
-func buildArchive(dir, cookbookName string, includeFiles bool, overlays map[string][]byte) (Archive, error) {
-	entries, err := archiveEntries(dir)
+func buildArchive(dir, cookbookName string, opts ArchiveOptions) (Archive, error) {
+	var patterns []string
+	if !opts.SkipChefignore {
+		var err error
+		patterns, err = LoadChefignore(dir)
+		if err != nil {
+			return Archive{}, fmt.Errorf("read chefignore: %w", err)
+		}
+	}
+	overlays := metadataOverlay(opts.MetadataJSON)
+	entries, err := archiveEntries(dir, patterns)
 	if err != nil {
 		return Archive{}, err
 	}
@@ -525,7 +557,7 @@ func buildArchive(dir, cookbookName string, includeFiles bool, overlays map[stri
 		return Archive{}, fmt.Errorf("close gzip: %w", err)
 	}
 	var files []string
-	if includeFiles {
+	if opts.IncludeFiles {
 		files = make([]string, len(entries))
 		for i, entry := range entries {
 			files[i] = cookbookName + "/" + entry.path
@@ -614,14 +646,22 @@ func overlayEntries(entries []archiveEntry, overlays map[string][]byte) []archiv
 	return entries
 }
 
-func archiveEntries(dir string) ([]archiveEntry, error) {
+func archiveEntries(dir string, chefignorePatterns []string) ([]archiveEntry, error) {
 	var entries []archiveEntry
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
+		rel, err := filepath.Rel(dir, p)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
 		if d.IsDir() {
 			if d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			if rel != "." && chefignoreMatches(chefignorePatterns, rel) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -633,12 +673,10 @@ func archiveEntries(dir string) ([]archiveEntry, error) {
 		if !info.Mode().IsRegular() {
 			return nil
 		}
-		rel, err := filepath.Rel(dir, path)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
 		if strings.HasPrefix(rel, ".git/") {
+			return nil
+		}
+		if chefignoreMatches(chefignorePatterns, rel) {
 			return nil
 		}
 		entries = append(entries, archiveEntry{path: rel, size: info.Size()})

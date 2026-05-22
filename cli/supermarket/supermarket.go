@@ -35,6 +35,9 @@ type ShareOptions struct {
 	Category     string
 	CookbookPath string
 	DryRun       bool
+	// SkipChefignore disables filtering the tarball through the
+	// cookbook's chefignore file.
+	SkipChefignore bool
 }
 
 // ShareResult describes the work done by Share.
@@ -128,12 +131,11 @@ func packageCookbook(opts ShareOptions, category string, includeFiles bool) (Sha
 		category = "Other"
 	}
 
-	var archive localcookbook.Archive
-	if includeFiles {
-		archive, err = localcookbook.BuildArchiveWithMetadata(dir, opts.Cookbook, metadata.JSON)
-	} else {
-		archive, err = localcookbook.BuildUploadArchiveWithMetadata(dir, opts.Cookbook, metadata.JSON)
-	}
+	archive, err := localcookbook.BuildArchiveWithOptions(dir, opts.Cookbook, localcookbook.ArchiveOptions{
+		MetadataJSON:   metadata.JSON,
+		IncludeFiles:   includeFiles,
+		SkipChefignore: opts.SkipChefignore,
+	})
 	if err != nil {
 		return ShareResult{}, localcookbook.Archive{}, err
 	}
