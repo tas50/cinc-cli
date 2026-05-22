@@ -1,11 +1,11 @@
-## cinc databag item
+## cinc policy-group
 
-Manage items within a data bag
+Manage policy groups on the Cinc Server
 
 ### Options
 
 ```
-  -h, --help   help for item
+  -h, --help   help for policy-group
 ```
 
 ### Options inherited from parent commands
@@ -18,7 +18,6 @@ Manage items within a data bag
 
 ### SEE ALSO
 
-* [cinc databag](cinc_databag.md)	 - Manage data bags on the Cinc Server
-* [cinc databag item edit](cinc_databag_item_edit.md)	 - Edit a data bag item on the server
-* [cinc databag item list](cinc_databag_item_list.md)	 - List items in a data bag
+* [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc policy-group list](cinc_policy-group_list.md)	 - List policy groups on the server
 

@@ -124,8 +124,49 @@ func newDataBagItemCmd() *cobra.Command {
 		Use:   "item",
 		Short: "Manage items within a data bag",
 	}
+	cmd.AddCommand(newDataBagItemListCmd())
 	cmd.AddCommand(newDataBagItemEditCmd())
 	return cmd
+}
+
+// newDataBagItemListCmd builds the `cinc databag item list <bag>`
+// command. It enumerates the item IDs within one bag — the bag itself
+// is required because items are scoped per bag on the server.
+func newDataBagItemListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list <bag>",
+		Short: "List items in a data bag",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			ids, err := fetchDataBagItemIDs(cmd.Context(), c, args[0])
+			if err != nil {
+				return err
+			}
+			return printer.New(cmd.OutOrStdout(), format).List(ids)
+		},
+	}
+}
+
+// fetchDataBagItemIDs returns the sorted item IDs within a single bag.
+func fetchDataBagItemIDs(ctx context.Context, c *cinc.Client, bag string) ([]string, error) {
+	index, _, err := c.DataBags.Items(bag).List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(index))
+	for id := range index {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return ids, nil
 }
 
 // newDataBagItemEditCmd builds `cinc databag item edit <bag> <id>`.

@@ -1,0 +1,94 @@
+package cmd
+
+import (
+	"bytes"
+	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"slices"
+	"testing"
+
+	cinc "github.com/tas50/cinc-api"
+)
+
+// policyServer starts an httptest server that serves a policy index
+// for org "acme" and returns the server. Each policy entry carries a
+// URI and one dummy revision, matching the Chef API shape.
+func policyServer(t *testing.T, names ...string) *httptest.Server {
+	t.Helper()
+	type entry struct {
+		URI       string                     `json:"uri"`
+		Revisions map[string]json.RawMessage `json:"revisions"`
+	}
+	index := make(map[string]entry, len(names))
+	for _, n := range names {
+		index[n] = entry{
+			URI:       "https://example.test/policies/" + n,
+			Revisions: map[string]json.RawMessage{"deadbeef": json.RawMessage(`{}`)},
+		}
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/policies", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(index)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestFetchPolicyNamesReturnsSortedNames(t *testing.T) {
+	srv := policyServer(t, "web", "base", "db")
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := cinc.NewClient(cinc.Config{
+		ServerURL: srv.URL, Org: "acme", ClientName: "tim", Key: key,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	names, err := fetchPolicyNames(context.Background(), c)
+	if err != nil {
+		t.Fatalf("fetchPolicyNames: %v", err)
+	}
+	want := []string{"base", "db", "web"}
+	if !slices.Equal(names, want) {
+		t.Errorf("fetchPolicyNames = %v, want %v", names, want)
+	}
+}
+
+func TestPolicyListCommandEndToEnd(t *testing.T) {
+	srv := policyServer(t, "web", "base", "db")
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"policy", "list", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc policy list: %v", err)
+	}
+	if got := buf.String(); got != "base\ndb\nweb\n" {
+		t.Errorf("policy list output = %q, want sorted policy names", got)
+	}
+}
