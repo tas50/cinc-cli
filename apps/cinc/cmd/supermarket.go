@@ -18,6 +18,58 @@ func newSupermarketCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newSupermarketShareCmd())
 	cmd.AddCommand(newSupermarketExploreCmd())
+	cmd.AddCommand(newSupermarketDownloadCmd())
+	return cmd
+}
+
+// newSupermarketDownloadCmd builds `cinc supermarket download`.
+// Like `explore`, this hits only anonymous endpoints, so we never
+// load a profile or key here.
+func newSupermarketDownloadCmd() *cobra.Command {
+	var (
+		file  string
+		force bool
+		site  string
+	)
+	cmd := &cobra.Command{
+		Use:   "download <cookbook> [version]",
+		Short: "Download a cookbook tarball from Chef Supermarket",
+		Long: "Downloads a cookbook from Chef Supermarket and writes it to disk\n" +
+			"as a gzipped tarball. The version defaults to the latest published\n" +
+			"version. By default the tarball lands at ./<cookbook>-<version>.tar.gz;\n" +
+			"pass --file to choose a target file or directory.",
+		Args: cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			opts := supermarket.DownloadOptions{
+				Cookbook: args[0],
+				File:     file,
+				Force:    force,
+			}
+			if len(args) == 2 {
+				opts.Version = args[1]
+			}
+			client, err := supermarket.NewAnonymous(site)
+			if err != nil {
+				return err
+			}
+			result, err := client.Download(cmd.Context(), opts)
+			if err != nil {
+				return err
+			}
+			if format == printer.FormatJSON {
+				return printer.New(cmd.OutOrStdout(), format).Value(result)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Downloaded %s %s to %s\n", result.Cookbook, result.Version, result.File)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&file, "file", "", "output file or directory (default: ./<cookbook>-<version>.tar.gz)")
+	cmd.Flags().BoolVar(&force, "force", false, "overwrite the output file if it already exists")
+	cmd.Flags().StringVar(&site, "supermarket-site", "", "URL of the Chef Supermarket site (default: https://supermarket.chef.io)")
 	return cmd
 }
 
