@@ -1,11 +1,15 @@
-## cinc databag item
+## cinc policy-group list
 
-Manage items within a data bag
+List policy groups on the server
+
+```
+cinc policy-group list [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for item
+  -h, --help   help for list
 ```
 
 ### Options inherited from parent commands
@@ -18,7 +22,5 @@ Manage items within a data bag
 
 ### SEE ALSO
 
-* [cinc databag](cinc_databag.md)	 - Manage data bags on the Cinc Server
-* [cinc databag item edit](cinc_databag_item_edit.md)	 - Edit a data bag item on the server
-* [cinc databag item list](cinc_databag_item_list.md)	 - List items in a data bag
+* [cinc policy-group](cinc_policy-group.md)	 - Manage policy groups on the Cinc Server
 

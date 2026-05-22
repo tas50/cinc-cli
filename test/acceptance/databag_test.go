@@ -29,6 +29,44 @@ func TestDataBagListAgainstChefZero(t *testing.T) {
 	}
 }
 
+// TestDataBagItemListAgainstChefZero asserts the seeded "users" bag
+// returns its two seed items in sorted order, and that an empty bag
+// returns an empty list.
+func TestDataBagItemListAgainstChefZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	human := runCinc(t, env.binary, "databag", "item", "list", "users", "--config", env.cfgPath)
+	if human != "alice\nbob\n" {
+		t.Errorf("databag item list users (human) = %q", human)
+	}
+
+	empty := runCinc(t, env.binary, "databag", "item", "list", "apps", "--config", env.cfgPath)
+	if empty != "" {
+		t.Errorf("databag item list apps (human) = %q, want empty", empty)
+	}
+
+	jsonOut := strings.TrimSpace(runCinc(t, env.binary, "databag", "item", "list", "apps", "--config", env.cfgPath, "--format", "json"))
+	if jsonOut != "[]" {
+		t.Errorf("databag item list apps (json) = %q, want \"[]\"", jsonOut)
+	}
+}
+
+// TestDataBagItemListMissingBagAgainstChefZero exercises the error
+// path when the bag itself does not exist on the server.
+func TestDataBagItemListMissingBagAgainstChefZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	_, stderr, err := runCincRaw(env.binary, "databag", "item", "list", "ghosts", "--config", env.cfgPath)
+	if err == nil {
+		t.Fatalf("databag item list of missing bag unexpectedly succeeded")
+	}
+	if !strings.Contains(stderr, "404") && !strings.Contains(stderr, "not found") {
+		t.Errorf("databag item list stderr does not mention 404/not found: %s", stderr)
+	}
+}
+
 // TestDataBagItemEditAgainstChefZero exercises `cinc databag item
 // edit` through its `--file` path. The seed populates `users`
 // with an "alice" item; the test PUTs a modified version and verifies
