@@ -25,6 +25,7 @@ func newSupermarketShareCmd() *cobra.Command {
 		cookbookPath string
 		site         string
 		dryRun       bool
+		noChefignore bool
 	)
 	cmd := &cobra.Command{
 		Use:   "share <cookbook> [category]",
@@ -36,9 +37,10 @@ func newSupermarketShareCmd() *cobra.Command {
 				return err
 			}
 			opts := supermarket.ShareOptions{
-				Cookbook:     args[0],
-				CookbookPath: cookbookPath,
-				DryRun:       dryRun,
+				Cookbook:       args[0],
+				CookbookPath:   cookbookPath,
+				DryRun:         dryRun,
+				SkipChefignore: noChefignore,
 			}
 			if len(args) == 2 {
 				opts.Category = args[1]
@@ -78,5 +80,6 @@ func newSupermarketShareCmd() *cobra.Command {
 	cmd.Flags().StringVar(&cookbookPath, "cookbook-path", "", "directory or path list containing cookbooks (default current directory)")
 	cmd.Flags().StringVar(&site, "supermarket-site", "", "URL of the Chef Supermarket site (default: profile supermarket_site, then https://supermarket.chef.io)")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "build the cookbook tarball without uploading it")
+	cmd.Flags().BoolVar(&noChefignore, "no-chefignore", false, "do not exclude files matched by the cookbook's chefignore file")
 	return cmd
 }
