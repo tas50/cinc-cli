@@ -22,10 +22,35 @@ func newClientCmd() *cobra.Command {
 		Short: "Manage API clients on the Cinc Server",
 	}
 	cmd.AddCommand(newClientListCmd())
+	cmd.AddCommand(newClientShowCmd())
 	cmd.AddCommand(newClientCreateCmd())
 	cmd.AddCommand(newClientEditCmd())
 	cmd.AddCommand(newClientDeleteCmd())
 	return cmd
+}
+
+// newClientShowCmd builds the `cinc client show <name>` command.
+func newClientShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <name>",
+		Short: "Show an API client",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			client, _, err := c.Clients.Get(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			return printer.New(cmd.OutOrStdout(), format).Value(client)
+		},
+	}
 }
 
 // newClientEditCmd builds the `cinc client edit <name>` command. It

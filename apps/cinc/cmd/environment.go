@@ -20,9 +20,34 @@ func newEnvironmentCmd() *cobra.Command {
 		Short: "Manage environments on the Cinc Server",
 	}
 	cmd.AddCommand(newEnvironmentListCmd())
+	cmd.AddCommand(newEnvironmentShowCmd())
 	cmd.AddCommand(newEnvironmentCreateCmd())
 	cmd.AddCommand(newEnvironmentDeleteCmd())
 	return cmd
+}
+
+// newEnvironmentShowCmd builds the `cinc environment show <name>` command.
+func newEnvironmentShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <name>",
+		Short: "Show an environment",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			env, _, err := c.Environments.Get(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			return printer.New(cmd.OutOrStdout(), format).Value(env)
+		},
+	}
 }
 
 // newEnvironmentCreateCmd builds the `cinc environment create <name>`

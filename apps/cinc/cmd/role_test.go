@@ -99,6 +99,54 @@ client_key      = %q
 	}
 }
 
+func TestRoleShowCommandEndToEnd(t *testing.T) {
+	role := cinc.Role{
+		Name:        "web",
+		Description: "Web tier",
+		RunList:     []string{"recipe[apache]", "recipe[base]"},
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/roles/web", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %q, want GET", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(role)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"role", "show", "web", "--config", cfgPath, "--format", "json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc role show: %v", err)
+	}
+
+	var got cinc.Role
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("show output is not valid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if got.Name != "web" || got.Description != "Web tier" {
+		t.Errorf("show returned %+v, want name=web description=Web tier", got)
+	}
+	if !slices.Equal(got.RunList, []string{"recipe[apache]", "recipe[base]"}) {
+		t.Errorf("show run_list = %v", got.RunList)
+	}
+}
+
 func TestRoleListCommandEndToEnd(t *testing.T) {
 	srv := roleServer(t, "web", "base", "db")
 

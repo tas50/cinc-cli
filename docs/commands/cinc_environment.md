@@ -22,4 +22,5 @@ Manage environments on the Cinc Server
 * [cinc environment create](cinc_environment_create.md)	 - Create an environment on the server
 * [cinc environment delete](cinc_environment_delete.md)	 - Delete an environment from the server
 * [cinc environment list](cinc_environment_list.md)	 - List environments on the server
+* [cinc environment show](cinc_environment_show.md)	 - Show an environment
 

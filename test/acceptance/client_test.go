@@ -39,6 +39,28 @@ func TestClientListAgainstChefZero(t *testing.T) {
 	}
 }
 
+// TestClientShowAgainstChefZero fetches a seeded client and confirms
+// the response surfaces both as pretty JSON (the human default for
+// `show`) and as machine-parseable JSON under `--format json`.
+func TestClientShowAgainstChefZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	human := runCinc(t, env.binary, "client", "show", "worker-01", "--config", env.cfgPath)
+	if !strings.Contains(human, "\"name\": \"worker-01\"") {
+		t.Errorf("client show (human) missing name field:\n%s", human)
+	}
+
+	jsonOut := runCinc(t, env.binary, "client", "show", "worker-01", "--config", env.cfgPath, "--format", "json")
+	var got cinc.APIClient
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("client show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.Name != "worker-01" {
+		t.Errorf("client show returned name=%q, want worker-01", got.Name)
+	}
+}
+
 // TestClientCreateAgainstChefZero exercises `cinc client create` using
 // the BYO public-key path. The default (server-generated key) path is
 // avoided here because chef-zero returns the generated key at the top
