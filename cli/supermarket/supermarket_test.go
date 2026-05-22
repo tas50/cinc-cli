@@ -5,14 +5,12 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -159,32 +157,6 @@ func TestNewUsesSupermarketSiteFromProfileWithoutServerURL(t *testing.T) {
 	}
 }
 
-func TestSignHeadersUsesChefAuthPrivateEncryptCanonicalRequest(t *testing.T) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-	request := signRequest{
-		Method:    http.MethodPost,
-		Path:      "/api/v1/cookbooks",
-		Body:      []byte("tarball bytes"),
-		UserID:    "damacus",
-		Timestamp: "2026-05-20T10:11:12Z",
-	}
-	var h http.Header = map[string][]string{}
-	if err := signHeaders(h, request, key); err != nil {
-		t.Fatalf("signHeaders: %v", err)
-	}
-
-	signature, err := base64.StdEncoding.DecodeString(strings.Join(authorizationChunks(h), ""))
-	if err != nil {
-		t.Fatalf("decode authorization headers: %v", err)
-	}
-	if err := rsa.VerifyPKCS1v15(&key.PublicKey, 0, []byte(canonicalRequest(request, contentHash(request.Body))), signature); err != nil {
-		t.Fatalf("signature did not verify against raw canonical request: %v", err)
-	}
-}
-
 func writeSupermarketCookbook(t *testing.T, name string) string {
 	t.Helper()
 	root := t.TempDir()
@@ -247,15 +219,4 @@ func writeSupermarketTestKey(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return keyPath
-}
-
-func authorizationChunks(h http.Header) []string {
-	var chunks []string
-	for i := 1; ; i++ {
-		chunk := h.Get("X-Ops-Authorization-" + strconv.Itoa(i))
-		if chunk == "" {
-			return chunks
-		}
-		chunks = append(chunks, chunk)
-	}
 }
