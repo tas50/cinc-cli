@@ -7,6 +7,7 @@ import (
 
 	"github.com/tas50/cinc-cli/cli/printer"
 	"github.com/tas50/cinc-cli/cli/supermarket"
+	"github.com/tas50/cinc-cli/cli/supermarket/explore"
 )
 
 // newSupermarketCmd builds the `cinc supermarket` command group.
@@ -16,6 +17,33 @@ func newSupermarketCmd() *cobra.Command {
 		Short: "Manage cookbooks on Chef Supermarket",
 	}
 	cmd.AddCommand(newSupermarketShareCmd())
+	cmd.AddCommand(newSupermarketExploreCmd())
+	return cmd
+}
+
+// newSupermarketExploreCmd builds the `cinc supermarket explore` TUI.
+// It needs no credentials — every endpoint it touches is anonymous —
+// so we never run the first-run flow or load a profile here.
+func newSupermarketExploreCmd() *cobra.Command {
+	var site string
+	cmd := &cobra.Command{
+		Use:   "explore",
+		Short: "Browse Chef Supermarket cookbooks in a terminal UI",
+		Long: "Launches an interactive terminal UI for browsing cookbooks on Chef\n" +
+			"Supermarket. Move with arrow keys, press / to search, press d/u/a to\n" +
+			"sort by Downloads, Updated, or Alphabetical, enter for full details,\n" +
+			"and q to quit.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return explore.Run(cmd.Context(), explore.Options{
+				Site:   site,
+				Stdin:  cmd.InOrStdin(),
+				Stdout: cmd.OutOrStdout(),
+				Stderr: cmd.ErrOrStderr(),
+			})
+		},
+	}
+	cmd.Flags().StringVar(&site, "supermarket-site", "", "URL of the Chef Supermarket site (default: https://supermarket.chef.io)")
 	return cmd
 }
 

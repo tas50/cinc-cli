@@ -128,6 +128,37 @@ func writeCommandSupermarketCookbookWithChefignore(t *testing.T, name string) st
 	return root
 }
 
+func TestSupermarketExploreCommandRegistered(t *testing.T) {
+	root := newRootCmd()
+	sub, _, err := root.Find([]string{"supermarket", "explore"})
+	if err != nil {
+		t.Fatalf("Find supermarket explore: %v", err)
+	}
+	if sub.Use != "explore" {
+		t.Fatalf("Use = %q, want explore", sub.Use)
+	}
+	if flag := sub.Flags().Lookup("supermarket-site"); flag == nil {
+		t.Fatal("--supermarket-site flag missing")
+	}
+}
+
+func TestSupermarketExploreRejectsNonTTYOutput(t *testing.T) {
+	root := newRootCmd()
+	// bytes.Buffer is not an *os.File, so the TTY check returns false
+	// and the command should refuse to launch the bubbletea program.
+	var out, errBuf bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&errBuf)
+	root.SetArgs([]string{"supermarket", "explore"})
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected non-TTY error, got nil")
+	}
+	if !strings.Contains(err.Error(), "interactive terminal") {
+		t.Fatalf("error = %q, want mention of interactive terminal", err)
+	}
+}
+
 func writeCommandSupermarketCookbook(t *testing.T, name string) string {
 	t.Helper()
 	root := t.TempDir()
