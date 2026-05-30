@@ -151,6 +151,54 @@ client_key      = %q
 	}
 }
 
+func TestNodeShowCommandEndToEnd(t *testing.T) {
+	node := cinc.Node{
+		Name:        "web01",
+		Environment: "prod",
+		RunList:     []string{"recipe[apache]", "recipe[base]"},
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/nodes/web01", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %q, want GET", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(node)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"node", "show", "web01", "--config", cfgPath, "--format", "json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc node show: %v", err)
+	}
+
+	var got cinc.Node
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("show output is not valid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if got.Name != "web01" || got.Environment != "prod" {
+		t.Errorf("show returned %+v, want name=web01 environment=prod", got)
+	}
+	if !slices.Equal(got.RunList, []string{"recipe[apache]", "recipe[base]"}) {
+		t.Errorf("show run_list = %v", got.RunList)
+	}
+}
+
 func TestNodeListCommandReportsConfigError(t *testing.T) {
 	root := newRootCmd()
 	root.SetOut(&bytes.Buffer{})

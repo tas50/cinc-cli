@@ -35,6 +35,26 @@ server.load_data({
     },
     "apps"  => {},
   },
+  # One policy with a single revision, pinned into the "prod" group, so
+  # `policy show` and `policy-group show` have something to fetch. The
+  # revision id is arbitrary but must match between the two.
+  "policies" => {
+    "appserver" => {
+      "1.0.0" => {
+        "name"           => "appserver",
+        "revision_id"    => "1.0.0",
+        "run_list"       => ["recipe[appserver::default]"],
+        "cookbook_locks" => {},
+      },
+    },
+  },
+  "policy_groups" => {
+    "prod" => {
+      "policies" => {
+        "appserver" => { "revision_id" => "1.0.0" },
+      },
+    },
+  },
 }, org)
 
 %w[INT TERM].each { |sig| trap(sig) { server.stop; exit } }

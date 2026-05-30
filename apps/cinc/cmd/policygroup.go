@@ -17,7 +17,34 @@ func newPolicyGroupCmd() *cobra.Command {
 		Short: "Manage policy groups on the Cinc Server",
 	}
 	cmd.AddCommand(newPolicyGroupListCmd())
+	cmd.AddCommand(newPolicyGroupShowCmd())
 	return cmd
+}
+
+// newPolicyGroupShowCmd builds the `cinc policy-group show <name>`
+// command. It shows which revision of each policy is active in the
+// group.
+func newPolicyGroupShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <name>",
+		Short: "Show a policy group's active policy revisions",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			group, _, err := c.PolicyGroups.Get(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			return printer.New(cmd.OutOrStdout(), format).Value(group)
+		},
+	}
 }
 
 // newPolicyGroupListCmd builds the `cinc policy-group list` command.

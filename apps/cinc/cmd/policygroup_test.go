@@ -63,6 +63,56 @@ func TestFetchPolicyGroupNamesReturnsSortedNames(t *testing.T) {
 	}
 }
 
+func TestPolicyGroupShowCommandEndToEnd(t *testing.T) {
+	group := map[string]any{
+		"uri": "https://example.test/policy_groups/prod",
+		"policies": map[string]any{
+			"appserver": map[string]any{"revision_id": "1.0.0"},
+		},
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/policy_groups/prod", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %q, want GET", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(group)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"policy-group", "show", "prod", "--config", cfgPath, "--format", "json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc policy-group show: %v", err)
+	}
+
+	var got cinc.PolicyGroup
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("show output is not valid JSON: %v\noutput: %s", err, buf.String())
+	}
+	rev, ok := got.Policies["appserver"]
+	if !ok {
+		t.Fatalf("show policies = %v, want an appserver entry", got.Policies)
+	}
+	if rev.RevisionID != "1.0.0" {
+		t.Errorf("appserver revision = %q, want 1.0.0", rev.RevisionID)
+	}
+}
+
 func TestPolicyGroupListCommandEndToEnd(t *testing.T) {
 	srv := policyGroupServer(t, "prod", "dev", "stage")
 
