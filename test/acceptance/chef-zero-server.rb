@@ -30,6 +30,9 @@ server.load_data({
   "roles"        => { "web" => {}, "db" => {}, "base" => {} },
   "environments" => { "prod" => {}, "staging" => {} },
   "clients"      => { "worker-01" => {}, "worker-02" => {} },
+  # A plain ACL group (beyond chef-zero's default admins/clients/users)
+  # so `group member` and `group delete` have a mutable target.
+  "groups"       => { "devs" => { "users" => [], "clients" => [], "groups" => [] } },
   "data"         => {
     "users" => {
       "alice" => { "id" => "alice", "role" => "admin" },

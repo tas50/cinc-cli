@@ -19,6 +19,9 @@ Manage users on the Cinc Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc user create](cinc_user_create.md)	 - Create a user on the server
+* [cinc user delete](cinc_user_delete.md)	 - Delete a user from the server
 * [cinc user list](cinc_user_list.md)	 - List users on the server
+* [cinc user password](cinc_user_password.md)	 - Set a user's password
 * [cinc user show](cinc_user_show.md)	 - Show a user
 
