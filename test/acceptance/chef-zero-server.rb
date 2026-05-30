@@ -5,8 +5,10 @@
 #
 # Starts chef-zero in multi-org mode so that requests use the real
 # /organizations/<org>/... routes, creates ORG, and seeds it with a
-# small fixed set of nodes, roles, environments, clients, and data
-# bags. Runs in the foreground until it receives SIGINT or SIGTERM.
+# small fixed set of nodes, roles, environments, clients, data bags,
+# global users, a policy, and a policy group. Groups are the default
+# per-org set (admins, billing-admins, clients, users) materialized by
+# chef-zero. Runs in the foreground until it receives SIGINT or SIGTERM.
 # Prints "READY" once the server is serving requests.
 
 require "chef_zero/server"
@@ -34,6 +36,25 @@ server.load_data({
       "bob"   => { "id" => "bob",   "role" => "viewer" },
     },
     "apps"  => {},
+  },
+  # Global users (top-level /users, not org-scoped) so `user list` and
+  # `user show` have something to fetch alongside the default "pivotal"
+  # superuser. These are distinct from the "users" data bag above.
+  "users" => {
+    "anna" => {
+      "username"     => "anna",
+      "display_name" => "Anna Admin",
+      "email"        => "anna@example.test",
+      "first_name"   => "Anna",
+      "last_name"    => "Admin",
+    },
+    "ben" => {
+      "username"     => "ben",
+      "display_name" => "Ben Viewer",
+      "email"        => "ben@example.test",
+      "first_name"   => "Ben",
+      "last_name"    => "Viewer",
+    },
   },
   # One policy with a single revision, pinned into the "prod" group, so
   # `policy show` and `policy-group show` have something to fetch. The
