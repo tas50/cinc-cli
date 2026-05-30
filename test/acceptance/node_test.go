@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"testing"
 
+	cinc "github.com/tas50/cinc-api"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -33,6 +35,27 @@ func TestNodeListAgainstChefZero(t *testing.T) {
 		if !strings.Contains(jsonOut, name) {
 			t.Errorf("node list (json) missing %q\ngot: %s", name, jsonOut)
 		}
+	}
+}
+
+// TestNodeShowAgainstChefZero fetches a seeded node and asserts on
+// both the default (pretty JSON) and `--format json` outputs.
+func TestNodeShowAgainstChefZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	human := runCinc(t, env.binary, "node", "show", "web01", "--config", env.cfgPath)
+	if !strings.Contains(human, "\"name\": \"web01\"") {
+		t.Errorf("node show (human) missing name field:\n%s", human)
+	}
+
+	jsonOut := runCinc(t, env.binary, "node", "show", "web01", "--config", env.cfgPath, "--format", "json")
+	var got cinc.Node
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("node show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.Name != "web01" {
+		t.Errorf("node show returned name=%q, want web01", got.Name)
 	}
 }
 

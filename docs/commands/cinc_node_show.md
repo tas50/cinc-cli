@@ -1,11 +1,15 @@
-## cinc policy
+## cinc node show
 
-Manage Policyfile policies on the Cinc Server
+Show a node
+
+```
+cinc node show <name> [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for policy
+  -h, --help   help for show
 ```
 
 ### Options inherited from parent commands
@@ -18,7 +22,5 @@ Manage Policyfile policies on the Cinc Server
 
 ### SEE ALSO
 
-* [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
-* [cinc policy list](cinc_policy_list.md)	 - List policies on the server
-* [cinc policy show](cinc_policy_show.md)	 - Show a policy's revisions
+* [cinc node](cinc_node.md)	 - Manage nodes on the Cinc Server
 

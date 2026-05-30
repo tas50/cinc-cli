@@ -26,6 +26,7 @@ func newNodeCmd() *cobra.Command {
 		Short: "Manage nodes on the Cinc Server",
 	}
 	cmd.AddCommand(newNodeListCmd())
+	cmd.AddCommand(newNodeShowCmd())
 	cmd.AddCommand(newNodeDeleteCmd())
 	cmd.AddCommand(newNodeSSHCmd())
 	cmd.AddCommand(newNodeBootstrapCmd())
@@ -214,6 +215,30 @@ func newNodeListCmd() *cobra.Command {
 				return err
 			}
 			return printer.New(cmd.OutOrStdout(), format).List(names)
+		},
+	}
+}
+
+// newNodeShowCmd builds the `cinc node show <name>` command.
+func newNodeShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <name>",
+		Short: "Show a node",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			node, _, err := c.Nodes.Get(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			return printer.New(cmd.OutOrStdout(), format).Value(node)
 		},
 	}
 }

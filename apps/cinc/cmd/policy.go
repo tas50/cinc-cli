@@ -17,7 +17,33 @@ func newPolicyCmd() *cobra.Command {
 		Short: "Manage Policyfile policies on the Cinc Server",
 	}
 	cmd.AddCommand(newPolicyListCmd())
+	cmd.AddCommand(newPolicyShowCmd())
 	return cmd
+}
+
+// newPolicyShowCmd builds the `cinc policy show <name>` command. It
+// shows every revision of the named policy, keyed by revision ID.
+func newPolicyShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <name>",
+		Short: "Show a policy's revisions",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			policy, _, err := c.Policies.Get(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			return printer.New(cmd.OutOrStdout(), format).Value(policy)
+		},
+	}
 }
 
 // newPolicyListCmd builds the `cinc policy list` command.
