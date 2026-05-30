@@ -85,6 +85,175 @@ client_key      = %q
 	}
 }
 
+func TestGroupCreateCommandEndToEnd(t *testing.T) {
+	var posted map[string]any
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/groups", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %q, want POST", r.Method)
+		}
+		_ = json.NewDecoder(r.Body).Decode(&posted)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]string{"name": "team"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"group", "create", "team", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc group create: %v", err)
+	}
+	if posted["groupname"] != "team" {
+		t.Errorf("create body = %v, want groupname=team", posted)
+	}
+	if got := buf.String(); got != "Created group \"team\"\n" {
+		t.Errorf("group create output = %q", got)
+	}
+}
+
+func TestGroupDeleteCommandEndToEnd(t *testing.T) {
+	var deleted string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/groups/team", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %q, want DELETE", r.Method)
+		}
+		deleted = "team"
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"name": "team"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"group", "delete", "team", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc group delete: %v", err)
+	}
+	if deleted != "team" {
+		t.Errorf("server saw delete of %q, want team", deleted)
+	}
+	if got := buf.String(); got != "Deleted group \"team\"\n" {
+		t.Errorf("group delete output = %q", got)
+	}
+}
+
+// groupMemberServer serves GET and PUT for a single group, recording
+// the actors.users slice from any PUT body.
+func groupMemberServer(t *testing.T, name string, users []string, gotUsers *[]string) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/groups/"+name, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.Method {
+		case http.MethodGet:
+			_ = json.NewEncoder(w).Encode(cinc.Group{GroupName: name, Name: name, Users: users})
+		case http.MethodPut:
+			var body struct {
+				Actors struct {
+					Users []string `json:"users"`
+				} `json:"actors"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			*gotUsers = body.Actors.Users
+			_ = json.NewEncoder(w).Encode(cinc.Group{GroupName: name, Name: name, Users: body.Actors.Users})
+		default:
+			t.Errorf("unexpected method %q", r.Method)
+		}
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestGroupMemberAddCommandEndToEnd(t *testing.T) {
+	var gotUsers []string
+	srv := groupMemberServer(t, "admins", []string{"alice"}, &gotUsers)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"group", "member", "add", "admins", "bob", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc group member add: %v", err)
+	}
+	if !slices.Equal(gotUsers, []string{"alice", "bob"}) {
+		t.Errorf("PUT users = %v, want [alice bob]", gotUsers)
+	}
+	if got := buf.String(); got != "Added bob to group \"admins\"\n" {
+		t.Errorf("group member add output = %q", got)
+	}
+}
+
+func TestGroupMemberRemoveCommandEndToEnd(t *testing.T) {
+	var gotUsers []string
+	srv := groupMemberServer(t, "admins", []string{"alice", "bob"}, &gotUsers)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"group", "member", "remove", "admins", "bob", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc group member remove: %v", err)
+	}
+	if !slices.Equal(gotUsers, []string{"alice"}) {
+		t.Errorf("PUT users = %v, want [alice]", gotUsers)
+	}
+	if got := buf.String(); got != "Removed bob from group \"admins\"\n" {
+		t.Errorf("group member remove output = %q", got)
+	}
+}
+
 func TestGroupShowCommandEndToEnd(t *testing.T) {
 	group := cinc.Group{
 		Name:      "admins",

@@ -67,7 +67,7 @@ noun-verb grammar described below.
   - [`cinc environment`](commands/cinc_environment.md) — environments
     (`create`, `delete`, `list`)
   - [`cinc group`](commands/cinc_group.md) — ACL groups
-    (`list`, `show`)
+    (`create`, `delete`, `list`, `member add`, `member remove`, `show`)
   - [`cinc node`](commands/cinc_node.md) — nodes
     (`bootstrap`, `delete`, `list`, `show`, `ssh`)
   - [`cinc policy`](commands/cinc_policy.md) — Policyfile policies
@@ -79,7 +79,7 @@ noun-verb grammar described below.
   - [`cinc supermarket`](commands/cinc_supermarket.md) — cookbooks on
     Chef Supermarket (`share`)
   - [`cinc user`](commands/cinc_user.md) — global users
-    (`list`, `show`)
+    (`create`, `delete`, `list`, `password`, `show`)
   - [`cinc version`](commands/cinc_version.md) — version info
 - **[`dev/`](dev/)** — design background: the command taxonomy and
   internal architecture. Read these when changing the shape of the

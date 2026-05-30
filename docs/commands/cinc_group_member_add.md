@@ -1,11 +1,16 @@
-## cinc group
+## cinc group member add
 
-Manage groups on the Cinc Server
+Add actors to a group
+
+```
+cinc group member add <group> <name>... [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for group
+  -h, --help          help for add
+      --type string   actor type to change: user, client, or group (default "user")
 ```
 
 ### Options inherited from parent commands
@@ -18,10 +23,5 @@ Manage groups on the Cinc Server
 
 ### SEE ALSO
 
-* [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
-* [cinc group create](cinc_group_create.md)	 - Create a group on the server
-* [cinc group delete](cinc_group_delete.md)	 - Delete a group from the server
-* [cinc group list](cinc_group_list.md)	 - List groups on the server
 * [cinc group member](cinc_group_member.md)	 - Add or remove members of a group
-* [cinc group show](cinc_group_show.md)	 - Show a group's members
 
