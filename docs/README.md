@@ -67,7 +67,11 @@ noun-verb grammar described below.
   - [`cinc environment`](commands/cinc_environment.md) — environments
     (`create`, `delete`, `list`)
   - [`cinc node`](commands/cinc_node.md) — nodes
-    (`bootstrap`, `delete`, `list`, `ssh`)
+    (`bootstrap`, `delete`, `list`, `show`, `ssh`)
+  - [`cinc policy`](commands/cinc_policy.md) — Policyfile policies
+    (`list`, `show`)
+  - [`cinc policy-group`](commands/cinc_policy-group.md) — policy groups
+    (`list`, `show`)
   - [`cinc role`](commands/cinc_role.md) — roles
     (`delete`, `list`)
   - [`cinc supermarket`](commands/cinc_supermarket.md) — cookbooks on
