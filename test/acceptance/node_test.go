@@ -18,10 +18,10 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// TestNodeListAgainstChefZero verifies that `cinc node list` against a
-// real chef-zero server returns the seeded nodes in both human and
+// TestNodeListAgainstCincZero verifies that `cinc node list` against a
+// real cinc-zero server returns the seeded nodes in both human and
 // JSON output formats.
-func TestNodeListAgainstChefZero(t *testing.T) {
+func TestNodeListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -38,9 +38,9 @@ func TestNodeListAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestNodeShowAgainstChefZero fetches a seeded node and asserts on
+// TestNodeShowAgainstCincZero fetches a seeded node and asserts on
 // both the default (pretty JSON) and `--format json` outputs.
-func TestNodeShowAgainstChefZero(t *testing.T) {
+func TestNodeShowAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -59,9 +59,9 @@ func TestNodeShowAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestNodeDeleteAgainstChefZero deletes one of the seeded nodes and
+// TestNodeDeleteAgainstCincZero deletes one of the seeded nodes and
 // verifies a follow-up list no longer includes it.
-func TestNodeDeleteAgainstChefZero(t *testing.T) {
+func TestNodeDeleteAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -95,7 +95,7 @@ func TestNodeSSHSkipSearchAgainstSSHServer(t *testing.T) {
 	}
 }
 
-func TestNodeBootstrapAgainstChefZeroAndSSHServer(t *testing.T) {
+func TestNodeBootstrapAgainstCincZeroAndSSHServer(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 	server := startAcceptanceSSHServer(t, "bootstrap ok\n")

@@ -10,9 +10,9 @@ import (
 	"testing"
 )
 
-// TestCookbookListAgainstChefZero asserts that an empty server returns
+// TestCookbookListAgainstCincZero asserts that an empty server returns
 // an empty list in both formats.
-func TestCookbookListAgainstChefZero(t *testing.T) {
+func TestCookbookListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -27,7 +27,7 @@ func TestCookbookListAgainstChefZero(t *testing.T) {
 	}
 }
 
-func TestCookbookUploadDeleteAgainstChefZero(t *testing.T) {
+func TestCookbookUploadDeleteAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -71,9 +71,9 @@ func TestCookbookUploadDeleteAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestCookbookShowMissingAgainstChefZero asserts that asking for a
+// TestCookbookShowMissingAgainstCincZero asserts that asking for a
 // cookbook the server has never seen surfaces the server's 404.
-func TestCookbookShowMissingAgainstChefZero(t *testing.T) {
+func TestCookbookShowMissingAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -86,10 +86,10 @@ func TestCookbookShowMissingAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestCookbookDeleteMissingAgainstChefZero exercises the delete code
+// TestCookbookDeleteMissingAgainstCincZero exercises the delete code
 // path against a real server when the cookbook does not exist. The
 // command must exit non-zero and surface the server's 404.
-func TestCookbookDeleteMissingAgainstChefZero(t *testing.T) {
+func TestCookbookDeleteMissingAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 

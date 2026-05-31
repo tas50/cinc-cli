@@ -27,9 +27,8 @@ import (
 // cleanly without running the node list. A second invocation then
 // proves the migrated profile actually works.
 func TestSetupMigratesChefCredentialsOnFirstRun(t *testing.T) {
-	requireChefZero(t)
 	port := freePort(t)
-	stop := startChefZero(t, port)
+	stop := startCincZero(t, port)
 	defer stop()
 	binary := buildCinc(t)
 

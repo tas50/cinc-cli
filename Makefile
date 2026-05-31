@@ -46,7 +46,7 @@ install:
 test:
 	go test ./...
 
-## test-acceptance: run acceptance tests against chef-zero (needs Ruby + the chef-zero gem)
+## test-acceptance: run acceptance tests against cinc-zero (auto-downloads the cinc-zero binary; set CINC_ZERO_BIN to override)
 test-acceptance:
 	go test -tags acceptance -count=1 ./test/...
 

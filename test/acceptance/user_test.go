@@ -10,10 +10,10 @@ import (
 	cinc "github.com/tas50/cinc-api"
 )
 
-// TestUserListAgainstChefZero verifies that `cinc user list` against a
-// real chef-zero server returns the seeded global users (alongside the
+// TestUserListAgainstCincZero verifies that `cinc user list` against a
+// real cinc-zero server returns the seeded global users (alongside the
 // default "pivotal" superuser) in both human and JSON output formats.
-func TestUserListAgainstChefZero(t *testing.T) {
+func TestUserListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -32,9 +32,9 @@ func TestUserListAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestUserCreateDeleteAgainstChefZero creates a user (capturing the
+// TestUserCreateDeleteAgainstCincZero creates a user (capturing the
 // server-generated key), confirms it in the list, then deletes it.
-func TestUserCreateDeleteAgainstChefZero(t *testing.T) {
+func TestUserCreateDeleteAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -62,8 +62,8 @@ func TestUserCreateDeleteAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestUserPasswordAgainstChefZero sets a seeded user's password.
-func TestUserPasswordAgainstChefZero(t *testing.T) {
+// TestUserPasswordAgainstCincZero sets a seeded user's password.
+func TestUserPasswordAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -73,9 +73,9 @@ func TestUserPasswordAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestUserShowAgainstChefZero fetches a seeded user and asserts on both
+// TestUserShowAgainstCincZero fetches a seeded user and asserts on both
 // the default (pretty JSON) and `--format json` outputs.
-func TestUserShowAgainstChefZero(t *testing.T) {
+func TestUserShowAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 

@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   acceptance:
-    name: Acceptance (chef-zero)
+    name: Acceptance (cinc-zero)
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -22,13 +22,6 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@afeafc3d1ab54a631816aba4c914a0081c12ff2f # v1.310.0
-        with:
-          ruby-version: '3.3'
-
-      - name: Install chef-zero
-        run: gem install chef-zero
-
       - name: Run acceptance tests
+        # The harness downloads and caches the pinned cinc-zero release binary.
         run: go test -tags acceptance -count=1 ./test/...

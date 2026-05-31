@@ -10,10 +10,10 @@ import (
 	cinc "github.com/tas50/cinc-api"
 )
 
-// TestGroupListAgainstChefZero verifies that `cinc group list` against
-// a real chef-zero server returns the default per-org groups in both
+// TestGroupListAgainstCincZero verifies that `cinc group list` against
+// a real cinc-zero server returns the default per-org groups in both
 // human and JSON output formats.
-func TestGroupListAgainstChefZero(t *testing.T) {
+func TestGroupListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -30,9 +30,9 @@ func TestGroupListAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestGroupCreateAgainstChefZero creates a group and confirms it shows
+// TestGroupCreateAgainstCincZero creates a group and confirms it shows
 // up in a follow-up list.
-func TestGroupCreateAgainstChefZero(t *testing.T) {
+func TestGroupCreateAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -47,9 +47,9 @@ func TestGroupCreateAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestGroupDeleteAgainstChefZero deletes the seeded "devs" group and
+// TestGroupDeleteAgainstCincZero deletes the seeded "devs" group and
 // confirms a follow-up list no longer includes it.
-func TestGroupDeleteAgainstChefZero(t *testing.T) {
+func TestGroupDeleteAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -64,9 +64,9 @@ func TestGroupDeleteAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestGroupMemberAgainstChefZero adds two seeded users to the seeded
+// TestGroupMemberAgainstCincZero adds two seeded users to the seeded
 // "devs" group, removes one, and asserts the membership at each step.
-func TestGroupMemberAgainstChefZero(t *testing.T) {
+func TestGroupMemberAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -96,10 +96,10 @@ func TestGroupMemberAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestGroupShowAgainstChefZero fetches the default "admins" group and
+// TestGroupShowAgainstCincZero fetches the default "admins" group and
 // asserts on both the default (pretty JSON) and `--format json`
 // outputs.
-func TestGroupShowAgainstChefZero(t *testing.T) {
+func TestGroupShowAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
