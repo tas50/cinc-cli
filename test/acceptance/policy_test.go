@@ -10,10 +10,10 @@ import (
 	cinc "github.com/tas50/cinc-api"
 )
 
-// TestPolicyListAgainstChefZero asserts the seeded policy index is
-// returned in both formats. The chef-zero seed contains a single
+// TestPolicyListAgainstCincZero asserts the seeded policy index is
+// returned in both formats. The cinc-zero seed contains a single
 // "appserver" policy.
-func TestPolicyListAgainstChefZero(t *testing.T) {
+func TestPolicyListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -28,9 +28,9 @@ func TestPolicyListAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestPolicyShowAgainstChefZero fetches the seeded policy and asserts
+// TestPolicyShowAgainstCincZero fetches the seeded policy and asserts
 // its single revision is present in both output formats.
-func TestPolicyShowAgainstChefZero(t *testing.T) {
+func TestPolicyShowAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 

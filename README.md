@@ -34,7 +34,7 @@ weren't willing to compromise on:
   docs can't drift from what the binary actually does.
 - **Fully tested.** Every command ships with both unit tests against
   an in-process HTTP server and acceptance tests that run the real
-  compiled binary against a live `chef-zero`, so behavior is verified
+  compiled binary against a live `cinc-zero`, so behavior is verified
   end-to-end before it lands.
 
 ## Status
@@ -136,7 +136,7 @@ refreshed automatically on every push to `main`.
 make test            # unit tests
 make vet             # go vet
 make fmt             # gofmt -w
-make test-acceptance # acceptance tests against chef-zero (needs Ruby + chef-zero gem)
+make test-acceptance # acceptance tests against cinc-zero (auto-downloads the cinc-zero binary)
 make help            # list all targets
 ```
 

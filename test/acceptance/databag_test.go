@@ -12,7 +12,7 @@ import (
 	cinc "github.com/tas50/cinc-api"
 )
 
-func TestDataBagListAgainstChefZero(t *testing.T) {
+func TestDataBagListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -29,10 +29,10 @@ func TestDataBagListAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestDataBagItemListAgainstChefZero asserts the seeded "users" bag
+// TestDataBagItemListAgainstCincZero asserts the seeded "users" bag
 // returns its two seed items in sorted order, and that an empty bag
 // returns an empty list.
-func TestDataBagItemListAgainstChefZero(t *testing.T) {
+func TestDataBagItemListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -52,9 +52,9 @@ func TestDataBagItemListAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestDataBagItemListMissingBagAgainstChefZero exercises the error
+// TestDataBagItemListMissingBagAgainstCincZero exercises the error
 // path when the bag itself does not exist on the server.
-func TestDataBagItemListMissingBagAgainstChefZero(t *testing.T) {
+func TestDataBagItemListMissingBagAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -67,11 +67,11 @@ func TestDataBagItemListMissingBagAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestDataBagItemEditAgainstChefZero exercises `cinc databag item
+// TestDataBagItemEditAgainstCincZero exercises `cinc databag item
 // edit` through its `--file` path. The seed populates `users`
 // with an "alice" item; the test PUTs a modified version and verifies
 // the command exits cleanly.
-func TestDataBagItemEditAgainstChefZero(t *testing.T) {
+func TestDataBagItemEditAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -90,7 +90,7 @@ func TestDataBagItemEditAgainstChefZero(t *testing.T) {
 	}
 }
 
-func TestDataBagCreateAgainstChefZero(t *testing.T) {
+func TestDataBagCreateAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -105,10 +105,10 @@ func TestDataBagCreateAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestDataBagCreateWithItemAgainstChefZero exercises the two-arg
+// TestDataBagCreateWithItemAgainstCincZero exercises the two-arg
 // `databag create BAG ITEM` form through --file so it doesn't need
 // a real terminal for the editor.
-func TestDataBagCreateWithItemAgainstChefZero(t *testing.T) {
+func TestDataBagCreateWithItemAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -127,7 +127,7 @@ func TestDataBagCreateWithItemAgainstChefZero(t *testing.T) {
 	}
 }
 
-func TestDataBagDeleteAgainstChefZero(t *testing.T) {
+func TestDataBagDeleteAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 

@@ -10,7 +10,7 @@ import (
 	cinc "github.com/tas50/cinc-api"
 )
 
-func TestRoleListAgainstChefZero(t *testing.T) {
+func TestRoleListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -27,9 +27,9 @@ func TestRoleListAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestRoleShowAgainstChefZero fetches a seeded role and asserts on both
+// TestRoleShowAgainstCincZero fetches a seeded role and asserts on both
 // the default (pretty JSON) and `--format json` outputs.
-func TestRoleShowAgainstChefZero(t *testing.T) {
+func TestRoleShowAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -48,7 +48,7 @@ func TestRoleShowAgainstChefZero(t *testing.T) {
 	}
 }
 
-func TestRoleDeleteAgainstChefZero(t *testing.T) {
+func TestRoleDeleteAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 

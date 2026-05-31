@@ -16,11 +16,11 @@ import (
 	cinc "github.com/tas50/cinc-api"
 )
 
-// TestClientListAgainstChefZero asserts the seeded clients are
-// returned. chef-zero may add additional clients of its own (e.g. an
+// TestClientListAgainstCincZero asserts the seeded clients are
+// returned. cinc-zero may add additional clients of its own (e.g. an
 // auto-created validator); the test only requires the seeded names to
 // be present.
-func TestClientListAgainstChefZero(t *testing.T) {
+func TestClientListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -39,10 +39,10 @@ func TestClientListAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestClientShowAgainstChefZero fetches a seeded client and confirms
+// TestClientShowAgainstCincZero fetches a seeded client and confirms
 // the response surfaces both as pretty JSON (the human default for
 // `show`) and as machine-parseable JSON under `--format json`.
-func TestClientShowAgainstChefZero(t *testing.T) {
+func TestClientShowAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -61,15 +61,15 @@ func TestClientShowAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestClientCreateAgainstChefZero exercises `cinc client create` using
+// TestClientCreateAgainstCincZero exercises `cinc client create` using
 // the BYO public-key path. The default (server-generated key) path is
-// avoided here because chef-zero returns the generated key at the top
+// avoided here because cinc-zero returns the generated key at the top
 // level of the response (`{"private_key": ...}`) rather than nested
 // under `chef_key`, which is what cinc-api unmarshals — so the CLI's
-// key-bearing branches are not reachable against chef-zero. That
+// key-bearing branches are not reachable against cinc-zero. That
 // response-shape mismatch is exercised by the unit tests against an
 // in-process httptest server that returns the modern shape.
-func TestClientCreateAgainstChefZero(t *testing.T) {
+func TestClientCreateAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -98,12 +98,12 @@ func TestClientCreateAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestClientEditAgainstChefZero exercises `cinc client edit` through
+// TestClientEditAgainstCincZero exercises `cinc client edit` through
 // its `--file` path. The built-in TUI editor branch is unreachable
 // from `go test` (no real terminal attached), so the acceptance test
 // covers the scripted path; the TUI editor branch is exercised by
 // hand and by the unit tests that stub editJSON.
-func TestClientEditAgainstChefZero(t *testing.T) {
+func TestClientEditAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -129,9 +129,9 @@ func TestClientEditAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestClientDeleteAgainstChefZero deletes a seeded client and confirms
+// TestClientDeleteAgainstCincZero deletes a seeded client and confirms
 // it is gone from the follow-up list.
-func TestClientDeleteAgainstChefZero(t *testing.T) {
+func TestClientDeleteAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 

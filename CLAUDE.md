@@ -70,8 +70,11 @@ all flags are documented in `docs/commands.md`.
 - `make help` — list all targets.
 
 Acceptance tests live under `test/acceptance/` and run the real binary
-against a live `chef-zero` server. They are gated behind the
-`acceptance` build tag and need Ruby plus the `chef-zero` gem:
+against a live [`cinc-zero`](https://github.com/tas50/cinc-zero) server
+— a single-binary, in-memory Chef Infra Server. They are gated behind
+the `acceptance` build tag. The harness downloads and caches the pinned
+cinc-zero release automatically (no Ruby needed); set `CINC_ZERO_BIN`
+to point at a local build instead.
 
 ```
 go test -tags acceptance ./test/...
@@ -79,10 +82,13 @@ go test -tags acceptance ./test/...
 make test-acceptance
 ```
 
-The chef-zero helper at `test/acceptance/chef-zero-server.rb` seeds a
-fixed set of nodes, roles, environments, clients, and data bags into
-the `acme` org; tests share that seed but each test runs against its
-own fresh chef-zero instance.
+cinc-zero preloads the `test/acceptance/seed/` chef-repo (nodes, roles,
+environments, clients, data bags, a policy, and a policy group) into
+the `acme` org via `--repo`. The global users and the `devs` group,
+which the chef-repo format can't express, are seeded separately by the
+harness through the cinc CLI. Tests share that seed but each runs
+against its own fresh cinc-zero instance. When pinning a new cinc-zero
+release, bump `cincZeroVersion` in `test/acceptance/helpers_test.go`.
 
 ## Conventions
 
@@ -101,8 +107,8 @@ own fresh chef-zero instance.
      command end-to-end against an `httptest` server (fast, deterministic,
      no external dependencies).
   2. An acceptance test in `test/acceptance/<noun>_test.go` runs the real
-     compiled binary against `chef-zero` and asserts on the same
-     behavior. If the chef-zero response shape or seed makes a code path
+     compiled binary against `cinc-zero` and asserts on the same
+     behavior. If the cinc-zero response shape or seed makes a code path
      untestable in acceptance, document the gap inline and cover it in
      the unit test instead.
   3. `go test ./...` and `go test -tags acceptance ./test/...` both pass.

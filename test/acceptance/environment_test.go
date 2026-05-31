@@ -10,11 +10,11 @@ import (
 	cinc "github.com/tas50/cinc-api"
 )
 
-func TestEnvironmentListAgainstChefZero(t *testing.T) {
+func TestEnvironmentListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
-	// chef-zero auto-creates the "_default" environment in every org;
+	// cinc-zero auto-creates the "_default" environment in every org;
 	// the seed adds "prod" and "staging" on top.
 	human := runCinc(t, env.binary, "environment", "list", "--config", env.cfgPath)
 	if human != "_default\nprod\nstaging\n" {
@@ -29,9 +29,9 @@ func TestEnvironmentListAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestEnvironmentShowAgainstChefZero fetches a seeded environment and
+// TestEnvironmentShowAgainstCincZero fetches a seeded environment and
 // asserts on both the default (pretty JSON) and `--format json` outputs.
-func TestEnvironmentShowAgainstChefZero(t *testing.T) {
+func TestEnvironmentShowAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -50,7 +50,7 @@ func TestEnvironmentShowAgainstChefZero(t *testing.T) {
 	}
 }
 
-func TestEnvironmentCreateAgainstChefZero(t *testing.T) {
+func TestEnvironmentCreateAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -67,7 +67,7 @@ func TestEnvironmentCreateAgainstChefZero(t *testing.T) {
 	}
 }
 
-func TestEnvironmentDeleteAgainstChefZero(t *testing.T) {
+func TestEnvironmentDeleteAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
