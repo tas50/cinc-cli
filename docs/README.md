@@ -66,6 +66,8 @@ noun-verb grammar described below.
     (`create`, `delete`, `item edit`, `list`)
   - [`cinc environment`](commands/cinc_environment.md) — environments
     (`create`, `delete`, `list`)
+  - [`cinc explore`](commands/cinc_explore.md) — a k9s-style terminal UI
+    for the whole server (browse, view, edit, create, delete, download)
   - [`cinc group`](commands/cinc_group.md) — ACL groups
     (`create`, `delete`, `list`, `member add`, `member remove`, `show`)
   - [`cinc node`](commands/cinc_node.md) — nodes
