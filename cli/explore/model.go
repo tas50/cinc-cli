@@ -2,6 +2,8 @@ package explore
 
 import (
 	"context"
+	"encoding/json"
+	"net/url"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -50,6 +52,10 @@ type model struct {
 	opts        Options
 	client      *cinc.Client // nil until a profile is chosen
 	profileName string
+
+	// server identity shown in the title bar
+	serverHost    string // hostname[:port] of the connected server
+	serverVersion string // e.g. "API v2"; empty until the probe returns
 
 	screen screen
 	width  int
@@ -132,6 +138,7 @@ func newModel(ctx context.Context, opts Options, s startup) model {
 		opts:         opts,
 		client:       s.client,
 		profileName:  s.profileName,
+		serverHost:   hostFromProfile(opts, s.profileName),
 		screen:       s.screen,
 		profileNames: s.profileNames,
 		kinds:        registry(),
@@ -140,6 +147,21 @@ func newModel(ctx context.Context, opts Options, s startup) model {
 		styles:       newStyles(),
 		keys:         newKeyMap(),
 	}
+}
+
+// hostFromProfile pulls the server hostname[:port] out of a profile's
+// server URL, for display in the title bar. It returns "" when the
+// profile or URL is missing or unparseable.
+func hostFromProfile(opts Options, name string) string {
+	p, ok := opts.Profiles[name]
+	if !ok {
+		return ""
+	}
+	u, err := url.Parse(p.ServerURL)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	return u.Host
 }
 
 func (m *model) nextReqID() uint64 {
@@ -186,6 +208,10 @@ type downloadDoneMsg struct {
 	name string
 	path string
 	err  error
+}
+
+type serverInfoMsg struct {
+	version string
 }
 
 // ----- commands --------------------------------------------------------
@@ -253,9 +279,46 @@ func downloadCmd(ctx context.Context, c *cinc.Client, d Downloadable, name, dir 
 	}
 }
 
+// serverInfoCmd makes one cheap authenticated request and reads the
+// server's Chef API version out of the X-Ops-Server-Api-Version response
+// header. A failure just leaves the version blank — it's title-bar trim,
+// not load-bearing.
+func serverInfoCmd(ctx context.Context, c *cinc.Client) tea.Cmd {
+	return func() tea.Msg {
+		_, resp, err := c.Nodes.List(ctx)
+		if err != nil || resp == nil || resp.HTTPResponse == nil {
+			return serverInfoMsg{}
+		}
+		return serverInfoMsg{version: parseAPIVersion(resp.HTTPResponse.Header.Get("X-Ops-Server-Api-Version"))}
+	}
+}
+
+// parseAPIVersion turns a Chef X-Ops-Server-Api-Version header value
+// (JSON like {"max_version":"2",…}) into a short label like "API v2".
+func parseAPIVersion(header string) string {
+	if header == "" {
+		return ""
+	}
+	var v struct {
+		MaxVersion string `json:"max_version"`
+	}
+	if err := json.Unmarshal([]byte(header), &v); err != nil || v.MaxVersion == "" {
+		return ""
+	}
+	return "API v" + v.MaxVersion
+}
+
 // ----- tea.Model -------------------------------------------------------
 
-func (m model) Init() tea.Cmd { return nil }
+func (m model) Init() tea.Cmd {
+	// When a profile is resolved up front (single profile or --profile),
+	// probe the server version immediately; the picker path fires it on
+	// client-ready instead.
+	if m.client != nil {
+		return serverInfoCmd(m.ctx, m.client)
+	}
+	return nil
+}
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -273,6 +336,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleMutationDone(msg)
 	case downloadDoneMsg:
 		return m.handleDownloadDone(msg), nil
+	case serverInfoMsg:
+		m.serverVersion = msg.version
+		return m, nil
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	}
@@ -306,12 +372,16 @@ func (m model) View() string {
 
 func (m model) handleResize(msg tea.WindowSizeMsg) model {
 	m.width, m.height = msg.Width, msg.Height
+	// The detail viewport lives inside the bordered frame's body area, so
+	// size it to the inner width and the body height frame() leaves it.
+	vpW := max(1, msg.Width-2)
+	vpH := m.bodyHeight()
 	if !m.detailReady {
-		m.detail = viewport.New(msg.Width, max(1, msg.Height-4))
+		m.detail = viewport.New(vpW, vpH)
 		m.detailReady = true
 	} else {
-		m.detail.Width = msg.Width
-		m.detail.Height = max(1, msg.Height-4)
+		m.detail.Width = vpW
+		m.detail.Height = vpH
 	}
 	// The editor is only constructed when opened; resize it only while
 	// it's the active screen to avoid touching a zero-value textarea.
@@ -350,9 +420,11 @@ func (m model) handleClientReady(msg clientReadyMsg) (tea.Model, tea.Cmd) {
 	}
 	m.client = msg.client
 	m.profileName = msg.name
+	m.serverHost = hostFromProfile(m.opts, msg.name)
+	m.serverVersion = ""
 	m.listErr = ""
 	m.screen = screenKinds
-	return m, nil
+	return m, serverInfoCmd(m.ctx, m.client)
 }
 
 func (m model) handleListLoaded(msg listLoadedMsg) model {

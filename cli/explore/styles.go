@@ -18,6 +18,7 @@ type styles struct {
 	Error      lipgloss.Style
 	Status     lipgloss.Style
 	Warn       lipgloss.Style
+	ServerInfo lipgloss.Style
 }
 
 func newStyles() styles {
@@ -34,5 +35,6 @@ func newStyles() styles {
 		Error:      lipgloss.NewStyle().Foreground(lipgloss.Color("196")),
 		Status:     lipgloss.NewStyle().Foreground(lipgloss.Color("114")),
 		Warn:       lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214")),
+		ServerInfo: lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("244")),
 	}
 }
