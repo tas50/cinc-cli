@@ -88,6 +88,13 @@ type DrillDown interface {
 	Child(parent string) Kind
 }
 
+// Summarizable kinds render a selected object in the split-screen summary
+// pane. Every editorKind is Summarizable: those with a summaryFn show a
+// curated facts panel, the rest show JSON.
+type Summarizable interface {
+	Summary(ctx context.Context, c *cinc.Client, name string) (summaryView, error)
+}
+
 // registry returns the kinds shown in the top-level menu, in display
 // order.
 func registry() []Kind {
@@ -122,7 +129,10 @@ type editorKind[T any] struct {
 	createFn func(ctx context.Context, c *cinc.Client, obj *T) (CreateResult, error)
 	updateFn func(ctx context.Context, c *cinc.Client, obj *T) error
 	deleteFn func(ctx context.Context, c *cinc.Client, name string) error
-	template func() []byte
+	// summaryFn, when set, builds the curated facts panel for an object;
+	// when nil the kind falls back to JSON in the summary pane.
+	summaryFn func(*T) []summaryField
+	template  func() []byte
 }
 
 func (k editorKind[T]) Title() string { return k.title }
@@ -153,6 +163,23 @@ func (k editorKind[T]) Describe(ctx context.Context, c *cinc.Client, name string
 		return "", err
 	}
 	return prettyJSON(obj)
+}
+
+// Summary fetches the object and returns its curated facts panel, or —
+// for kinds without a summaryFn — the pretty JSON to render in the pane.
+func (k editorKind[T]) Summary(ctx context.Context, c *cinc.Client, name string) (summaryView, error) {
+	obj, err := k.getFn(ctx, c, name)
+	if err != nil {
+		return summaryView{}, err
+	}
+	if k.summaryFn != nil {
+		return summaryView{Fields: k.summaryFn(obj)}, nil
+	}
+	body, err := prettyJSON(obj)
+	if err != nil {
+		return summaryView{}, err
+	}
+	return summaryView{JSON: body}, nil
 }
 
 func (k editorKind[T]) Save(ctx context.Context, c *cinc.Client, name string, edited []byte) error {

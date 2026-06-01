@@ -208,14 +208,57 @@ func (m model) renderChoice(label string, selected bool) string {
 
 // ----- list ------------------------------------------------------------
 
-func (m model) viewList() string {
-	var b strings.Builder
+// splitMinWidth is the inner width below which the list drops the summary
+// pane and uses the full width, so narrow terminals stay usable.
+const splitMinWidth = 72
 
+// splitListMin is the floor for the list pane's width in the split.
+const splitListMin = 20
+
+func (m model) viewList() string {
+	hints := []string{m.hint("↵", m.enterVerb()), m.hint("/", "filter"), m.hint(":", "kinds")}
+	hints = append(hints, m.actionHints()...)
+	hints = append(hints, m.hint("esc", "back"), m.hint("q", "quit"))
+
+	innerW := max(1, m.width-2)
+	if innerW < splitMinWidth {
+		return m.frame(m.crumb(), m.renderListContent(), hints)
+	}
+
+	h := m.bodyHeight()
+	listW := max(splitListMin, innerW/3)
+	paneW := innerW - listW - 1 // 1 col for the separator
+
+	left := lipgloss.NewStyle().
+		Width(listW).MaxWidth(listW).Height(h).MaxHeight(h).
+		Render(m.renderListContent())
+	sep := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Render(verticalRule(h))
+	right := lipgloss.NewStyle().
+		Width(paneW).MaxWidth(paneW).Height(h).MaxHeight(h).PaddingLeft(1).
+		Render(m.renderSummaryContent())
+
+	body := lipgloss.JoinHorizontal(lipgloss.Top, left, sep, right)
+	return m.frame(m.crumb(), body, hints)
+}
+
+// verticalRule returns n stacked "│" glyphs, the split's separator column.
+func verticalRule(n int) string {
+	if n < 1 {
+		n = 1
+	}
+	return strings.TrimRight(strings.Repeat("│\n", n), "\n")
+}
+
+// renderListContent is the left pane: an optional filter line followed by
+// the table (or a loading/empty notice).
+func (m model) renderListContent() string {
+	var b strings.Builder
 	rows := m.filteredRows()
 	if m.filtering || m.filter.Value() != "" {
 		b.WriteString(m.filter.View() + "\n")
 	}
-
 	switch {
 	case m.loading:
 		b.WriteString(m.styles.Body.Render("Loading…") + "\n")
@@ -224,11 +267,57 @@ func (m model) viewList() string {
 	default:
 		b.WriteString(m.renderTable(rows))
 	}
+	return b.String()
+}
 
-	hints := []string{m.hint("↵", m.enterVerb()), m.hint("/", "filter"), m.hint(":", "kinds")}
-	hints = append(hints, m.actionHints()...)
-	hints = append(hints, m.hint("esc", "back"), m.hint("q", "quit"))
-	return m.frame(m.crumb(), b.String(), hints)
+// renderSummaryContent is the right pane: the curated facts (or JSON) for
+// the selected object, with a loading or error placeholder until it lands.
+func (m model) renderSummaryContent() string {
+	row, ok := m.selectedRow()
+	if !ok {
+		if m.loading {
+			return ""
+		}
+		return m.styles.Body.Render("Nothing selected.")
+	}
+
+	var b strings.Builder
+	b.WriteString(m.styles.Title.Render(row.Name) + "\n\n")
+	switch {
+	case m.summaryErr != "":
+		b.WriteString(m.styles.Error.Render("✗ " + m.summaryErr))
+	default:
+		if view, ok := m.summaryCache[row.Name]; ok {
+			if len(view.Fields) > 0 {
+				b.WriteString(m.renderFields(view.Fields))
+			} else {
+				b.WriteString(m.styles.Body.Render(view.JSON))
+			}
+		} else {
+			b.WriteString(m.styles.Body.Render("Loading…"))
+		}
+	}
+	return b.String()
+}
+
+// renderFields renders label/value rows with the labels padded to a common
+// width so the values line up.
+func (m model) renderFields(fields []summaryField) string {
+	w := 0
+	for _, f := range fields {
+		if len(f.Label) > w {
+			w = len(f.Label)
+		}
+	}
+	var b strings.Builder
+	for i, f := range fields {
+		label := m.styles.Header.Render(fmt.Sprintf("%-*s", w, f.Label))
+		b.WriteString(label + "  " + m.styles.Body.Render(f.Value))
+		if i < len(fields)-1 {
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
 }
 
 // enterVerb labels the Enter key by what it does for the current kind.

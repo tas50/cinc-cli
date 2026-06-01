@@ -9,7 +9,8 @@ import (
 // newRoleKind builds the Roles kind: full view/edit/create/delete.
 func newRoleKind() Kind {
 	return editorKind[cinc.Role]{
-		title: "Roles",
+		title:     "Roles",
+		summaryFn: roleSummaryFields,
 		listFn: func(ctx context.Context, c *cinc.Client) (map[string]string, error) {
 			index, _, err := c.Roles.List(ctx)
 			return index, err

@@ -10,7 +10,8 @@ import (
 // view/edit/create/delete.
 func newEnvironmentKind() Kind {
 	return editorKind[cinc.Environment]{
-		title: "Environments",
+		title:     "Environments",
+		summaryFn: environmentSummaryFields,
 		listFn: func(ctx context.Context, c *cinc.Client) (map[string]string, error) {
 			index, _, err := c.Environments.List(ctx)
 			return index, err

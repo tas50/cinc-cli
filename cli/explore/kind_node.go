@@ -2,6 +2,7 @@ package explore
 
 import (
 	"context"
+	"time"
 
 	cinc "github.com/tas50/cinc-api"
 )
@@ -10,6 +11,9 @@ import (
 func newNodeKind() Kind {
 	return editorKind[cinc.Node]{
 		title: "Nodes",
+		summaryFn: func(n *cinc.Node) []summaryField {
+			return nodeSummaryFields(n, time.Now())
+		},
 		listFn: func(ctx context.Context, c *cinc.Client) (map[string]string, error) {
 			index, _, err := c.Nodes.List(ctx)
 			return index, err

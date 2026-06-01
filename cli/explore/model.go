@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -14,6 +15,11 @@ import (
 	"github.com/tas50/cinc-cli/cli/config"
 	"github.com/tas50/cinc-cli/cli/jsoneditor"
 )
+
+// summaryDebounce is how long the cursor must settle on a row before the
+// split-screen panel fetches that object, so fast scrolling doesn't fire
+// a request per row.
+const summaryDebounce = 200 * time.Millisecond
 
 // screen is the active full-screen view. Editor, confirm, name, and
 // result are modal overlays that remember the screen to return to.
@@ -80,6 +86,12 @@ type model struct {
 	// list filtering
 	filtering bool
 	filter    textinput.Model
+
+	// split-screen summary panel: the right pane's per-row object summary,
+	// cached by name and cleared when the list changes.
+	summaryCache map[string]summaryView
+	summaryErr   string
+	debounceID   uint64 // monotonic; only the latest scroll's tick acts
 
 	// detail view
 	detail      viewport.Model
@@ -214,6 +226,19 @@ type serverInfoMsg struct {
 	version string
 }
 
+// summaryTickMsg fires when the debounce window elapses; id ties it to
+// the selection that scheduled it so stale ticks are ignored.
+type summaryTickMsg struct {
+	id   uint64
+	name string
+}
+
+type summaryLoadedMsg struct {
+	name string
+	view summaryView
+	err  error
+}
+
 // ----- commands --------------------------------------------------------
 
 func buildClientCmd(opts Options, name string, profile config.Profile) tea.Cmd {
@@ -279,6 +304,14 @@ func downloadCmd(ctx context.Context, c *cinc.Client, d Downloadable, name, dir 
 	}
 }
 
+// summaryCmd fetches the selected object's summary for the right pane.
+func summaryCmd(ctx context.Context, s Summarizable, c *cinc.Client, name string) tea.Cmd {
+	return func() tea.Msg {
+		view, err := s.Summary(ctx, c, name)
+		return summaryLoadedMsg{name: name, view: view, err: err}
+	}
+}
+
 // serverInfoCmd makes one cheap authenticated request and reads the
 // server's Chef API version out of the X-Ops-Server-Api-Version response
 // header. A failure just leaves the version blank — it's title-bar trim,
@@ -327,7 +360,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case clientReadyMsg:
 		return m.handleClientReady(msg)
 	case listLoadedMsg:
-		return m.handleListLoaded(msg), nil
+		m = m.handleListLoaded(msg)
+		return m, m.scheduleSummary()
 	case detailLoadedMsg:
 		return m.handleDetailLoaded(msg), nil
 	case editSeedMsg:
@@ -339,6 +373,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case serverInfoMsg:
 		m.serverVersion = msg.version
 		return m, nil
+	case summaryTickMsg:
+		return m.handleSummaryTick(msg)
+	case summaryLoadedMsg:
+		return m.handleSummaryLoaded(msg), nil
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	}
@@ -494,6 +532,71 @@ func (m model) handleMutationDone(msg mutationDoneMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// scheduleSummary arms the debounce for the currently selected row. It
+// returns nil when there's nothing to fetch (no row, already cached, or a
+// kind that isn't Summarizable); otherwise a tick that, once it survives
+// the debounce window, drives the fetch.
+func (m *model) scheduleSummary() tea.Cmd {
+	row, ok := m.selectedRow()
+	if !ok {
+		return nil
+	}
+	if _, cached := m.summaryCache[row.Name]; cached {
+		m.summaryErr = ""
+		return nil
+	}
+	if _, ok := m.cur.(Summarizable); !ok {
+		return nil
+	}
+	m.debounceID++
+	id, name := m.debounceID, row.Name
+	return tea.Tick(summaryDebounce, func(time.Time) tea.Msg {
+		return summaryTickMsg{id: id, name: name}
+	})
+}
+
+// handleSummaryTick fires the fetch only if this tick is still the latest
+// scheduled one and its row is still selected and uncached.
+func (m model) handleSummaryTick(msg summaryTickMsg) (tea.Model, tea.Cmd) {
+	if msg.id != m.debounceID {
+		return m, nil
+	}
+	row, ok := m.selectedRow()
+	if !ok || row.Name != msg.name {
+		return m, nil
+	}
+	if _, cached := m.summaryCache[msg.name]; cached {
+		return m, nil
+	}
+	s, ok := m.cur.(Summarizable)
+	if !ok {
+		return m, nil
+	}
+	return m, summaryCmd(m.ctx, s, m.client, msg.name)
+}
+
+// handleSummaryLoaded caches a fetched summary. Caching by name is always
+// safe: the panel renders whatever the currently selected row maps to, so
+// a result that arrives after the cursor moved on simply waits in cache.
+func (m model) handleSummaryLoaded(msg summaryLoadedMsg) model {
+	row, current := m.selectedRow()
+	isCurrent := current && row.Name == msg.name
+	if msg.err != nil {
+		if isCurrent {
+			m.summaryErr = msg.err.Error()
+		}
+		return m
+	}
+	if m.summaryCache == nil {
+		m.summaryCache = map[string]summaryView{}
+	}
+	m.summaryCache[msg.name] = msg.view
+	if isCurrent {
+		m.summaryErr = ""
+	}
+	return m
+}
+
 func (m model) handleDownloadDone(msg downloadDoneMsg) model {
 	if msg.err != nil {
 		m.listErr = msg.err.Error()
@@ -540,6 +643,8 @@ func (m *model) openList(k Kind) tea.Cmd {
 	m.status = ""
 	m.filtering = false
 	m.filter.SetValue("")
+	m.summaryCache = map[string]summaryView{}
+	m.summaryErr = ""
 	m.screen = screenList
 	return listCmd(m.ctx, m.client, k, m.nextReqID())
 }

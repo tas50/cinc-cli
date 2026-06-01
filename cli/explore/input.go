@@ -86,6 +86,7 @@ func (m model) updateListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.filtering {
 		return m.updateFilterKey(msg)
 	}
+	prev := m.cursor
 	switch {
 	case key.Matches(msg, m.keys.Quit):
 		return m, tea.Quit
@@ -127,6 +128,10 @@ func (m model) updateListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m.startDownload(row.Name)
 		}
 	}
+	// A cursor move re-arms the summary panel for the newly selected row.
+	if m.cursor != prev {
+		return m, m.scheduleSummary()
+	}
 	return m, nil
 }
 
@@ -136,20 +141,22 @@ func (m model) updateFilterKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.filtering = false
 		m.filter.Blur()
 		m.cursor = 0
-		return m, nil
+		return m, m.scheduleSummary()
 	case tea.KeyEsc:
 		m.filtering = false
 		m.filter.Blur()
 		m.filter.SetValue("")
 		m.cursor = 0
-		return m, nil
+		return m, m.scheduleSummary()
 	}
 	var cmd tea.Cmd
 	m.filter, cmd = m.filter.Update(msg)
 	if m.cursor >= len(m.filteredRows()) {
 		m.cursor = max(0, len(m.filteredRows())-1)
 	}
-	return m, cmd
+	// Narrowing the filter changes which row is selected, so refresh the
+	// panel for it (debounced).
+	return m, tea.Batch(cmd, m.scheduleSummary())
 }
 
 // goBack pops one drill-down level, or returns to the kind menu at the
@@ -168,8 +175,12 @@ func (m model) goBack() (tea.Model, tea.Cmd) {
 	m.status = ""
 	m.filtering = false
 	m.filter.SetValue("")
+	// Drilling in cleared the parent's cache, so reload the panel for the
+	// row we're returning to.
+	m.summaryCache = map[string]summaryView{}
+	m.summaryErr = ""
 	m.screen = screenList
-	return m, nil
+	return m, m.scheduleSummary()
 }
 
 // openSelected drills into the highlighted row when the kind has
