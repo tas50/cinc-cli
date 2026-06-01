@@ -152,4 +152,3 @@ func searchFixtureServer(t *testing.T, f searchFixture) *httptest.Server {
 	}))
 	return srv
 }
-
