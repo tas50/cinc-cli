@@ -6,12 +6,8 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
 	"encoding/hex"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
@@ -20,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -32,7 +29,7 @@ const cincPackage = "github.com/tas50/cinc-cli/apps/cinc"
 // cincZeroVersion is the pinned cinc-zero release the acceptance suite runs
 // against. cinc-zero is a single-binary, in-memory Chef Infra Server published
 // at https://github.com/tas50/cinc-zero/releases.
-const cincZeroVersion = "v0.1.3"
+const cincZeroVersion = "v0.4.0"
 
 // cincZeroPlatforms lists the GOOS_GOARCH targets cinc-zero publishes a binary
 // for. The suite skips on anything else rather than failing.
@@ -205,20 +202,43 @@ func seedDir(t *testing.T) string {
 	return filepath.Join(filepath.Dir(thisFile), "seed")
 }
 
-// startCincZero launches cinc-zero on port, preloaded with the seed chef-repo
-// and with auth disabled (so the throwaway client key in the acceptance config
-// is accepted, matching how chef-zero ran). It blocks until the server is
-// serving requests and returns a function that shuts it down.
-func startCincZero(t *testing.T, port int) func() {
+// cincZeroOptions configures how startCincZeroWith launches the server.
+// The zero value means: org "acme", signature verification ON, ACLs
+// permissive, no admin key emitted.
+type cincZeroOptions struct {
+	orgs        string // comma-separated; defaults to "acme"
+	adminKeyOut string // if set, --key-out writes the admin key here
+	noAuth      bool   // if true, pass --no-auth (disables signing checks)
+	enforceACLs bool   // if true, pass --enforce-acls (real 403s)
+}
+
+// startCincZeroWith launches cinc-zero on port with the given options,
+// blocks until it serves requests (and, if adminKeyOut is set, until the
+// admin key file exists), and returns a shutdown func.
+func startCincZeroWith(t *testing.T, port int, opts cincZeroOptions) func() {
 	t.Helper()
 	binary := cincZeroBinary(t)
 
-	cmd := exec.Command(binary,
+	orgs := opts.orgs
+	if orgs == "" {
+		orgs = "acme"
+	}
+	args := []string{
 		"--addr", fmt.Sprintf("127.0.0.1:%d", port),
-		"--orgs", "acme",
-		"--no-auth",
+		"--orgs", orgs,
 		"--repo", seedDir(t),
-	)
+	}
+	if opts.adminKeyOut != "" {
+		args = append(args, "--key-out", opts.adminKeyOut)
+	}
+	if opts.noAuth {
+		args = append(args, "--no-auth")
+	}
+	if opts.enforceACLs {
+		args = append(args, "--enforce-acls")
+	}
+
+	cmd := exec.Command(binary, args...)
 	var log bytes.Buffer
 	cmd.Stdout = &log
 	cmd.Stderr = &log
@@ -236,8 +256,12 @@ func startCincZero(t *testing.T, port int) func() {
 		resp, err := http.Get(url)
 		if err == nil {
 			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				return stop
+			// With auth on, an unsigned probe gets 401 (not 200); either
+			// status means the server is up and serving.
+			if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnauthorized {
+				if opts.adminKeyOut == "" || fileExists(opts.adminKeyOut) {
+					return stop
+				}
 			}
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -246,6 +270,20 @@ func startCincZero(t *testing.T, port int) func() {
 	stop()
 	t.Fatalf("cinc-zero did not become ready on port %d within 30s\noutput:\n%s", port, log.String())
 	return nil
+}
+
+// fileExists reports whether path exists.
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// startCincZero launches a permissive, no-auth, single-org cinc-zero.
+// Retained for setup_test.go, which signs with an unregistered key to
+// exercise credential migration rather than authentication.
+func startCincZero(t *testing.T, port int) func() {
+	t.Helper()
+	return startCincZeroWith(t, port, cincZeroOptions{noAuth: true})
 }
 
 // buildCinc compiles the cinc binary once per test run and returns its
@@ -278,31 +316,18 @@ func buildCinc(t *testing.T) string {
 	return cincBinaryPath
 }
 
-// writeAcceptanceConfig writes a config file (and a throwaway signing
-// key) pointing at the cinc-zero server, and returns the config path.
-func writeAcceptanceConfig(t *testing.T, port int) string {
+// writeAcceptanceConfig writes a credentials file for org on the given
+// port, signing as the bootstrap admin "pivotal" with the key at
+// adminKey, and returns the config path.
+func writeAcceptanceConfig(t *testing.T, port int, org, adminKey string) string {
 	t.Helper()
 	dir := t.TempDir()
-
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-	keyPath := filepath.Join(dir, "key.pem")
-	keyPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(key),
-	})
-	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
-		t.Fatal(err)
-	}
-
 	cfgPath := filepath.Join(dir, "credentials")
 	cfg := fmt.Sprintf(`[default]
-cinc_server_url = "http://127.0.0.1:%d/organizations/acme"
-client_name     = "tester"
+cinc_server_url = "http://127.0.0.1:%d/organizations/%s"
+client_name     = "pivotal"
 client_key      = %q
-`, port, keyPath)
+`, port, org, adminKey)
 	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -333,22 +358,43 @@ func seedGlobalActors(t *testing.T, binary, cfgPath string) {
 // acceptanceEnv bundles everything an acceptance test needs to drive
 // the real cinc binary against a freshly seeded cinc-zero server.
 type acceptanceEnv struct {
-	binary  string
-	cfgPath string
+	binary   string
+	cfgPath  string
+	port     int    // the port cinc-zero is listening on
+	adminKey string // path to the emitted pivotal admin private key
 }
 
-// startAcceptance does the per-test setup: skip if no cinc-zero binary is
-// available for this platform, start cinc-zero on a free port preloaded with
-// the seed chef-repo, build the cinc binary, write a credentials file pointing
-// at the server, and seed the global users and "devs" group. The returned stop
-// function tears cinc-zero down; the caller should `defer stop()`.
+// acceptanceOptions configures startAcceptanceWith.
+type acceptanceOptions struct {
+	orgs        string // comma-separated; defaults to "acme"
+	enforceACLs bool
+}
+
+// startAcceptance does the standard per-test setup with signature
+// verification ON and a single "acme" org. The returned stop function
+// tears cinc-zero down; the caller should `defer stop()`.
 func startAcceptance(t *testing.T) (acceptanceEnv, func()) {
+	return startAcceptanceWith(t, acceptanceOptions{})
+}
+
+// startAcceptanceWith starts cinc-zero with signature verification on,
+// emits the pivotal admin key, builds the cinc binary, writes a config
+// for org "acme" signing as pivotal, and seeds the global users and
+// "devs" group. enforceACLs and a multi-org list are opt-in.
+func startAcceptanceWith(t *testing.T, opts acceptanceOptions) (acceptanceEnv, func()) {
 	t.Helper()
 	port := freePort(t)
-	stop := startCincZero(t, port)
+	adminKey := filepath.Join(t.TempDir(), "pivotal.pem")
+	stop := startCincZeroWith(t, port, cincZeroOptions{
+		orgs:        opts.orgs,
+		adminKeyOut: adminKey,
+		enforceACLs: opts.enforceACLs,
+	})
 	env := acceptanceEnv{
-		binary:  buildCinc(t),
-		cfgPath: writeAcceptanceConfig(t, port),
+		binary:   buildCinc(t),
+		cfgPath:  writeAcceptanceConfig(t, port, "acme", adminKey),
+		port:     port,
+		adminKey: adminKey,
 	}
 	seedGlobalActors(t, env.binary, env.cfgPath)
 	return env, stop
@@ -375,3 +421,21 @@ func runCincRaw(binary string, args ...string) (stdout, stderr string, err error
 	err = cmd.Run()
 	return outBuf.String(), errBuf.String(), err
 }
+
+// runCincRawEnv runs the cinc binary with extra environment variables
+// (appended to the current environment), without failing on non-zero
+// exit, so tests can assert on profile/env resolution.
+func runCincRawEnv(t *testing.T, extraEnv []string, binary string, args ...string) (stdout, stderr string, err error) {
+	t.Helper()
+	var outBuf, errBuf bytes.Buffer
+	cmd := exec.Command(binary, args...)
+	cmd.Env = append(os.Environ(), extraEnv...)
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+	err = cmd.Run()
+	return outBuf.String(), errBuf.String(), err
+}
+
+// itoa is a tiny strconv.Itoa wrapper kept local so acceptance tests can
+// build URLs without each importing strconv.
+func itoa(n int) string { return strconv.Itoa(n) }
