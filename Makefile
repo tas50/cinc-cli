@@ -39,8 +39,13 @@ dist:
 	cd "$(DIST_DIR)" && shasum -a 256 *.tar.gz > SHA256SUMS
 
 ## install: install cinc into the Go bin directory
+# Stripped (-s -w) and trimpathed to match the release `dist` build: a
+# ~25% smaller binary that's faster to page in on cold start. Go's
+# runtime keeps the pclntab regardless, so panic tracebacks still carry
+# function names and line numbers. `make build` stays unstripped for
+# day-to-day debugging.
 install:
-	go install -ldflags "$(LDFLAGS)" $(CMD_PKG)
+	go install -trimpath -ldflags "$(LDFLAGS) -s -w" $(CMD_PKG)
 
 ## test: run the test suite
 test:
