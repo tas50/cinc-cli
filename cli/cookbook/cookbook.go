@@ -16,7 +16,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-	_ "unsafe"
 
 	rubyast "github.com/goruby/goruby/ast"
 	rubyparser "github.com/goruby/goruby/parser"
@@ -581,11 +580,8 @@ func writeFileToTar(tw *tar.Writer, dir, entryPath string) error {
 // UploadableFromDir builds the cinc-api LocalCookbook value used by the API's
 // server upload implementation.
 func UploadableFromDir(dir, version string) (*cinc.LocalCookbook, error) {
-	return apiCookbookFromDir(dir, version)
+	return cinc.LocalCookbookFromDir(dir, version)
 }
-
-//go:linkname apiCookbookFromDir github.com/tas50/cinc-api.cookbookFromDir
-func apiCookbookFromDir(dir, version string) (*cinc.LocalCookbook, error)
 
 func candidateBases(cookbookPath string) []string {
 	if cookbookPath == "" {
