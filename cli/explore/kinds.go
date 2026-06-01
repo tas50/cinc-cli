@@ -1,0 +1,204 @@
+// Package explore implements `cinc explore`, a k9s-style terminal UI
+// for browsing and mutating every object type on a Cinc/Chef server.
+//
+// The shell (profile picker → kind menu → list → detail, plus modal
+// overlays for editing, confirming, and prompting) is generic. Each
+// object type plugs in through the Kind interface and a set of small,
+// optional capability interfaces it opts into. The shell type-asserts
+// those capabilities to decide which actions a kind supports — that is
+// what makes the action bar change per resource.
+package explore
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"sort"
+
+	cinc "github.com/tas50/cinc-api"
+)
+
+// Row is one object in a kind's list. Name is the identifier passed to
+// the capability methods (Describe, Save, Delete, …); Cells holds the
+// display values aligned with the kind's Columns.
+type Row struct {
+	Name  string
+	Cells []string
+}
+
+// CreateResult reports the outcome of a create. Secret, when non-empty,
+// is a one-time credential (a generated private key) the shell shows in
+// a result modal because the server never returns it again.
+type CreateResult struct {
+	Name   string
+	Secret string
+}
+
+// Kind is one browsable object type. Every kind supports the read path:
+// a titled, columned list of objects.
+type Kind interface {
+	Title() string
+	Columns() []string
+	List(ctx context.Context, c *cinc.Client) ([]Row, error)
+}
+
+// The capability interfaces below are optional. A kind advertises an
+// action by implementing the matching interface; the shell gates the
+// action's key on a runtime type assertion.
+
+// Viewable kinds render a single object as pretty JSON in the detail
+// pane.
+type Viewable interface {
+	Describe(ctx context.Context, c *cinc.Client, name string) (string, error)
+}
+
+// Editable kinds open an object in the JSON editor and save the result.
+type Editable interface {
+	Viewable
+	Save(ctx context.Context, c *cinc.Client, name string, edited []byte) error
+}
+
+// Creatable kinds create a new object from a JSON document the user
+// edits, seeded with NewTemplate.
+type Creatable interface {
+	NewTemplate() []byte
+	Create(ctx context.Context, c *cinc.Client, doc []byte) (CreateResult, error)
+}
+
+// NamedCreatable kinds create a new object from just a name (no body),
+// gathered through a name-prompt modal.
+type NamedCreatable interface {
+	CreateNamed(ctx context.Context, c *cinc.Client, name string) (CreateResult, error)
+}
+
+// Deletable kinds delete an object by name.
+type Deletable interface {
+	Delete(ctx context.Context, c *cinc.Client, name string) error
+}
+
+// Downloadable kinds write an object to a local directory and report
+// the path written.
+type Downloadable interface {
+	Download(ctx context.Context, c *cinc.Client, name, destDir string) (string, error)
+}
+
+// DrillDown kinds contain children: selecting a row pushes the child
+// kind, already scoped to the chosen parent.
+type DrillDown interface {
+	Child(parent string) Kind
+}
+
+// registry returns the kinds shown in the top-level menu, in display
+// order.
+func registry() []Kind {
+	return []Kind{
+		newNodeKind(),
+		newRoleKind(),
+		newEnvironmentKind(),
+		newClientKind(),
+		newGroupKind(),
+		newUserKind(),
+		dataBagKind{},
+		cookbookKind{},
+		policyKind{},
+		policyGroupKind{},
+	}
+}
+
+// ----- editorKind: the uniform editor-backed CRUD nouns ----------------
+
+// editorKind adapts an API service with the common shape — list by
+// name, get/create/update a typed object, delete by name — into a Kind
+// with full view/edit/create/delete. node, role, environment, client,
+// and user are all built from it; their differences (columns, the
+// create call, the one-time user key) live entirely in the injected
+// closures.
+type editorKind[T any] struct {
+	title    string
+	columns  []string
+	listFn   func(ctx context.Context, c *cinc.Client) (map[string]string, error)
+	rowsFn   func(map[string]string) []Row // optional; defaults to name-only rows
+	getFn    func(ctx context.Context, c *cinc.Client, name string) (*T, error)
+	createFn func(ctx context.Context, c *cinc.Client, obj *T) (CreateResult, error)
+	updateFn func(ctx context.Context, c *cinc.Client, obj *T) error
+	deleteFn func(ctx context.Context, c *cinc.Client, name string) error
+	template func() []byte
+}
+
+func (k editorKind[T]) Title() string { return k.title }
+
+func (k editorKind[T]) Columns() []string {
+	if len(k.columns) == 0 {
+		return []string{"NAME"}
+	}
+	return k.columns
+}
+
+func (k editorKind[T]) List(ctx context.Context, c *cinc.Client) ([]Row, error) {
+	index, err := k.listFn(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	if k.rowsFn != nil {
+		rows := k.rowsFn(index)
+		sortRows(rows)
+		return rows, nil
+	}
+	return nameRows(index), nil
+}
+
+func (k editorKind[T]) Describe(ctx context.Context, c *cinc.Client, name string) (string, error) {
+	obj, err := k.getFn(ctx, c, name)
+	if err != nil {
+		return "", err
+	}
+	return prettyJSON(obj)
+}
+
+func (k editorKind[T]) Save(ctx context.Context, c *cinc.Client, name string, edited []byte) error {
+	var obj T
+	if err := json.Unmarshal(edited, &obj); err != nil {
+		return fmt.Errorf("parse edited %s: %w", k.title, err)
+	}
+	return k.updateFn(ctx, c, &obj)
+}
+
+func (k editorKind[T]) NewTemplate() []byte { return k.template() }
+
+func (k editorKind[T]) Create(ctx context.Context, c *cinc.Client, doc []byte) (CreateResult, error) {
+	var obj T
+	if err := json.Unmarshal(doc, &obj); err != nil {
+		return CreateResult{}, fmt.Errorf("parse new %s: %w", k.title, err)
+	}
+	return k.createFn(ctx, c, &obj)
+}
+
+func (k editorKind[T]) Delete(ctx context.Context, c *cinc.Client, name string) error {
+	return k.deleteFn(ctx, c, name)
+}
+
+// ----- shared helpers --------------------------------------------------
+
+// nameRows turns a name→url index into single-column rows sorted by
+// name.
+func nameRows(index map[string]string) []Row {
+	rows := make([]Row, 0, len(index))
+	for name := range index {
+		rows = append(rows, Row{Name: name, Cells: []string{name}})
+	}
+	sortRows(rows)
+	return rows
+}
+
+func sortRows(rows []Row) {
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
+}
+
+// prettyJSON marshals v as indented JSON for the detail pane.
+func prettyJSON(v any) (string, error) {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}

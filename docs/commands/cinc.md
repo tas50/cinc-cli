@@ -22,6 +22,7 @@ cinc [flags]
 * [cinc cookbook](cinc_cookbook.md)	 - Manage cookbooks on the Cinc Server
 * [cinc databag](cinc_databag.md)	 - Manage data bags on the Cinc Server
 * [cinc environment](cinc_environment.md)	 - Manage environments on the Cinc Server
+* [cinc explore](cinc_explore.md)	 - Browse and edit the Cinc Server in a terminal UI
 * [cinc group](cinc_group.md)	 - Manage groups on the Cinc Server
 * [cinc node](cinc_node.md)	 - Manage nodes on the Cinc Server
 * [cinc policy](cinc_policy.md)	 - Manage Policyfile policies on the Cinc Server
