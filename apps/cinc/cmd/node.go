@@ -36,12 +36,13 @@ type nodeSSHFlags struct {
 	user         string
 	password     string
 	identityFile string
+	agentSocket  string
 	port         int
 	timeout      time.Duration
 	useAgent     bool
 	verifyHost   bool
 	noVerifyHost bool
-	manualList   bool
+	noClient     bool
 	attribute    string
 	concurrency  int
 	exitOnError  bool
@@ -81,7 +82,7 @@ func newNodeSSHCmd() *cobra.Command {
 		},
 	}
 	addNodeSSHFlags(cmd, &flags)
-	cmd.Flags().BoolVar(&flags.manualList, "manual-list", false, "treat search query as a space-separated host list")
+	cmd.Flags().BoolVar(&flags.noClient, "no-client", false, "treat search query as a space-separated host list and skip Cinc Server lookup")
 	cmd.Flags().StringVar(&flags.attribute, "attribute", "fqdn", "node attribute used as the SSH host")
 	cmd.Flags().IntVar(&flags.concurrency, "concurrency", 10, "maximum concurrent SSH sessions")
 	cmd.Flags().BoolVar(&flags.exitOnError, "exit-on-error", false, "stop launching new SSH sessions after the first failure")
@@ -256,6 +257,7 @@ func addNodeSSHFlags(cmd *cobra.Command, flags *nodeSSHFlags) {
 	cmd.Flags().StringVar(&flags.user, "ssh-user", "", "SSH user")
 	cmd.Flags().StringVar(&flags.password, "ssh-password", "", "SSH password")
 	cmd.Flags().StringVar(&flags.identityFile, "ssh-identity-file", "", "SSH identity file")
+	cmd.Flags().StringVar(&flags.agentSocket, "ssh-agent-socket", "", "SSH agent socket path")
 	cmd.Flags().IntVar(&flags.port, "ssh-port", 22, "SSH port")
 	cmd.Flags().DurationVar(&flags.timeout, "ssh-timeout", 30*time.Second, "SSH connection timeout")
 	cmd.Flags().BoolVar(&flags.useAgent, "ssh-agent", true, "use SSH agent authentication")
@@ -320,7 +322,7 @@ func promptNodeBootstrap(cmd *cobra.Command, target *string, flags *nodeBootstra
 }
 
 func nodeSSHTargets(cmd *cobra.Command, query string, flags nodeSSHFlags) ([]remote.Target, error) {
-	if flags.manualList {
+	if flags.noClient {
 		hosts := strings.Fields(query)
 		targets := make([]remote.Target, 0, len(hosts))
 		for _, host := range hosts {
@@ -410,7 +412,7 @@ func attributeString(value any) string {
 
 func remoteOptions(flags nodeSSHFlags) remote.SSHOptions {
 	return remote.SSHOptions{
-		User: flags.user, Password: flags.password, IdentityFile: flags.identityFile,
+		User: flags.user, Password: flags.password, IdentityFile: flags.identityFile, AgentSocket: flags.agentSocket,
 		Port: flags.port, Timeout: flags.timeout, UseAgent: flags.useAgent, VerifyHost: flags.verifyHost && !flags.noVerifyHost,
 	}
 }

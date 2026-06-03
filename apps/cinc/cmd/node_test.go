@@ -161,7 +161,7 @@ func TestNodeListCommandReportsConfigError(t *testing.T) {
 	}
 }
 
-func TestNodeSSHManualListCommand(t *testing.T) {
+func TestNodeSSHNoClientCommand(t *testing.T) {
 	runner := &recordingRunner{result: remote.CommandResult{Stdout: "ok\n"}}
 	old := nodeRemoteRunner
 	nodeRemoteRunner = runner
@@ -172,8 +172,9 @@ func TestNodeSSHManualListCommand(t *testing.T) {
 	root.SetOut(&buf)
 	root.SetArgs([]string{
 		"node", "ssh", "web01 web02", "uptime",
-		"--manual-list",
+		"--no-client",
 		"--ssh-user", "ubuntu",
+		"--ssh-agent-socket", "/tmp/cinc-agent.sock",
 		"--no-host-key-verify",
 	})
 
@@ -186,7 +187,7 @@ func TestNodeSSHManualListCommand(t *testing.T) {
 	if len(runner.calls) != 2 || runner.calls[0].target.Host != "web01" || runner.calls[1].target.Host != "web02" {
 		t.Fatalf("runner calls = %+v", runner.calls)
 	}
-	if runner.calls[0].opts.User != "ubuntu" || runner.calls[0].opts.VerifyHost {
+	if runner.calls[0].opts.User != "ubuntu" || runner.calls[0].opts.AgentSocket != "/tmp/cinc-agent.sock" || runner.calls[0].opts.VerifyHost {
 		t.Fatalf("ssh opts = %+v", runner.calls[0].opts)
 	}
 }

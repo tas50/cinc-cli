@@ -8,6 +8,7 @@ require (
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/goruby/goruby v0.0.0-20210827060341-983436007185
+	github.com/kevinburke/ssh_config v1.6.0
 	github.com/spf13/cobra v1.10.2
 	github.com/tas50/cinc-api v0.0.0-20260519171711-123da42f384c
 	golang.org/x/crypto v0.51.0

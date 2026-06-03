@@ -15,10 +15,13 @@ import (
 	"sync"
 	"time"
 
+	sshconfig "github.com/kevinburke/ssh_config"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 	"golang.org/x/crypto/ssh/knownhosts"
 )
+
+var sshConfigGet = sshconfig.GetStrict
 
 // Target identifies one remote host.
 type Target struct {
@@ -30,6 +33,7 @@ type SSHOptions struct {
 	User         string
 	Password     string
 	IdentityFile string
+	AgentSocket  string
 	Port         int
 	Timeout      time.Duration
 	UseAgent     bool
@@ -56,6 +60,13 @@ type NativeRunner struct{}
 // Run executes command on target through SSH.
 func (NativeRunner) Run(ctx context.Context, target Target, command string, opts SSHOptions) CommandResult {
 	result := CommandResult{Host: target.Host}
+	var err error
+	opts, err = applyOpenSSHConfig(target.Host, opts)
+	if err != nil {
+		result.ExitCode = 255
+		result.Error = err.Error()
+		return result
+	}
 	config, err := clientConfig(opts)
 	if err != nil {
 		result.ExitCode = 255
@@ -104,6 +115,24 @@ func (NativeRunner) Run(ctx context.Context, target Target, command string, opts
 	result.ExitCode = 255
 	result.Error = err.Error()
 	return result
+}
+
+func applyOpenSSHConfig(host string, opts SSHOptions) (SSHOptions, error) {
+	if !opts.UseAgent || opts.AgentSocket != "" {
+		return opts, nil
+	}
+	identityAgent, err := sshConfigGet(host, "IdentityAgent")
+	if err != nil {
+		return opts, fmt.Errorf("read ssh config IdentityAgent: %w", err)
+	}
+	if strings.EqualFold(identityAgent, "none") {
+		opts.UseAgent = false
+		return opts, nil
+	}
+	if identityAgent != "" {
+		opts.AgentSocket = identityAgent
+	}
+	return opts, nil
 }
 
 // RunMany executes command across targets, limiting concurrency and preserving
@@ -185,7 +214,7 @@ func authMethods(opts SSHOptions) ([]ssh.AuthMethod, error) {
 		methods = append(methods, ssh.PublicKeys(signer))
 	}
 	if opts.UseAgent {
-		if sock := os.Getenv("SSH_AUTH_SOCK"); sock != "" {
+		for _, sock := range agentSocketCandidates(opts.AgentSocket) {
 			conn, err := net.Dial("unix", sock)
 			if err == nil {
 				methods = append(methods, ssh.PublicKeysCallback(agent.NewClient(conn).Signers))
@@ -202,6 +231,29 @@ func authMethods(opts SSHOptions) ([]ssh.AuthMethod, error) {
 		}))
 	}
 	return methods, nil
+}
+
+func agentSocketCandidates(explicit string) []string {
+	var paths []string
+	seen := map[string]struct{}{}
+	add := func(path string) {
+		path = expandHome(path)
+		if path == "" {
+			return
+		}
+		if _, ok := seen[path]; ok {
+			return
+		}
+		seen[path] = struct{}{}
+		paths = append(paths, path)
+	}
+	add(explicit)
+	if home, err := os.UserHomeDir(); err == nil {
+		add(filepath.Join(home, ".1password", "agent.sock"))
+		add(filepath.Join(home, "Library", "Group Containers", "2BUA8C4S2C.com.1password", "t", "agent.sock"))
+	}
+	add(os.Getenv("SSH_AUTH_SOCK"))
+	return paths
 }
 
 func hostKeyCallback(verify bool) (ssh.HostKeyCallback, error) {
