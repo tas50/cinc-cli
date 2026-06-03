@@ -1,6 +1,6 @@
 ## cinc config validate
 
-Validate a local Cinc TOML configuration file
+Validate local Cinc TOML configuration and endpoint reachability
 
 ```
 cinc config validate [path] [flags]
@@ -15,7 +15,7 @@ cinc config validate [path] [flags]
 ### Options inherited from parent commands
 
 ```
-      --config string    path to the cinc credentials file (default ~/.cinc/credentials)
+      --config string    path to the Cinc credentials file (default ~/.cinc/credentials)
       --format string    output format: human or json (default "human")
       --profile string   credentials profile to use (default: $CINC_PROFILE, then $CHEF_PROFILE, then "default")
 ```

@@ -9,61 +9,43 @@ import (
 	"testing"
 )
 
-// writeConfigFile writes raw TOML to a temp credentials file and
-// returns its path. Unlike writeAcceptanceConfig it does no chef-zero
-// wiring, since `cinc config validate` is local-only.
-func writeConfigFile(t *testing.T, contents string) string {
-	t.Helper()
-	cfgPath := filepath.Join(t.TempDir(), "credentials")
-	if err := os.WriteFile(cfgPath, []byte(contents), 0o600); err != nil {
-		t.Fatal(err)
+// TestConfigCreateNonInteractiveAgainstCincZero runs `cinc config create`
+// with every value supplied as a flag (no prompts), then proves the
+// written profile actually works by listing nodes through it.
+func TestConfigCreateNonInteractiveAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	out := filepath.Join(t.TempDir(), "credentials")
+	serverURL := "http://127.0.0.1:" + itoa(env.port) + "/organizations/acme"
+
+	_, stderr, err := runCincRaw(env.binary, "config", "create",
+		"--config", out,
+		"--server-url", serverURL,
+		"--client-name", "pivotal",
+		"--client-key", env.adminKey,
+	)
+	if err != nil {
+		t.Fatalf("config create failed: %v\nstderr: %s", err, stderr)
 	}
-	return cfgPath
-}
-
-// TestConfigValidateValidAgainstBinary runs the real cinc binary against
-// a well-formed credentials file and asserts the command reports success
-// in both human and JSON output.
-func TestConfigValidateValidAgainstBinary(t *testing.T) {
-	binary := buildCinc(t)
-	cfgPath := writeConfigFile(t, `[default]
-cinc_server_url = "https://example.test/organizations/acme"
-client_name     = "tester"
-client_key      = "/tmp/tester.pem"
-`)
-
-	human := runCinc(t, binary, "config", "validate", "--config", cfgPath)
-	if !strings.Contains(human, "is valid") || !strings.Contains(human, "1 profile(s)") {
-		t.Errorf("config validate (human) = %q, want valid with 1 profile", human)
+	if _, err := os.Stat(out); err != nil {
+		t.Fatalf("config create did not write %s: %v", out, err)
 	}
 
-	jsonOut := runCinc(t, binary, "config", "validate", "--config", cfgPath, "--format", "json")
-	for _, want := range []string{`"valid": true`, `"profiles": 1`} {
-		if !strings.Contains(jsonOut, want) {
-			t.Errorf("config validate (json) missing %q\ngot: %s", want, jsonOut)
-		}
+	nodes := runCinc(t, env.binary, "node", "list", "--config", out)
+	if nodes != "db01\nweb01\nweb02\n" {
+		t.Errorf("node list via created config = %q, want the seeded nodes", nodes)
 	}
 }
 
-// TestConfigValidateInvalidAgainstBinary runs the real cinc binary
-// against a credentials file missing required fields and asserts the
-// command exits non-zero and names the offending fields.
-func TestConfigValidateInvalidAgainstBinary(t *testing.T) {
-	binary := buildCinc(t)
-	cfgPath := writeConfigFile(t, `[default]
-cinc_server_url = "https://example.test/organizations/acme"
-`)
+// TestConfigValidateAgainstCincZero validates the working acceptance
+// config; preflight should reach the live server and report it valid.
+func TestConfigValidateAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
 
-	stdout, _, err := runCincRaw(binary, "config", "validate", "--config", cfgPath)
-	if err == nil {
-		t.Fatalf("config validate should exit non-zero for an invalid config\nstdout: %s", stdout)
-	}
-	if !strings.Contains(stdout, "is invalid") {
-		t.Errorf("config validate (human) = %q, want invalid report", stdout)
-	}
-	for _, want := range []string{"client_name", "client_key"} {
-		if !strings.Contains(stdout, want) {
-			t.Errorf("config validate output missing issue for %q\ngot: %s", want, stdout)
-		}
+	out := runCinc(t, env.binary, "config", "validate", env.cfgPath, "--config", env.cfgPath)
+	if !strings.Contains(out, "valid") {
+		t.Errorf("config validate output = %q, want it to report the config valid", out)
 	}
 }

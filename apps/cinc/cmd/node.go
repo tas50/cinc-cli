@@ -23,9 +23,10 @@ var nodeRemoteRunner remote.Runner = remote.NativeRunner{}
 func newNodeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "node",
-		Short: "Manage nodes on the Cinc/Chef Server",
+		Short: "Manage nodes on the Cinc Server",
 	}
 	cmd.AddCommand(newNodeListCmd())
+	cmd.AddCommand(newNodeShowCmd())
 	cmd.AddCommand(newNodeDeleteCmd())
 	cmd.AddCommand(newNodeSSHCmd())
 	cmd.AddCommand(newNodeBootstrapCmd())
@@ -42,7 +43,7 @@ type nodeSSHFlags struct {
 	useAgent     bool
 	verifyHost   bool
 	noVerifyHost bool
-	noClient     bool
+	skipSearch   bool
 	attribute    string
 	concurrency  int
 	exitOnError  bool
@@ -82,7 +83,7 @@ func newNodeSSHCmd() *cobra.Command {
 		},
 	}
 	addNodeSSHFlags(cmd, &flags)
-	cmd.Flags().BoolVar(&flags.noClient, "no-client", false, "treat search query as a space-separated host list and skip Cinc Server lookup")
+	cmd.Flags().BoolVar(&flags.skipSearch, "skip-search", false, "skip Cinc Server search and treat search query as a space-separated host list")
 	cmd.Flags().StringVar(&flags.attribute, "attribute", "fqdn", "node attribute used as the SSH host")
 	cmd.Flags().IntVar(&flags.concurrency, "concurrency", 10, "maximum concurrent SSH sessions")
 	cmd.Flags().BoolVar(&flags.exitOnError, "exit-on-error", false, "stop launching new SSH sessions after the first failure")
@@ -218,6 +219,30 @@ func newNodeListCmd() *cobra.Command {
 	}
 }
 
+// newNodeShowCmd builds the `cinc node show <name>` command.
+func newNodeShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <name>",
+		Short: "Show a node",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			node, _, err := c.Nodes.Get(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			return printer.New(cmd.OutOrStdout(), format).Value(node)
+		},
+	}
+}
+
 // newNodeDeleteCmd builds the `cinc node delete <name>` command.
 func newNodeDeleteCmd() *cobra.Command {
 	return &cobra.Command{
@@ -322,7 +347,7 @@ func promptNodeBootstrap(cmd *cobra.Command, target *string, flags *nodeBootstra
 }
 
 func nodeSSHTargets(cmd *cobra.Command, query string, flags nodeSSHFlags) ([]remote.Target, error) {
-	if flags.noClient {
+	if flags.skipSearch {
 		hosts := strings.Fields(query)
 		targets := make([]remote.Target, 0, len(hosts))
 		for _, host := range hosts {

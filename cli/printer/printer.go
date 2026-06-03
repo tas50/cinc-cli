@@ -56,12 +56,13 @@ func (p *Printer) List(items []string) error {
 	return nil
 }
 
-// Value renders an arbitrary structured command result.
+// Value renders an arbitrary structured command result. For server-object
+// payloads (roles, environments, clients, …) the human format is pretty-
+// printed JSON: that's already what `knife show` emits, it stays grepable,
+// and inventing per-type human renderers would diverge from how Chef
+// admins read these objects today.
 func (p *Printer) Value(v any) error {
-	if p.format == FormatJSON {
-		enc := json.NewEncoder(p.w)
-		enc.SetIndent("", "  ")
-		return enc.Encode(v)
-	}
-	return fmt.Errorf("printer: human rendering is not implemented for %T", v)
+	enc := json.NewEncoder(p.w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(v)
 }

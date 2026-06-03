@@ -39,14 +39,19 @@ dist:
 	cd "$(DIST_DIR)" && shasum -a 256 *.tar.gz > SHA256SUMS
 
 ## install: install cinc into the Go bin directory
+# Stripped (-s -w) and trimpathed to match the release `dist` build: a
+# ~25% smaller binary that's faster to page in on cold start. Go's
+# runtime keeps the pclntab regardless, so panic tracebacks still carry
+# function names and line numbers. `make build` stays unstripped for
+# day-to-day debugging.
 install:
-	go install -ldflags "$(LDFLAGS)" $(CMD_PKG)
+	go install -trimpath -ldflags "$(LDFLAGS) -s -w" $(CMD_PKG)
 
 ## test: run the test suite
 test:
 	go test ./...
 
-## test-acceptance: run acceptance tests against chef-zero (needs Ruby + the chef-zero gem)
+## test-acceptance: run acceptance tests against cinc-zero (auto-downloads the cinc-zero binary; set CINC_ZERO_BIN to override)
 test-acceptance:
 	go test -tags acceptance -count=1 ./test/...
 

@@ -15,11 +15,36 @@ import (
 func newRoleCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "role",
-		Short: "Manage roles on the Cinc/Chef Server",
+		Short: "Manage roles on the Cinc Server",
 	}
 	cmd.AddCommand(newRoleListCmd())
+	cmd.AddCommand(newRoleShowCmd())
 	cmd.AddCommand(newRoleDeleteCmd())
 	return cmd
+}
+
+// newRoleShowCmd builds the `cinc role show <name>` command.
+func newRoleShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <name>",
+		Short: "Show a role",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			role, _, err := c.Roles.Get(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			return printer.New(cmd.OutOrStdout(), format).Value(role)
+		},
+	}
 }
 
 // newRoleDeleteCmd builds the `cinc role delete <name>` command.

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -13,13 +14,14 @@ import (
 	"sync"
 	"testing"
 
+	cinc "github.com/tas50/cinc-api"
 	"golang.org/x/crypto/ssh"
 )
 
-// TestNodeListAgainstChefZero verifies that `cinc node list` against a
-// real chef-zero server returns the seeded nodes in both human and
+// TestNodeListAgainstCincZero verifies that `cinc node list` against a
+// real cinc-zero server returns the seeded nodes in both human and
 // JSON output formats.
-func TestNodeListAgainstChefZero(t *testing.T) {
+func TestNodeListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -36,9 +38,30 @@ func TestNodeListAgainstChefZero(t *testing.T) {
 	}
 }
 
-// TestNodeDeleteAgainstChefZero deletes one of the seeded nodes and
+// TestNodeShowAgainstCincZero fetches a seeded node and asserts on
+// both the default (pretty JSON) and `--format json` outputs.
+func TestNodeShowAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	human := runCinc(t, env.binary, "node", "show", "web01", "--config", env.cfgPath)
+	if !strings.Contains(human, "\"name\": \"web01\"") {
+		t.Errorf("node show (human) missing name field:\n%s", human)
+	}
+
+	jsonOut := runCinc(t, env.binary, "node", "show", "web01", "--config", env.cfgPath, "--format", "json")
+	var got cinc.Node
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("node show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.Name != "web01" {
+		t.Errorf("node show returned name=%q, want web01", got.Name)
+	}
+}
+
+// TestNodeDeleteAgainstCincZero deletes one of the seeded nodes and
 // verifies a follow-up list no longer includes it.
-func TestNodeDeleteAgainstChefZero(t *testing.T) {
+func TestNodeDeleteAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -53,12 +76,12 @@ func TestNodeDeleteAgainstChefZero(t *testing.T) {
 	}
 }
 
-func TestNodeSSHNoClientAgainstSSHServer(t *testing.T) {
+func TestNodeSSHSkipSearchAgainstSSHServer(t *testing.T) {
 	server := startAcceptanceSSHServer(t, "hello from ssh\n")
 
 	out := runCinc(t, buildCinc(t),
 		"node", "ssh", "127.0.0.1", "echo hello",
-		"--no-client",
+		"--skip-search",
 		"--ssh-user", "tester",
 		"--ssh-password", "secret",
 		"--ssh-port", fmt.Sprint(server.port),
@@ -72,7 +95,7 @@ func TestNodeSSHNoClientAgainstSSHServer(t *testing.T) {
 	}
 }
 
-func TestNodeBootstrapAgainstChefZeroAndSSHServer(t *testing.T) {
+func TestNodeBootstrapAgainstCincZeroAndSSHServer(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 	server := startAcceptanceSSHServer(t, "bootstrap ok\n")

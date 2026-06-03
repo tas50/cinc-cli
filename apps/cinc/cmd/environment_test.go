@@ -99,6 +99,194 @@ client_key      = %q
 	}
 }
 
+func TestEnvironmentCreateCommandEndToEnd(t *testing.T) {
+	var (
+		method   string
+		path     string
+		received cinc.Environment
+	)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/environments", func(w http.ResponseWriter, r *http.Request) {
+		method = r.Method
+		path = r.URL.Path
+		_ = json.NewDecoder(r.Body).Decode(&received)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]string{"uri": "https://example.test/environments/staging"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"environment", "create", "staging", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc environment create: %v", err)
+	}
+	if method != http.MethodPost {
+		t.Errorf("method = %q, want POST", method)
+	}
+	if path != "/organizations/acme/environments" {
+		t.Errorf("path = %q, want /organizations/acme/environments", path)
+	}
+	if received.Name != "staging" {
+		t.Errorf("posted environment = %+v, want name=staging", received)
+	}
+	if received.Description != "" {
+		t.Errorf("description = %q, want empty when --description not supplied", received.Description)
+	}
+	if got := buf.String(); got != "Created environment \"staging\"\n" {
+		t.Errorf("environment create output = %q", got)
+	}
+}
+
+func TestEnvironmentCreateCommandSendsDescription(t *testing.T) {
+	var received cinc.Environment
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/environments", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&received)
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"uri":"https://example.test/environments/prod"}`))
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"environment", "create", "prod",
+		"--description", "Production environment",
+		"--config", cfgPath,
+	})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc environment create: %v", err)
+	}
+	if received.Description != "Production environment" {
+		t.Errorf("description = %q, want %q", received.Description, "Production environment")
+	}
+}
+
+func TestEnvironmentCreateCommandReadsFile(t *testing.T) {
+	var received cinc.Environment
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/environments", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&received)
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"uri":"https://example.test/environments/staging"}`))
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	dir := t.TempDir()
+	envFile := filepath.Join(dir, "staging.json")
+	body := `{
+  "name": "ignored-by-cli",
+  "description": "from file",
+  "cookbook_versions": { "apache2": "~> 1.2.0" }
+}`
+	if err := os.WriteFile(envFile, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfgPath := filepath.Join(dir, "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"environment", "create", "staging",
+		"--file", envFile,
+		"--config", cfgPath,
+	})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc environment create --file: %v", err)
+	}
+	if received.Name != "staging" {
+		t.Errorf("name = %q, want positional arg to override the file's name", received.Name)
+	}
+	if received.Description != "from file" {
+		t.Errorf("description = %q, want value from the file", received.Description)
+	}
+	if v := received.CookbookVersions["apache2"]; v != "~> 1.2.0" {
+		t.Errorf("cookbook_versions[apache2] = %q, want from file", v)
+	}
+}
+
+func TestEnvironmentShowCommandEndToEnd(t *testing.T) {
+	want := cinc.Environment{
+		Name:             "prod",
+		Description:      "Production",
+		CookbookVersions: map[string]string{"apache2": "= 1.2.0"},
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/environments/prod", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %q, want GET", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(want)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"environment", "show", "prod", "--config", cfgPath, "--format", "json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc environment show: %v", err)
+	}
+
+	var got cinc.Environment
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("show output is not valid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if got.Name != "prod" || got.Description != "Production" {
+		t.Errorf("show returned %+v, want name=prod description=Production", got)
+	}
+	if got.CookbookVersions["apache2"] != "= 1.2.0" {
+		t.Errorf("show cookbook_versions[apache2] = %q", got.CookbookVersions["apache2"])
+	}
+}
+
 func TestEnvironmentListCommandEndToEnd(t *testing.T) {
 	srv := environmentServer(t, "prod", "_default", "staging")
 

@@ -62,6 +62,74 @@ func TestFetchDataBagNamesReturnsSortedNames(t *testing.T) {
 	}
 }
 
+// databagItemServer serves the per-bag item index at /data/<bag> and
+// returns the server.
+func databagItemIndexServer(t *testing.T, bag string, ids ...string) *httptest.Server {
+	t.Helper()
+	index := make(map[string]string, len(ids))
+	for _, id := range ids {
+		index[id] = "https://example.test/data/" + bag + "/" + id
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/data/"+bag, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(index)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestFetchDataBagItemIDsReturnsSortedIDs(t *testing.T) {
+	srv := databagItemIndexServer(t, "users", "bob", "alice", "carol")
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := cinc.NewClient(cinc.Config{
+		ServerURL: srv.URL, Org: "acme", ClientName: "tim", Key: key,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ids, err := fetchDataBagItemIDs(context.Background(), c, "users")
+	if err != nil {
+		t.Fatalf("fetchDataBagItemIDs: %v", err)
+	}
+	want := []string{"alice", "bob", "carol"}
+	if !slices.Equal(ids, want) {
+		t.Errorf("fetchDataBagItemIDs = %v, want %v", ids, want)
+	}
+}
+
+func TestDataBagItemListCommandEndToEnd(t *testing.T) {
+	srv := databagItemIndexServer(t, "users", "bob", "alice", "carol")
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"databag", "item", "list", "users", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc databag item list: %v", err)
+	}
+	if got := buf.String(); got != "alice\nbob\ncarol\n" {
+		t.Errorf("databag item list output = %q, want sorted item ids", got)
+	}
+}
+
 func TestDataBagCreateCommandEndToEnd(t *testing.T) {
 	var created string
 	mux := http.NewServeMux()

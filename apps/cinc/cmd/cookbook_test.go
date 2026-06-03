@@ -192,6 +192,108 @@ client_key      = %q
 	}
 }
 
+func TestCookbookShowCommandEndToEnd(t *testing.T) {
+	manifest := cinc.Cookbook{
+		CookbookName: "nginx",
+		Name:         "nginx-1.2.0",
+		Version:      "1.2.0",
+		Recipes: []cinc.CookbookFileRef{
+			{Name: "default.rb", Path: "recipes/default.rb", Checksum: "abc", URL: "https://example.test/recipes/default.rb"},
+		},
+	}
+	var sawPath string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/cookbooks/nginx/1.2.0", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %q, want GET", r.Method)
+		}
+		sawPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(manifest)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"cookbook", "show", "nginx", "1.2.0", "--config", cfgPath, "--format", "json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc cookbook show: %v", err)
+	}
+	if sawPath != "/organizations/acme/cookbooks/nginx/1.2.0" {
+		t.Errorf("server saw GET at %q", sawPath)
+	}
+
+	var got cinc.Cookbook
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("show output is not valid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if got.CookbookName != "nginx" || got.Version != "1.2.0" {
+		t.Errorf("show returned %+v, want cookbook_name=nginx version=1.2.0", got)
+	}
+	if len(got.Recipes) != 1 || got.Recipes[0].Name != "default.rb" {
+		t.Errorf("show recipes = %+v, want one default.rb entry", got.Recipes)
+	}
+}
+
+func TestCookbookShowCommandLatestVersion(t *testing.T) {
+	manifest := cinc.Cookbook{CookbookName: "nginx", Name: "nginx-2.0.0", Version: "2.0.0"}
+	var sawPath string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/cookbooks/nginx/_latest", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method = %q, want GET", r.Method)
+		}
+		sawPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(manifest)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"cookbook", "show", "nginx", "--config", cfgPath, "--format", "json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc cookbook show: %v", err)
+	}
+	if sawPath != "/organizations/acme/cookbooks/nginx/_latest" {
+		t.Errorf("server saw GET at %q, want /_latest", sawPath)
+	}
+
+	var got cinc.Cookbook
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("show output is not valid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if got.Version != "2.0.0" {
+		t.Errorf("show version = %q, want 2.0.0", got.Version)
+	}
+}
+
 func TestCookbookListCommandEndToEnd(t *testing.T) {
 	srv := cookbookServer(t, "nginx", "apache", "mysql")
 

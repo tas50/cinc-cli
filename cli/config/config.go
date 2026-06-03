@@ -13,7 +13,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Profile describes how to connect to a single Cinc/Chef Server. It is the
+// Profile describes how to connect to a single Cinc Server. It is the
 // resolved form of an on-disk credentials entry: the configured server URL
 // has already been split into a bare server URL and an organization name.
 type Profile struct {
@@ -63,7 +63,7 @@ func (p Profile) Validate() error {
 }
 
 // ValidateIdentity reports whether the profile has the fields needed to sign
-// requests that do not target a Chef/Cinc Server organization, such as
+// requests that do not target a Cinc Server organization, such as
 // Supermarket uploads.
 func (p Profile) ValidateIdentity() error {
 	switch {

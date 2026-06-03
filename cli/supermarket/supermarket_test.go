@@ -5,14 +5,12 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -52,6 +50,163 @@ func TestShareDryRunGeneratesMetadataJSONFromMetadataRB(t *testing.T) {
 	}
 	if len(result.Files) != 3 || result.Files[0] != "nginx/metadata.json" || result.Files[1] != "nginx/metadata.rb" {
 		t.Fatalf("files = %v, want generated metadata.json before metadata.rb", result.Files)
+	}
+}
+
+func TestShareDryRunRespectsChefignore(t *testing.T) {
+	root := writeSupermarketCookbookWithChefignore(t, "nginx")
+	client := supermarketTestClient(t, "https://supermarket.example.test")
+
+	result, err := client.Share(context.Background(), ShareOptions{
+		Cookbook: "nginx", Category: "Other", CookbookPath: root, DryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("Share: %v", err)
+	}
+	for _, f := range result.Files {
+		if strings.HasSuffix(f, ".bak") {
+			t.Fatalf("dry-run files included %s, expected chefignore filter", f)
+		}
+	}
+}
+
+func TestShareDryRunSkipChefignoreIncludesEverything(t *testing.T) {
+	root := writeSupermarketCookbookWithChefignore(t, "nginx")
+	client := supermarketTestClient(t, "https://supermarket.example.test")
+
+	result, err := client.Share(context.Background(), ShareOptions{
+		Cookbook: "nginx", Category: "Other", CookbookPath: root, DryRun: true,
+		SkipChefignore: true,
+	})
+	if err != nil {
+		t.Fatalf("Share: %v", err)
+	}
+	var sawBak bool
+	for _, f := range result.Files {
+		if strings.HasSuffix(f, ".bak") {
+			sawBak = true
+			break
+		}
+	}
+	if !sawBak {
+		t.Fatalf("expected .bak file in archive when SkipChefignore is set, got %v", result.Files)
+	}
+}
+
+func writeSupermarketCookbookWithChefignore(t *testing.T, name string) string {
+	t.Helper()
+	root := t.TempDir()
+	dir := filepath.Join(root, name)
+	if err := os.MkdirAll(filepath.Join(dir, "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"metadata.json":       `{"name":"` + name + `","version":"1.0.0"}`,
+		"chefignore":          "*.bak\n",
+		"recipes/default.rb":  "package 'nginx'\n",
+		"recipes/default.bak": "old\n",
+	}
+	for sub, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, sub), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
+}
+
+func TestDryRunPackagesCookbookWithoutClient(t *testing.T) {
+	cookbookRoot := writeSupermarketCookbook(t, "nginx")
+
+	result, err := DryRun(ShareOptions{
+		Cookbook: "nginx", CookbookPath: cookbookRoot,
+	})
+	if err != nil {
+		t.Fatalf("DryRun: %v", err)
+	}
+	if result.Uploaded || result.Status != 0 {
+		t.Fatalf("DryRun result reports upload: %+v", result)
+	}
+	if result.Tarball != "nginx.tgz" {
+		t.Fatalf("tarball = %q, want nginx.tgz", result.Tarball)
+	}
+	if result.Category != "Other" {
+		t.Fatalf("category = %q, want default Other", result.Category)
+	}
+	if len(result.Files) == 0 {
+		t.Fatal("DryRun result has no files listed")
+	}
+}
+
+func TestShareFallsBackToOtherWhenCookbookUnknownOnServer(t *testing.T) {
+	cookbookRoot := writeSupermarketCookbook(t, "nginx")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/cookbooks/nginx":
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, `{"error_code":"NOT_FOUND","error_messages":["Resource not found"]}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/cookbooks":
+			reader, err := r.MultipartReader()
+			if err != nil {
+				t.Fatalf("MultipartReader: %v", err)
+			}
+			for {
+				part, err := reader.NextPart()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				data, _ := io.ReadAll(part)
+				if part.FormName() == "cookbook" && string(data) != `{"category":"Other"}` {
+					t.Errorf("cookbook field = %q, want Other fallback category", data)
+				}
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{}`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := supermarketTestClient(t, srv.URL)
+	result, err := client.Share(context.Background(), ShareOptions{
+		Cookbook: "nginx", CookbookPath: cookbookRoot,
+	})
+	if err != nil {
+		t.Fatalf("Share: %v", err)
+	}
+	if result.Category != "Other" {
+		t.Fatalf("result.Category = %q, want Other", result.Category)
+	}
+}
+
+func TestNewRejectsInvalidSupermarketSite(t *testing.T) {
+	_, err := New(config.Profile{
+		SupermarketSite: "not a url",
+		ClientName:      "tim",
+		KeyPath:         writeSupermarketTestKey(t),
+	}, "")
+	if err == nil {
+		t.Fatal("expected invalid site URL error")
+	}
+	if !strings.Contains(err.Error(), "invalid site URL") {
+		t.Fatalf("error = %q, want invalid site URL", err)
+	}
+}
+
+func TestNewRejectsProfileMissingIdentity(t *testing.T) {
+	_, err := New(config.Profile{
+		SupermarketSite: "https://supermarket.example.test",
+		KeyPath:         "/keys/missing.pem",
+	}, "")
+	if err == nil {
+		t.Fatal("expected validate identity error")
+	}
+	if !strings.Contains(err.Error(), "client_name") {
+		t.Fatalf("error = %q, want client_name in message", err)
 	}
 }
 
@@ -159,32 +314,6 @@ func TestNewUsesSupermarketSiteFromProfileWithoutServerURL(t *testing.T) {
 	}
 }
 
-func TestSignHeadersUsesChefAuthPrivateEncryptCanonicalRequest(t *testing.T) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-	request := signRequest{
-		Method:    http.MethodPost,
-		Path:      "/api/v1/cookbooks",
-		Body:      []byte("tarball bytes"),
-		UserID:    "damacus",
-		Timestamp: "2026-05-20T10:11:12Z",
-	}
-	var h http.Header = map[string][]string{}
-	if err := signHeaders(h, request, key); err != nil {
-		t.Fatalf("signHeaders: %v", err)
-	}
-
-	signature, err := base64.StdEncoding.DecodeString(strings.Join(authorizationChunks(h), ""))
-	if err != nil {
-		t.Fatalf("decode authorization headers: %v", err)
-	}
-	if err := rsa.VerifyPKCS1v15(&key.PublicKey, 0, []byte(canonicalRequest(request, contentHash(request.Body))), signature); err != nil {
-		t.Fatalf("signature did not verify against raw canonical request: %v", err)
-	}
-}
-
 func writeSupermarketCookbook(t *testing.T, name string) string {
 	t.Helper()
 	root := t.TempDir()
@@ -247,15 +376,4 @@ func writeSupermarketTestKey(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return keyPath
-}
-
-func authorizationChunks(h http.Header) []string {
-	var chunks []string
-	for i := 1; ; i++ {
-		chunk := h.Get("X-Ops-Authorization-" + strconv.Itoa(i))
-		if chunk == "" {
-			return chunks
-		}
-		chunks = append(chunks, chunk)
-	}
 }

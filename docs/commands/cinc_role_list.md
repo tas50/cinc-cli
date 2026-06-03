@@ -15,12 +15,12 @@ cinc role list [flags]
 ### Options inherited from parent commands
 
 ```
-      --config string    path to the cinc credentials file (default ~/.cinc/credentials)
+      --config string    path to the Cinc credentials file (default ~/.cinc/credentials)
       --format string    output format: human or json (default "human")
       --profile string   credentials profile to use (default: $CINC_PROFILE, then $CHEF_PROFILE, then "default")
 ```
 
 ### SEE ALSO
 
-* [cinc role](cinc_role.md)	 - Manage roles on the Cinc/Chef Server
+* [cinc role](cinc_role.md)	 - Manage roles on the Cinc Server
 

@@ -3,11 +3,14 @@
 package acceptance
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
+
+	cinc "github.com/tas50/cinc-api"
 )
 
-func TestRoleListAgainstChefZero(t *testing.T) {
+func TestRoleListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
@@ -24,7 +27,28 @@ func TestRoleListAgainstChefZero(t *testing.T) {
 	}
 }
 
-func TestRoleDeleteAgainstChefZero(t *testing.T) {
+// TestRoleShowAgainstCincZero fetches a seeded role and asserts on both
+// the default (pretty JSON) and `--format json` outputs.
+func TestRoleShowAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	human := runCinc(t, env.binary, "role", "show", "web", "--config", env.cfgPath)
+	if !strings.Contains(human, "\"name\": \"web\"") {
+		t.Errorf("role show (human) missing name field:\n%s", human)
+	}
+
+	jsonOut := runCinc(t, env.binary, "role", "show", "web", "--config", env.cfgPath, "--format", "json")
+	var got cinc.Role
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("role show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.Name != "web" {
+		t.Errorf("role show returned name=%q, want web", got.Name)
+	}
+}
+
+func TestRoleDeleteAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 

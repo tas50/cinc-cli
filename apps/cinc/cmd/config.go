@@ -1,10 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
+	cliclient "github.com/tas50/cinc-cli/cli/client"
 	"github.com/tas50/cinc-cli/cli/config"
 	"github.com/tas50/cinc-cli/cli/printer"
 )
@@ -15,6 +21,7 @@ func newConfigCmd() *cobra.Command {
 		Use:   "config",
 		Short: "Manage local Cinc configuration",
 	}
+	cmd.AddCommand(newConfigCreateCmd())
 	cmd.AddCommand(newConfigValidateCmd())
 	return cmd
 }
@@ -29,7 +36,7 @@ type configValidationResult struct {
 func newConfigValidateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate [path]",
-		Short: "Validate a local Cinc TOML configuration file",
+		Short: "Validate local Cinc TOML configuration and endpoint reachability",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path, err := configValidatePath(cmd, args)
@@ -61,6 +68,7 @@ func newConfigValidateCmd() *cobra.Command {
 				Profiles: len(cfg.Profiles),
 				Issues:   cfg.Validate(),
 			}
+			result.Issues = append(result.Issues, preflightConfig(cmd.Context(), cfg, result.Issues)...)
 			result.Valid = len(result.Issues) == 0
 			if format == printer.FormatJSON {
 				if err := printer.New(cmd.OutOrStdout(), format).Value(result); err != nil {
@@ -82,11 +90,84 @@ func configValidatePath(cmd *cobra.Command, args []string) (string, error) {
 	if len(args) > 0 {
 		return expandHome(args[0])
 	}
-	cfgPath, err := configFilePath(cmd)
+	cfgPath, err := configPathForCommand(cmd)
 	if err != nil {
 		return "", err
 	}
 	return expandHome(cfgPath)
+}
+
+func preflightConfig(ctx context.Context, cfg *config.Config, localIssues []config.ValidationIssue) []config.ValidationIssue {
+	skip := profilesWithValidationIssues(localIssues)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	var issues []config.ValidationIssue
+	for name, profile := range cfg.Profiles {
+		if skip[name] {
+			continue
+		}
+		issues = append(issues, preflightProfile(ctx, name, profile)...)
+	}
+	return issues
+}
+
+func profilesWithValidationIssues(issues []config.ValidationIssue) map[string]bool {
+	profiles := make(map[string]bool)
+	for _, issue := range issues {
+		if issue.Profile != "" {
+			profiles[issue.Profile] = true
+		}
+	}
+	return profiles
+}
+
+func preflightProfile(ctx context.Context, name string, profile config.Profile) []config.ValidationIssue {
+	var issues []config.ValidationIssue
+	if profile.ServerURL != "" && profile.Org != "" {
+		c, err := cliclient.New(profile)
+		if err != nil {
+			issues = append(issues, config.ValidationIssue{
+				Profile: name,
+				Field:   "cinc_server_url",
+				Message: "preflight failed: " + err.Error(),
+			})
+		} else if _, _, err := c.Clients.List(ctx); err != nil {
+			issues = append(issues, config.ValidationIssue{
+				Profile: name,
+				Field:   "cinc_server_url",
+				Message: "preflight failed: " + err.Error(),
+			})
+		}
+	}
+	if profile.SupermarketSite != "" {
+		if err := preflightSupermarket(ctx, profile.SupermarketSite); err != nil {
+			issues = append(issues, config.ValidationIssue{
+				Profile: name,
+				Field:   "supermarket_site",
+				Message: "preflight failed: " + err.Error(),
+			})
+		}
+	}
+	return issues
+}
+
+func preflightSupermarket(ctx context.Context, site string) error {
+	endpoint := strings.TrimRight(site, "/") + "/api/v1/cookbooks"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	if resp.StatusCode >= http.StatusBadRequest {
+		return fmt.Errorf("GET %s: %s", endpoint, resp.Status)
+	}
+	return nil
 }
 
 func printConfigValidation(cmd *cobra.Command, result configValidationResult) {
