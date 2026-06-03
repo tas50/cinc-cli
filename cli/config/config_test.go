@@ -322,6 +322,38 @@ func TestProfileValidateIdentity(t *testing.T) {
 	}
 }
 
+func TestConfigValidateReportsProfileIssues(t *testing.T) {
+	cfg := &Config{Profiles: map[string]Profile{
+		"broken": {
+			SSLVerifyMode: "nope",
+		},
+		"supermarket": {
+			ClientName:      "tim",
+			KeyPath:         "/keys/tim.pem",
+			SupermarketSite: "https://supermarket.chef.io",
+		},
+	}}
+
+	issues := cfg.Validate()
+	for _, want := range []string{"client_name", "client_key", "endpoint", "ssl_verify_mode"} {
+		if !hasValidationIssue(issues, "broken", want) {
+			t.Fatalf("issues = %#v, want field %q", issues, want)
+		}
+	}
+	if hasValidationIssue(issues, "supermarket", "endpoint") {
+		t.Fatalf("issues = %#v, supermarket-only profile should validate", issues)
+	}
+}
+
+func TestConfigValidateRejectsEmptyConfig(t *testing.T) {
+	cfg := &Config{Profiles: map[string]Profile{}}
+
+	issues := cfg.Validate()
+	if len(issues) != 1 || issues[0].Field != "profiles" {
+		t.Fatalf("issues = %#v", issues)
+	}
+}
+
 func TestDefaultPathPointsAtCincCredentialsFile(t *testing.T) {
 	p, err := DefaultPath()
 	if err != nil {
@@ -331,4 +363,13 @@ func TestDefaultPathPointsAtCincCredentialsFile(t *testing.T) {
 	if !strings.HasSuffix(p, want) {
 		t.Errorf("DefaultPath = %q, want it to end with %q", p, want)
 	}
+}
+
+func hasValidationIssue(issues []ValidationIssue, profile, field string) bool {
+	for _, issue := range issues {
+		if issue.Profile == profile && issue.Field == field {
+			return true
+		}
+	}
+	return false
 }
