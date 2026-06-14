@@ -313,3 +313,110 @@ client_key      = %q
 		t.Errorf("show returned %+v, want username=alice email=alice@example.test", got)
 	}
 }
+
+// userItemServer serves GET of current at the global /users/<name> and
+// records the PUT body into *gotPut.
+func userItemServer(t *testing.T, name string, current cinc.User, gotPut *cinc.User) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/users/"+name, func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(current)
+		case http.MethodPut:
+			if err := json.NewDecoder(r.Body).Decode(gotPut); err != nil {
+				t.Fatalf("decode PUT body: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(gotPut)
+		default:
+			t.Errorf("unexpected method %q on %s", r.Method, r.URL.Path)
+		}
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func withStubUserEditor(t *testing.T, stub func(*cinc.User) (*cinc.User, error)) {
+	t.Helper()
+	orig := editUser
+	editUser = stub
+	t.Cleanup(func() { editUser = orig })
+}
+
+func TestUserEditCommandPutsEditorResult(t *testing.T) {
+	var gotPut cinc.User
+	current := cinc.User{UserName: "alice", DisplayName: "Alice Admin", Email: "alice@example.test"}
+	srv := userItemServer(t, "alice", current, &gotPut)
+
+	withStubUserEditor(t, func(in *cinc.User) (*cinc.User, error) {
+		out := *in
+		out.DisplayName = "Alice Operator"
+		return &out, nil
+	})
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"user", "edit", "alice", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc user edit: %v", err)
+	}
+	if gotPut.UserName != "alice" || gotPut.DisplayName != "Alice Operator" {
+		t.Errorf("PUT body = %+v, want username=alice display_name=Alice Operator", gotPut)
+	}
+	if got := buf.String(); got != "Updated user \"alice\"\n" {
+		t.Errorf("user edit output = %q", got)
+	}
+}
+
+func TestUserEditCommandReadsFromFile(t *testing.T) {
+	var gotPut cinc.User
+	current := cinc.User{UserName: "alice", DisplayName: "Alice Admin"}
+	srv := userItemServer(t, "alice", current, &gotPut)
+
+	withStubUserEditor(t, func(*cinc.User) (*cinc.User, error) {
+		t.Fatal("editor was invoked despite --file")
+		return nil, nil
+	})
+
+	filePath := filepath.Join(t.TempDir(), "user.json")
+	body, _ := json.Marshal(cinc.User{UserName: "ignored", DisplayName: "From File"})
+	if err := os.WriteFile(filePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"user", "edit", "alice", "--file", filePath, "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc user edit --file: %v", err)
+	}
+	if gotPut.UserName != "alice" || gotPut.DisplayName != "From File" {
+		t.Errorf("PUT body = %+v, want username=alice display_name=From File", gotPut)
+	}
+}

@@ -62,3 +62,51 @@ func TestRoleDeleteAgainstCincZero(t *testing.T) {
 		t.Errorf("role list after delete = %q, want web absent", after)
 	}
 }
+
+// TestRoleCreateAgainstCincZero creates a role with a description and
+// confirms it lands in the index with that description.
+func TestRoleCreateAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	out := runCinc(t, env.binary, "role", "create", "app",
+		"--description", "App tier", "--config", env.cfgPath)
+	if out != "Created role \"app\"\n" {
+		t.Errorf("role create output = %q", out)
+	}
+
+	jsonOut := runCinc(t, env.binary, "role", "show", "app", "--config", env.cfgPath, "--format", "json")
+	var got cinc.Role
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("role show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.Name != "app" || got.Description != "App tier" {
+		t.Errorf("created role = %+v, want name=app description=App tier", got)
+	}
+}
+
+// TestRoleEditAgainstCincZero edits a seeded role through --file and
+// confirms the change is persisted.
+func TestRoleEditAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	file := writeJSONFile(t, cinc.Role{
+		Name:        "ignored",
+		Description: "edited via cinc",
+		RunList:     []string{"recipe[base]"},
+	})
+	out := runCinc(t, env.binary, "role", "edit", "web", "--file", file, "--config", env.cfgPath)
+	if out != "Updated role \"web\"\n" {
+		t.Errorf("role edit output = %q", out)
+	}
+
+	jsonOut := runCinc(t, env.binary, "role", "show", "web", "--config", env.cfgPath, "--format", "json")
+	var got cinc.Role
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("role show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.Name != "web" || got.Description != "edited via cinc" {
+		t.Errorf("edited role = %+v, want name=web description=edited via cinc", got)
+	}
+}

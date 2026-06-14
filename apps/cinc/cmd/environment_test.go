@@ -287,6 +287,113 @@ client_key      = %q
 	}
 }
 
+// environmentItemServer serves GET of current at /environments/<name> and
+// records the PUT body into *gotPut.
+func environmentItemServer(t *testing.T, name string, current cinc.Environment, gotPut *cinc.Environment) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/environments/"+name, func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(current)
+		case http.MethodPut:
+			if err := json.NewDecoder(r.Body).Decode(gotPut); err != nil {
+				t.Fatalf("decode PUT body: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(gotPut)
+		default:
+			t.Errorf("unexpected method %q on %s", r.Method, r.URL.Path)
+		}
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func withStubEnvironmentEditor(t *testing.T, stub func(*cinc.Environment) (*cinc.Environment, error)) {
+	t.Helper()
+	orig := editEnvironment
+	editEnvironment = stub
+	t.Cleanup(func() { editEnvironment = orig })
+}
+
+func TestEnvironmentEditCommandPutsEditorResult(t *testing.T) {
+	var gotPut cinc.Environment
+	current := cinc.Environment{Name: "staging", Description: "old"}
+	srv := environmentItemServer(t, "staging", current, &gotPut)
+
+	withStubEnvironmentEditor(t, func(in *cinc.Environment) (*cinc.Environment, error) {
+		out := *in
+		out.Description = "new"
+		return &out, nil
+	})
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"environment", "edit", "staging", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc environment edit: %v", err)
+	}
+	if gotPut.Name != "staging" || gotPut.Description != "new" {
+		t.Errorf("PUT body = %+v, want name=staging description=new", gotPut)
+	}
+	if got := buf.String(); got != "Updated environment \"staging\"\n" {
+		t.Errorf("environment edit output = %q", got)
+	}
+}
+
+func TestEnvironmentEditCommandReadsFromFile(t *testing.T) {
+	var gotPut cinc.Environment
+	current := cinc.Environment{Name: "staging", Description: "old"}
+	srv := environmentItemServer(t, "staging", current, &gotPut)
+
+	withStubEnvironmentEditor(t, func(*cinc.Environment) (*cinc.Environment, error) {
+		t.Fatal("editor was invoked despite --file")
+		return nil, nil
+	})
+
+	filePath := filepath.Join(t.TempDir(), "env.json")
+	body, _ := json.Marshal(cinc.Environment{Name: "ignored", Description: "from file"})
+	if err := os.WriteFile(filePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"environment", "edit", "staging", "--file", filePath, "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc environment edit --file: %v", err)
+	}
+	if gotPut.Name != "staging" || gotPut.Description != "from file" {
+		t.Errorf("PUT body = %+v, want name=staging description=from file", gotPut)
+	}
+}
+
 func TestEnvironmentListCommandEndToEnd(t *testing.T) {
 	srv := environmentServer(t, "prod", "_default", "staging")
 

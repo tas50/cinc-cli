@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"reflect"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -19,7 +22,113 @@ func newRoleCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newRoleListCmd())
 	cmd.AddCommand(newRoleShowCmd())
+	cmd.AddCommand(newRoleCreateCmd())
+	cmd.AddCommand(newRoleEditCmd())
 	cmd.AddCommand(newRoleDeleteCmd())
+	return cmd
+}
+
+// newRoleCreateCmd builds the `cinc role create <name>` command. By default
+// it POSTs a minimal role carrying just the name, an empty run list, and an
+// optional --description. With --file the full role JSON is read from disk,
+// with the positional name overriding whatever "name" the file declares.
+func newRoleCreateCmd() *cobra.Command {
+	var (
+		description string
+		inputFile   string
+	)
+	cmd := &cobra.Command{
+		Use:   "create <name>",
+		Short: "Create a role on the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			role := cinc.Role{Name: args[0], RunList: []string{}}
+			if inputFile != "" {
+				data, err := os.ReadFile(inputFile)
+				if err != nil {
+					return fmt.Errorf("cinc: read %s: %w", inputFile, err)
+				}
+				if err := json.Unmarshal(data, &role); err != nil {
+					return fmt.Errorf("cinc: parse %s: %w", inputFile, err)
+				}
+				role.Name = args[0]
+			}
+			if role.RunList == nil {
+				role.RunList = []string{}
+			}
+			if description != "" {
+				role.Description = description
+			}
+			if _, _, err := c.Roles.Create(cmd.Context(), &role); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Created role %q\n", role.Name)
+			return nil
+		},
+	}
+	cmd.Flags().StringVarP(&description, "description", "d", "", "human-readable description for the new role")
+	cmd.Flags().StringVar(&inputFile, "file", "", "read the full role JSON from this file instead of using flags")
+	return cmd
+}
+
+// newRoleEditCmd builds the `cinc role edit <name>` command. It fetches the
+// role, opens its JSON in the shared editor, and PUTs the result back. The
+// path arg pins the role name so an edit can't rename it. `--file` reads the
+// updated JSON from disk for scripted use.
+func newRoleEditCmd() *cobra.Command {
+	var inputFile string
+	cmd := &cobra.Command{
+		Use:   "edit <name>",
+		Short: "Edit a role on the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+
+			var updated cinc.Role
+			if inputFile != "" {
+				data, err := os.ReadFile(inputFile)
+				if err != nil {
+					return fmt.Errorf("cinc: read %s: %w", inputFile, err)
+				}
+				if err := json.Unmarshal(data, &updated); err != nil {
+					return fmt.Errorf("cinc: parse %s: %w", inputFile, err)
+				}
+			} else {
+				current, _, err := c.Roles.Get(cmd.Context(), name)
+				if err != nil {
+					return err
+				}
+				edited, err := editRole(current)
+				if err != nil {
+					return err
+				}
+				if reflect.DeepEqual(*current, *edited) {
+					fmt.Fprintf(cmd.OutOrStdout(), "Role %q unchanged\n", name)
+					return nil
+				}
+				updated = *edited
+			}
+			updated.Name = name
+			if updated.RunList == nil {
+				updated.RunList = []string{}
+			}
+
+			if _, _, err := c.Roles.Update(cmd.Context(), &updated); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Updated role %q\n", name)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&inputFile, "file", "", "read the updated role JSON from this file instead of launching the editor")
 	return cmd
 }
 

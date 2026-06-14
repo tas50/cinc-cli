@@ -302,3 +302,83 @@ client_key      = %q
 		t.Errorf("show users = %v", got.Users)
 	}
 }
+
+func withStubGroupEditor(t *testing.T, stub func(*cinc.Group) (*cinc.Group, error)) {
+	t.Helper()
+	orig := editGroup
+	editGroup = stub
+	t.Cleanup(func() { editGroup = orig })
+}
+
+func TestGroupEditCommandPutsEditorResult(t *testing.T) {
+	var gotUsers []string
+	srv := groupMemberServer(t, "devs", []string{"alice"}, &gotUsers)
+
+	withStubGroupEditor(t, func(in *cinc.Group) (*cinc.Group, error) {
+		out := *in
+		out.Users = append(slices.Clone(in.Users), "carol")
+		return &out, nil
+	})
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"group", "edit", "devs", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc group edit: %v", err)
+	}
+	if !slices.Equal(gotUsers, []string{"alice", "carol"}) {
+		t.Errorf("PUT users = %v, want [alice carol]", gotUsers)
+	}
+	if got := buf.String(); got != "Updated group \"devs\"\n" {
+		t.Errorf("group edit output = %q", got)
+	}
+}
+
+func TestGroupEditCommandReadsFromFile(t *testing.T) {
+	var gotUsers []string
+	srv := groupMemberServer(t, "devs", []string{"alice"}, &gotUsers)
+
+	withStubGroupEditor(t, func(*cinc.Group) (*cinc.Group, error) {
+		t.Fatal("editor was invoked despite --file")
+		return nil, nil
+	})
+
+	filePath := filepath.Join(t.TempDir(), "group.json")
+	body, _ := json.Marshal(cinc.Group{GroupName: "ignored", Users: []string{"dave"}})
+	if err := os.WriteFile(filePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"group", "edit", "devs", "--file", filePath, "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc group edit --file: %v", err)
+	}
+	if !slices.Equal(gotUsers, []string{"dave"}) {
+		t.Errorf("PUT users = %v, want [dave]", gotUsers)
+	}
+}
