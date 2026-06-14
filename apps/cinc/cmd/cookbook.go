@@ -38,11 +38,10 @@ func newCookbookDownloadCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "download <name> [version]",
 		Short: "Download a cookbook version from the server",
-		Example: "Download a cookbook's latest version into ./<name>-<version>/.\n" +
-			"cinc cookbook download nginx" +
-			"\n" +
-			"Download a specific version into a chosen directory.\n" +
-			"cinc cookbook download nginx 1.2.0 --dir ./cookbooks",
+		Example: `Download a cookbook's latest version into ./<name>-<version>/.
+cinc cookbook download nginx
+Download a specific version into a chosen directory.
+cinc cookbook download nginx 1.2.0 --dir ./cookbooks`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -79,11 +78,10 @@ func newCookbookShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name> [version]",
 		Short: "Show a cookbook version manifest",
-		Example: "Show the latest version's file manifest.\n" +
-			"cinc cookbook show nginx" +
-			"\n" +
-			"Show a specific version.\n" +
-			"cinc cookbook show nginx 1.2.0",
+		Example: `Show the latest version's file manifest.
+cinc cookbook show nginx
+Show a specific version.
+cinc cookbook show nginx 1.2.0`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -113,8 +111,8 @@ func newCookbookUploadCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "upload <name>...",
 		Short: "Upload cookbook versions to the Cinc Server",
-		Example: "Upload a cookbook from your cookbook path.\n" +
-			"cinc cookbook upload nginx",
+		Example: `Upload a cookbook from your cookbook path.
+cinc cookbook upload nginx`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -172,8 +170,8 @@ func newCookbookDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name> <version>",
 		Short: "Delete a cookbook version from the server",
-		Example: "Delete a specific cookbook version from the server.\n" +
-			"cinc cookbook delete nginx 1.2.0",
+		Example: `Delete a specific cookbook version from the server.
+cinc cookbook delete nginx 1.2.0`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -195,8 +193,8 @@ func newCookbookListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List cookbooks on the server",
-		Example: "List every cookbook on the server.\n" +
-			"cinc cookbook list",
+		Example: `List every cookbook on the server.
+cinc cookbook list`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)

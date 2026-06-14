@@ -34,9 +34,12 @@ func newNodeTagChangeCmd(verb string) *cobra.Command {
 		"set":    "Replace a node's tags",
 	}[verb]
 	example := map[string]string{
-		"add":    "Add one or more tags to a node.\ncinc node tag add web01 prod canary",
-		"remove": "Remove a tag from a node.\ncinc node tag remove web01 canary",
-		"set":    "Replace a node's tags entirely.\ncinc node tag set web01 prod web",
+		"add": `Add one or more tags to a node.
+cinc node tag add web01 prod canary`,
+		"remove": `Remove a tag from a node.
+cinc node tag remove web01 canary`,
+		"set": `Replace a node's tags entirely.
+cinc node tag set web01 prod web`,
 	}[verb]
 	return &cobra.Command{
 		Use:     verb + " <node> <tag>...",
@@ -83,8 +86,8 @@ func newNodeTagListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list <node>",
 		Short: "List a node's tags",
-		Example: "Show a node's current tags.\n" +
-			"cinc node tag list web01",
+		Example: `Show a node's current tags.
+cinc node tag list web01`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)

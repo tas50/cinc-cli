@@ -37,8 +37,8 @@ func newEnvironmentEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <name>",
 		Short: "Edit an environment on the server",
-		Example: "Edit an environment's cookbook version constraints and attributes.\n" +
-			"cinc environment edit prod",
+		Example: `Edit an environment's cookbook version constraints and attributes.
+cinc environment edit prod`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -89,8 +89,8 @@ func newEnvironmentShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Show an environment",
-		Example: "Show an environment.\n" +
-			"cinc environment show prod",
+		Example: `Show an environment.
+cinc environment show prod`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -124,8 +124,8 @@ func newEnvironmentCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create an environment on the server",
-		Example: "Create an environment; your editor opens to define it.\n" +
-			"cinc environment create prod",
+		Example: `Create an environment; your editor opens to define it.
+cinc environment create prod`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -163,8 +163,8 @@ func newEnvironmentDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete an environment from the server",
-		Example: "Delete an environment from the server.\n" +
-			"cinc environment delete prod",
+		Example: `Delete an environment from the server.
+cinc environment delete prod`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -186,8 +186,8 @@ func newEnvironmentListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List environments on the server",
-		Example: "List every environment on the server.\n" +
-			"cinc environment list",
+		Example: `List every environment on the server.
+cinc environment list`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)

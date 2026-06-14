@@ -15,8 +15,8 @@ func newExploreCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "explore",
 		Short: "Browse and edit the Cinc Server in a terminal UI",
-		Example: "Launch the interactive terminal UI to browse nodes, roles, and more.\n" +
-			"cinc explore",
+		Example: `Launch the interactive terminal UI to browse nodes, roles, and more.
+cinc explore`,
 		Long: "Launches an interactive, k9s-style terminal UI for the whole Cinc\n" +
 			"Server. Pick a profile (when more than one is configured), choose an\n" +
 			"object type, and browse, view, edit, create, delete, or download\n" +

@@ -41,8 +41,8 @@ func newGroupEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <name>",
 		Short: "Edit a group's members on the server",
-		Example: "Edit a group's membership in your editor.\n" +
-			"cinc group edit admins",
+		Example: `Edit a group's membership in your editor.
+cinc group edit admins`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -94,8 +94,8 @@ func newGroupCreateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a group on the server",
-		Example: "Create a group.\n" +
-			"cinc group create admins",
+		Example: `Create a group.
+cinc group create admins`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -117,8 +117,8 @@ func newGroupDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a group from the server",
-		Example: "Delete a group from the server.\n" +
-			"cinc group delete admins",
+		Example: `Delete a group from the server.
+cinc group delete admins`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -170,8 +170,10 @@ func newGroupMemberChangeCmd(add bool) *cobra.Command {
 		Use:   verb + " <group> <name>...",
 		Short: cases(add, "Add actors to a group", "Remove actors from a group"),
 		Example: cases(add,
-			"Add users or clients to a group.\ncinc group member add admins alice worker-01",
-			"Remove an actor from a group.\ncinc group member remove admins alice"),
+			`Add users or clients to a group.
+cinc group member add admins alice worker-01`,
+			`Remove an actor from a group.
+cinc group member remove admins alice`),
 		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -248,8 +250,8 @@ func newGroupShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Show a group's members",
-		Example: "Show a group's members.\n" +
-			"cinc group show admins",
+		Example: `Show a group's members.
+cinc group show admins`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -274,8 +276,8 @@ func newGroupListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List groups on the server",
-		Example: "List every group on the server.\n" +
-			"cinc group list",
+		Example: `List every group on the server.
+cinc group list`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)

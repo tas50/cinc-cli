@@ -37,8 +37,8 @@ func newDataBagShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <bag>",
 		Short: "Show a data bag's item IDs",
-		Example: "Show the item IDs in a data bag.\n" +
-			"cinc databag show passwords",
+		Example: `Show the item IDs in a data bag.
+cinc databag show passwords`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -73,11 +73,10 @@ func newDataBagCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <bag> [item]",
 		Short: "Create a data bag, optionally with an initial item",
-		Example: "Create an empty data bag.\n" +
-			"cinc databag create passwords" +
-			"\n" +
-			"Create a data bag and add an item in one step (opens your editor).\n" +
-			"cinc databag create passwords mysql",
+		Example: `Create an empty data bag.
+cinc databag create passwords
+Create a data bag and add an item in one step (opens your editor).
+cinc databag create passwords mysql`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -177,8 +176,8 @@ func newDataBagItemCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <bag> <id>",
 		Short: "Create an item in a data bag",
-		Example: "Create an item in a data bag; your editor opens to edit its JSON.\n" +
-			"cinc databag item create passwords mysql",
+		Example: `Create an item in a data bag; your editor opens to edit its JSON.
+cinc databag item create passwords mysql`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -209,8 +208,8 @@ func newDataBagItemShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <bag> <id>",
 		Short: "Show a data bag item on the server",
-		Example: "Show a data bag item.\n" +
-			"cinc databag item show passwords mysql",
+		Example: `Show a data bag item.
+cinc databag item show passwords mysql`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -237,8 +236,8 @@ func newDataBagItemDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <bag> <id>",
 		Short: "Delete a data bag item from the server",
-		Example: "Delete an item from a data bag.\n" +
-			"cinc databag item delete passwords mysql",
+		Example: `Delete an item from a data bag.
+cinc databag item delete passwords mysql`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -262,8 +261,8 @@ func newDataBagItemListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list <bag>",
 		Short: "List items in a data bag",
-		Example: "List the item IDs in a data bag.\n" +
-			"cinc databag item list passwords",
+		Example: `List the item IDs in a data bag.
+cinc databag item list passwords`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -308,8 +307,8 @@ func newDataBagItemEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <bag> <id>",
 		Short: "Edit a data bag item on the server",
-		Example: "Edit a data bag item in your editor.\n" +
-			"cinc databag item edit passwords mysql",
+		Example: `Edit a data bag item in your editor.
+cinc databag item edit passwords mysql`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -377,8 +376,8 @@ func newDataBagDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a data bag from the server",
-		Example: "Delete a data bag and all of its items.\n" +
-			"cinc databag delete passwords",
+		Example: `Delete a data bag and all of its items.
+cinc databag delete passwords`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -400,8 +399,8 @@ func newDataBagListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List data bags on the server",
-		Example: "List every data bag on the server.\n" +
-			"cinc databag list",
+		Example: `List every data bag on the server.
+cinc databag list`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)

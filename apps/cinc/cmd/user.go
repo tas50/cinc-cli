@@ -42,8 +42,8 @@ func newUserEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <name>",
 		Short: "Edit a user on the server",
-		Example: "Open a user's JSON in your editor and save it back.\n" +
-			"cinc user edit alice",
+		Example: `Open a user's JSON in your editor and save it back.
+cinc user edit alice`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -113,8 +113,11 @@ func newUserCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a user on the server",
-		Example: "Create a user, writing the generated private key to a file.\n" +
-			"cinc user create alice --email alice@example.com --first-name Alice --last-name Smith --key-file alice.pem",
+		Example: `Create a user; the server generates the key, written to a file.
+cinc user create alice --email alice@example.com --first-name Alice --last-name Smith --key-file alice.pem
+
+Register a public key you already have; the server generates no key.
+cinc user create alice --email alice@example.com --public-key alice.pub`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -177,8 +180,8 @@ func newUserDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a user from the server",
-		Example: "Delete a user from the server.\n" +
-			"cinc user delete alice",
+		Example: `Delete a user from the server.
+cinc user delete alice`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -204,8 +207,8 @@ func newUserPasswordCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "password <name>",
 		Short: "Set a user's password",
-		Example: "Set or reset a user's password (you are prompted if --password is omitted).\n" +
-			"cinc user password alice",
+		Example: `Set or reset a user's password (you are prompted if --password is omitted).
+cinc user password alice`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -245,8 +248,8 @@ func newUserShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Show a user",
-		Example: "Show a user's profile.\n" +
-			"cinc user show alice",
+		Example: `Show a user's profile.
+cinc user show alice`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -271,8 +274,8 @@ func newUserListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List users on the server",
-		Example: "List every user on the server.\n" +
-			"cinc user list",
+		Example: `List every user on the server.
+cinc user list`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)

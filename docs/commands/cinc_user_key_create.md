@@ -8,10 +8,22 @@ cinc user key create <user> <key-name> [flags]
 
 ### Examples
 
-Add a key to a user, writing the generated private key to a file.
+Have the server generate the key pair and write the private key to a file.
 
 ```
 cinc user key create alice rotation --key-file rotation.pem
+```
+
+Register a public key you already have; the server generates nothing.
+
+```
+cinc user key create alice laptop --public-key ~/.ssh/id_rsa.pub
+```
+
+Add a key that expires on a given date.
+
+```
+cinc user key create alice temp --expires 2030-01-01T00:00:00Z
 ```
 
 ### Options
