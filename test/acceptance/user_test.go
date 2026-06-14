@@ -93,3 +93,31 @@ func TestUserShowAgainstCincZero(t *testing.T) {
 		t.Errorf("user show returned username=%q, want anna", got.UserName)
 	}
 }
+
+// TestUserEditAgainstCincZero edits a seeded global user through --file
+// and confirms the change is persisted.
+func TestUserEditAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	file := writeJSONFile(t, cinc.User{
+		UserName:    "ignored",
+		DisplayName: "Anna Operator",
+		Email:       "anna@example.test",
+		FirstName:   "Anna",
+		LastName:    "Admin",
+	})
+	out := runCinc(t, env.binary, "user", "edit", "anna", "--file", file, "--config", env.cfgPath)
+	if out != "Updated user \"anna\"\n" {
+		t.Errorf("user edit output = %q", out)
+	}
+
+	jsonOut := runCinc(t, env.binary, "user", "show", "anna", "--config", env.cfgPath, "--format", "json")
+	var got cinc.User
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("user show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.UserName != "anna" || got.DisplayName != "Anna Operator" {
+		t.Errorf("edited user = %+v, want username=anna display_name=Anna Operator", got)
+	}
+}

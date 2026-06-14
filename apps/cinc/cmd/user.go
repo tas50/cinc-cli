@@ -3,8 +3,10 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -25,8 +27,63 @@ func newUserCmd() *cobra.Command {
 	cmd.AddCommand(newUserListCmd())
 	cmd.AddCommand(newUserShowCmd())
 	cmd.AddCommand(newUserCreateCmd())
+	cmd.AddCommand(newUserEditCmd())
 	cmd.AddCommand(newUserDeleteCmd())
 	cmd.AddCommand(newUserPasswordCmd())
+	return cmd
+}
+
+// newUserEditCmd builds the `cinc user edit <name>` command. It fetches the
+// user, opens its JSON in the shared editor, and PUTs the result back. The
+// path arg pins the username. `--file` reads the updated JSON from disk for
+// scripted use.
+func newUserEditCmd() *cobra.Command {
+	var inputFile string
+	cmd := &cobra.Command{
+		Use:   "edit <name>",
+		Short: "Edit a user on the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+
+			var updated cinc.User
+			if inputFile != "" {
+				data, err := os.ReadFile(inputFile)
+				if err != nil {
+					return fmt.Errorf("cinc: read %s: %w", inputFile, err)
+				}
+				if err := json.Unmarshal(data, &updated); err != nil {
+					return fmt.Errorf("cinc: parse %s: %w", inputFile, err)
+				}
+			} else {
+				current, _, err := c.Users.Get(cmd.Context(), name)
+				if err != nil {
+					return err
+				}
+				edited, err := editUser(current)
+				if err != nil {
+					return err
+				}
+				if reflect.DeepEqual(*current, *edited) {
+					fmt.Fprintf(cmd.OutOrStdout(), "User %q unchanged\n", name)
+					return nil
+				}
+				updated = *edited
+			}
+			updated.UserName = name
+
+			if _, _, err := c.Users.Update(cmd.Context(), &updated); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Updated user %q\n", name)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&inputFile, "file", "", "read the updated user JSON from this file instead of launching the editor")
 	return cmd
 }
 

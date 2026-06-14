@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"reflect"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -22,7 +23,62 @@ func newEnvironmentCmd() *cobra.Command {
 	cmd.AddCommand(newEnvironmentListCmd())
 	cmd.AddCommand(newEnvironmentShowCmd())
 	cmd.AddCommand(newEnvironmentCreateCmd())
+	cmd.AddCommand(newEnvironmentEditCmd())
 	cmd.AddCommand(newEnvironmentDeleteCmd())
+	return cmd
+}
+
+// newEnvironmentEditCmd builds the `cinc environment edit <name>` command. It
+// fetches the environment, opens its JSON in the shared editor, and PUTs the
+// result back. The path arg pins the name. `--file` reads the updated JSON
+// from disk for scripted use.
+func newEnvironmentEditCmd() *cobra.Command {
+	var inputFile string
+	cmd := &cobra.Command{
+		Use:   "edit <name>",
+		Short: "Edit an environment on the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+
+			var updated cinc.Environment
+			if inputFile != "" {
+				data, err := os.ReadFile(inputFile)
+				if err != nil {
+					return fmt.Errorf("cinc: read %s: %w", inputFile, err)
+				}
+				if err := json.Unmarshal(data, &updated); err != nil {
+					return fmt.Errorf("cinc: parse %s: %w", inputFile, err)
+				}
+			} else {
+				current, _, err := c.Environments.Get(cmd.Context(), name)
+				if err != nil {
+					return err
+				}
+				edited, err := editEnvironment(current)
+				if err != nil {
+					return err
+				}
+				if reflect.DeepEqual(*current, *edited) {
+					fmt.Fprintf(cmd.OutOrStdout(), "Environment %q unchanged\n", name)
+					return nil
+				}
+				updated = *edited
+			}
+			updated.Name = name
+
+			if _, _, err := c.Environments.Update(cmd.Context(), &updated); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Updated environment %q\n", name)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&inputFile, "file", "", "read the updated environment JSON from this file instead of launching the editor")
 	return cmd
 }
 

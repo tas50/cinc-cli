@@ -81,3 +81,25 @@ func TestEnvironmentDeleteAgainstCincZero(t *testing.T) {
 		t.Errorf("environment list after delete = %q, want staging absent", after)
 	}
 }
+
+// TestEnvironmentEditAgainstCincZero edits a seeded environment through
+// --file and confirms the change is persisted.
+func TestEnvironmentEditAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	file := writeJSONFile(t, cinc.Environment{Name: "ignored", Description: "edited via cinc"})
+	out := runCinc(t, env.binary, "environment", "edit", "staging", "--file", file, "--config", env.cfgPath)
+	if out != "Updated environment \"staging\"\n" {
+		t.Errorf("environment edit output = %q", out)
+	}
+
+	jsonOut := runCinc(t, env.binary, "environment", "show", "staging", "--config", env.cfgPath, "--format", "json")
+	var got cinc.Environment
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("environment show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.Name != "staging" || got.Description != "edited via cinc" {
+		t.Errorf("edited environment = %+v, want name=staging description=edited via cinc", got)
+	}
+}

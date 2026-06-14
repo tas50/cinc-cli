@@ -117,3 +117,25 @@ func TestGroupShowAgainstCincZero(t *testing.T) {
 		t.Errorf("group show returned groupname=%q, want admins", got.GroupName)
 	}
 }
+
+// TestGroupEditAgainstCincZero edits the seeded "devs" group through
+// --file, setting its membership, and confirms it is persisted.
+func TestGroupEditAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	file := writeJSONFile(t, cinc.Group{GroupName: "ignored", Users: []string{"anna"}})
+	out := runCinc(t, env.binary, "group", "edit", "devs", "--file", file, "--config", env.cfgPath)
+	if out != "Updated group \"devs\"\n" {
+		t.Errorf("group edit output = %q", out)
+	}
+
+	jsonOut := runCinc(t, env.binary, "group", "show", "devs", "--config", env.cfgPath, "--format", "json")
+	var got cinc.Group
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("group show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if !contains(got.Users, "anna") {
+		t.Errorf("edited group users = %v, want anna present", got.Users)
+	}
+}

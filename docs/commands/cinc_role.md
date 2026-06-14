@@ -19,7 +19,9 @@ Manage roles on the Cinc Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc role create](cinc_role_create.md)	 - Create a role on the server
 * [cinc role delete](cinc_role_delete.md)	 - Delete a role from the server
+* [cinc role edit](cinc_role_edit.md)	 - Edit a role on the server
 * [cinc role list](cinc_role_list.md)	 - List roles on the server
 * [cinc role show](cinc_role_show.md)	 - Show a role
 

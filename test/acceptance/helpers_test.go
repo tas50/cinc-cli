@@ -8,6 +8,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -439,3 +440,18 @@ func runCincRawEnv(t *testing.T, extraEnv []string, binary string, args ...strin
 // itoa is a tiny strconv.Itoa wrapper kept local so acceptance tests can
 // build URLs without each importing strconv.
 func itoa(n int) string { return strconv.Itoa(n) }
+
+// writeJSONFile marshals v to a temp file and returns its path, for driving
+// the `--file` form of create/edit commands from acceptance tests.
+func writeJSONFile(t *testing.T, v any) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "obj.json")
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}

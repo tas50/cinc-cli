@@ -147,6 +147,203 @@ client_key      = %q
 	}
 }
 
+// roleItemServer serves GET of current at /roles/<name> and records the
+// PUT body into *gotPut.
+func roleItemServer(t *testing.T, name string, current cinc.Role, gotPut *cinc.Role) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/roles/"+name, func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(current)
+		case http.MethodPut:
+			if err := json.NewDecoder(r.Body).Decode(gotPut); err != nil {
+				t.Fatalf("decode PUT body: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(gotPut)
+		default:
+			t.Errorf("unexpected method %q on %s", r.Method, r.URL.Path)
+		}
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func withStubRoleEditor(t *testing.T, stub func(*cinc.Role) (*cinc.Role, error)) {
+	t.Helper()
+	orig := editRole
+	editRole = stub
+	t.Cleanup(func() { editRole = orig })
+}
+
+func TestRoleCreateCommandEndToEnd(t *testing.T) {
+	var created cinc.Role
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/roles", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %q, want POST", r.Method)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&created); err != nil {
+			t.Fatalf("decode create body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(created)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"role", "create", "web", "--description", "Web tier", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc role create: %v", err)
+	}
+	if created.Name != "web" || created.Description != "Web tier" {
+		t.Errorf("server received %+v, want name=web description=Web tier", created)
+	}
+	if created.RunList == nil {
+		t.Errorf("run_list should serialize as [] not null")
+	}
+	if got := buf.String(); got != "Created role \"web\"\n" {
+		t.Errorf("role create output = %q", got)
+	}
+}
+
+func TestRoleCreateCommandReadsFromFile(t *testing.T) {
+	var created cinc.Role
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/roles", func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&created); err != nil {
+			t.Fatalf("decode create body: %v", err)
+		}
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(created)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	filePath := filepath.Join(t.TempDir(), "role.json")
+	body, _ := json.Marshal(cinc.Role{Name: "ignored-in-file", Description: "From file", RunList: []string{"recipe[base]"}})
+	if err := os.WriteFile(filePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"role", "create", "web", "--file", filePath, "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc role create --file: %v", err)
+	}
+	if created.Name != "web" {
+		t.Errorf("create body name = %q, want web (path arg must win over file)", created.Name)
+	}
+	if !slices.Equal(created.RunList, []string{"recipe[base]"}) {
+		t.Errorf("create body run_list = %v, want from file", created.RunList)
+	}
+}
+
+func TestRoleEditCommandPutsEditorResult(t *testing.T) {
+	var gotPut cinc.Role
+	current := cinc.Role{Name: "web", RunList: []string{"recipe[base]"}}
+	srv := roleItemServer(t, "web", current, &gotPut)
+
+	withStubRoleEditor(t, func(in *cinc.Role) (*cinc.Role, error) {
+		out := *in
+		out.RunList = append(slices.Clone(in.RunList), "recipe[apache]")
+		return &out, nil
+	})
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"role", "edit", "web", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc role edit: %v", err)
+	}
+	if gotPut.Name != "web" || !slices.Equal(gotPut.RunList, []string{"recipe[base]", "recipe[apache]"}) {
+		t.Errorf("PUT body = %+v, want name=web with appended recipe", gotPut)
+	}
+	if got := buf.String(); got != "Updated role \"web\"\n" {
+		t.Errorf("role edit output = %q", got)
+	}
+}
+
+func TestRoleEditCommandReadsFromFile(t *testing.T) {
+	var gotPut cinc.Role
+	current := cinc.Role{Name: "web", RunList: []string{"recipe[base]"}}
+	srv := roleItemServer(t, "web", current, &gotPut)
+
+	withStubRoleEditor(t, func(*cinc.Role) (*cinc.Role, error) {
+		t.Fatal("editor was invoked despite --file")
+		return nil, nil
+	})
+
+	filePath := filepath.Join(t.TempDir(), "role.json")
+	body, _ := json.Marshal(cinc.Role{Name: "ignored", RunList: []string{"recipe[x]"}})
+	if err := os.WriteFile(filePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"role", "edit", "web", "--file", filePath, "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc role edit --file: %v", err)
+	}
+	if gotPut.Name != "web" || !slices.Equal(gotPut.RunList, []string{"recipe[x]"}) {
+		t.Errorf("PUT body = %+v, want name=web run_list=[recipe[x]]", gotPut)
+	}
+}
+
 func TestRoleListCommandEndToEnd(t *testing.T) {
 	srv := roleServer(t, "web", "base", "db")
 
