@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -22,6 +23,47 @@ func newCookbookCmd() *cobra.Command {
 	cmd.AddCommand(newCookbookShowCmd())
 	cmd.AddCommand(newCookbookDeleteCmd())
 	cmd.AddCommand(newCookbookUploadCmd())
+	cmd.AddCommand(newCookbookDownloadCmd())
+	return cmd
+}
+
+// newCookbookDownloadCmd builds the `cinc cookbook download <name> [version]`
+// command. With no version it resolves the "_latest" sentinel the Chef Server
+// exposes for the highest semver. Every file in the version's manifest is
+// written under <dir>/<name>-<version>/ (recreating the cookbook layout),
+// where <dir> defaults to the current directory and is overridable with
+// --dir, matching knife's `cookbook download`.
+func newCookbookDownloadCmd() *cobra.Command {
+	var dir string
+	cmd := &cobra.Command{
+		Use:   "download <name> [version]",
+		Short: "Download a cookbook version from the server",
+		Args:  cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+			version := "_latest"
+			if len(args) == 2 {
+				version = args[1]
+			}
+			// Resolve the concrete version first so "_latest" never leaks into
+			// the destination directory name.
+			cb, _, err := c.Cookbooks.Get(cmd.Context(), name, version)
+			if err != nil {
+				return err
+			}
+			destDir := filepath.Join(dir, name+"-"+cb.Version)
+			if err := c.Cookbooks.Download(cmd.Context(), name, cb.Version, destDir); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Downloaded cookbook %q version %s to %s\n", name, cb.Version, destDir)
+			return nil
+		},
+	}
+	cmd.Flags().StringVarP(&dir, "dir", "d", ".", "parent directory to download the cookbook into")
 	return cmd
 }
 
