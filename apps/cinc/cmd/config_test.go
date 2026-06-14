@@ -218,7 +218,7 @@ client_name = "tim"
 	if !strings.Contains(got, "\n\nbroken profile [INVALID]\n") {
 		t.Errorf("profile block not separated/tagged:\n%s", got)
 	}
-	if !strings.Contains(got, "  ✓ Client name is set\n") {
+	if !strings.Contains(got, "  ✓ Client name is configured\n") {
 		t.Errorf("per-profile checks not indented:\n%s", got)
 	}
 	// No leftover wording from the old issue-count format.
@@ -262,15 +262,15 @@ client_key = "/keys/tim.pem"
 	}
 	var found bool
 	for _, c := range result.Profiles[0].Checks {
-		if c.Name == "Client name is set" {
+		if c.Name == "Client name is configured" {
 			found = true
 			if c.Passed {
-				t.Error("'Client name is set' should have failed for the broken profile")
+				t.Error("'Client name is configured' should have failed for the broken profile")
 			}
 		}
 	}
 	if !found {
-		t.Error("expected a 'Client name is set' check in the JSON output")
+		t.Error("expected a 'Client name is configured' check in the JSON output")
 	}
 }
 

@@ -60,7 +60,7 @@ type profileCheck struct {
 // network checks.
 var profileChecks = []profileCheck{
 	{
-		name: "Client name is set",
+		name: "Client name is configured",
 		run: func(_ context.Context, p config.Profile) (bool, string) {
 			return p.ClientName != "", "client_name is required"
 		},
