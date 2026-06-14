@@ -20,6 +20,10 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updateNameKey(msg)
 	case screenResult:
 		return m.updateResultKey(msg)
+	case screenSearch:
+		return m.updateSearchKey(msg)
+	case screenSearchIndex:
+		return m.updateSearchIndexKey(msg)
 	case screenProfiles:
 		return m.updateProfilesKey(msg)
 	case screenKinds:
@@ -109,7 +113,12 @@ func (m model) updateListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.status = ""
 		cmd := m.filter.Focus()
 		return m, cmd
+	case key.Matches(msg, m.keys.Search):
+		return m.startSearch()
 	case key.Matches(msg, m.keys.Esc):
+		if m.searchActive {
+			return m.clearSearch()
+		}
 		return m.goBack()
 	case key.Matches(msg, m.keys.Enter):
 		return m.openSelected()
@@ -175,6 +184,7 @@ func (m model) goBack() (tea.Model, tea.Cmd) {
 	m.status = ""
 	m.filtering = false
 	m.filter.SetValue("")
+	m.clearSearchState()
 	// Drilling in cleared the parent's cache, so reload the panel for the
 	// row we're returning to.
 	m.summaryCache = map[string]summaryView{}
@@ -224,6 +234,92 @@ func (m model) updateDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.detail, cmd = m.detail.Update(msg)
 	return m, cmd
+}
+
+// ----- search ----------------------------------------------------------
+
+// startSearch opens the search modal for the current list, defaulting the
+// index to the current kind. It's inert on kinds that aren't search-indexed.
+func (m model) startSearch() (tea.Model, tea.Cmd) {
+	if _, ok := searchIndexOf(m.cur); !ok {
+		return m, nil
+	}
+	m.searchKind = m.cur
+	m.searchInput.SetValue(m.searchQuery)
+	m.searchInput.CursorEnd()
+	m.screen = screenSearch
+	return m, m.searchInput.Focus()
+}
+
+// clearSearch drops an active search and returns to the full list.
+func (m model) clearSearch() (tea.Model, tea.Cmd) {
+	m.clearSearchState()
+	m.cursor = 0
+	return m, m.scheduleSummary()
+}
+
+// updateSearchKey drives the query modal: enter runs the search, tab opens
+// the index picker, esc cancels, everything else edits the query.
+func (m model) updateSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEnter:
+		idx, ok := searchIndexOf(m.searchKind)
+		if !ok {
+			m.screen = screenList
+			return m, nil
+		}
+		query := strings.TrimSpace(m.searchInput.Value())
+		if query == "" {
+			query = "*:*"
+		}
+		m.searchInput.Blur()
+		m.screen = screenList
+		m.loading = true
+		m.listErr = ""
+		m.status = ""
+		return m, searchCmd(m.ctx, m.client, m.searchKind, idx, query, m.nextReqID())
+	case tea.KeyEsc:
+		m.searchInput.Blur()
+		m.screen = screenList
+		return m, nil
+	case tea.KeyCtrlC:
+		return m, tea.Quit
+	case tea.KeyTab:
+		m.searchKinds = searchableKinds()
+		m.searchKindCur = indexOfKind(m.searchKinds, m.searchKind)
+		m.screen = screenSearchIndex
+		return m, nil
+	}
+	var cmd tea.Cmd
+	m.searchInput, cmd = m.searchInput.Update(msg)
+	return m, cmd
+}
+
+// updateSearchIndexKey drives the index picker: move and select an index,
+// or esc back to the query modal.
+func (m model) updateSearchIndexKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keys.Quit):
+		return m, tea.Quit
+	case key.Matches(msg, m.keys.Up):
+		if m.searchKindCur > 0 {
+			m.searchKindCur--
+		}
+	case key.Matches(msg, m.keys.Down):
+		if m.searchKindCur < len(m.searchKinds)-1 {
+			m.searchKindCur++
+		}
+	case key.Matches(msg, m.keys.Esc):
+		m.screen = screenSearch
+		return m, m.searchInput.Focus()
+	case key.Matches(msg, m.keys.Enter):
+		if len(m.searchKinds) > 0 {
+			m.searchKind = m.searchKinds[m.searchKindCur]
+		}
+		m.screen = screenSearch
+		return m, m.searchInput.Focus()
+	}
+	return m, nil
 }
 
 // ----- action initiators ----------------------------------------------

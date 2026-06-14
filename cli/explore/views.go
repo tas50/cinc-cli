@@ -216,9 +216,18 @@ const splitMinWidth = 72
 const splitListMin = 20
 
 func (m model) viewList() string {
-	hints := []string{m.hint("↵", m.enterVerb()), m.hint("/", "filter"), m.hint(":", "kinds")}
+	hints := []string{m.hint("↵", m.enterVerb()), m.hint("/", "filter")}
+	if _, ok := searchIndexOf(m.cur); ok {
+		hints = append(hints, m.hint("s", "search"))
+	}
+	hints = append(hints, m.hint(":", "kinds"))
 	hints = append(hints, m.actionHints()...)
-	hints = append(hints, m.hint("esc", "back"), m.hint("q", "quit"))
+	if m.searchActive {
+		hints = append(hints, m.hint("esc", "clear search"))
+	} else {
+		hints = append(hints, m.hint("esc", "back"))
+	}
+	hints = append(hints, m.hint("q", "quit"))
 
 	innerW := max(1, m.width-2)
 	if innerW < splitMinWidth {
@@ -256,6 +265,10 @@ func verticalRule(n int) string {
 func (m model) renderListContent() string {
 	var b strings.Builder
 	rows := m.filteredRows()
+	if m.searchActive {
+		banner := fmt.Sprintf("🔍 %s: %s  (%d)", m.searchIndex, m.searchQuery, len(rows))
+		b.WriteString(m.styles.Status.Render(banner) + "\n")
+	}
 	if m.filtering || m.filter.Value() != "" {
 		b.WriteString(m.filter.View() + "\n")
 	}
@@ -365,6 +378,9 @@ func (m model) renderTable(rows []Row) string {
 // footer past the border.
 func (m model) window(n int) (int, int) {
 	height := m.bodyHeight() - 1 // the column-header line
+	if m.searchActive {
+		height-- // the search banner line
+	}
 	if m.filtering || m.filter.Value() != "" {
 		height-- // the filter input line
 	}
@@ -419,4 +435,23 @@ func (m model) viewName() string {
 func (m model) viewResult() string {
 	body := "\n" + m.styles.Body.Render(m.resultBody)
 	return m.frame(m.resultTitle, body, []string{m.hint("any key", "dismiss")})
+}
+
+func (m model) viewSearch() string {
+	idx, _ := searchIndexOf(m.searchKind)
+	body := "\n" + m.styles.Header.Render("Search "+idx) + "\n\n" + m.searchInput.View()
+	return m.frame(m.crumb(), body, []string{
+		m.hint("↵", "search"), m.hint("tab", "change index"), m.hint("esc", "cancel"),
+	})
+}
+
+func (m model) viewSearchIndex() string {
+	var b strings.Builder
+	b.WriteString(m.styles.Header.Render("Search which type?") + "\n\n")
+	for i, k := range m.searchKinds {
+		b.WriteString(m.renderChoice(k.Title(), i == m.searchKindCur) + "\n")
+	}
+	return m.frame(m.crumb(), b.String(), []string{
+		m.hint("↑/↓", "move"), m.hint("↵", "select"), m.hint("esc", "back"),
+	})
 }

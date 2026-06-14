@@ -12,6 +12,7 @@ type keyMap struct {
 	Home     key.Binding
 	End      key.Binding
 	Filter   key.Binding
+	Search   key.Binding
 	Enter    key.Binding
 	Esc      key.Binding
 	Kinds    key.Binding
@@ -29,6 +30,7 @@ func newKeyMap() keyMap {
 		Home:     key.NewBinding(key.WithKeys("home", "g"), key.WithHelp("g", "top")),
 		End:      key.NewBinding(key.WithKeys("end", "G"), key.WithHelp("G", "bottom")),
 		Filter:   key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
+		Search:   key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "search")),
 		Enter:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("↵", "open")),
 		Esc:      key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back")),
 		Kinds:    key.NewBinding(key.WithKeys(":"), key.WithHelp(":", "kinds")),

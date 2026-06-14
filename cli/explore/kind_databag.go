@@ -45,6 +45,10 @@ type dataBagItemsKind struct{ bag string }
 func (k dataBagItemsKind) Title() string   { return k.bag }
 func (dataBagItemsKind) Columns() []string { return []string{"ID"} }
 
+// SearchIndex makes a bag's items searchable under the bag's own name,
+// which is how the Chef search index keys data bag items.
+func (k dataBagItemsKind) SearchIndex() string { return k.bag }
+
 func (k dataBagItemsKind) List(ctx context.Context, c *cinc.Client) ([]Row, error) {
 	index, _, err := c.DataBags.Items(k.bag).List(ctx)
 	if err != nil {
