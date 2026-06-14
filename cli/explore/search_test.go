@@ -3,6 +3,7 @@ package explore
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -145,6 +146,75 @@ func TestSearchIndexPickerSwitchesIndex(t *testing.T) {
 	}
 	if got := names(m.filteredRows()); !equal(got, []string{"web"}) {
 		t.Errorf("rows = %v, want web", got)
+	}
+}
+
+func TestSearchFromKindMenuScopesToHighlightedKind(t *testing.T) {
+	m := modelOnKinds(t, testClient(t, searchMux(t)))
+	// Nodes is highlighted by default on the kind menu.
+	if m.screen != screenKinds {
+		t.Fatalf("precondition: screen = %v, want kinds", m.screen)
+	}
+
+	// Pressing s on the menu opens the search modal scoped to the
+	// highlighted kind, without first opening its list.
+	m, _ = pressRune(t, m, 's')
+	if m.screen != screenSearch {
+		t.Fatalf("screen = %v, want search", m.screen)
+	}
+	if idx, _ := searchIndexOf(m.searchKind); idx != "node" {
+		t.Fatalf("default search index = %q, want node", idx)
+	}
+
+	// Running a query lands on the node list with the matched rows.
+	m, _ = step(t, m, keyRunes("role:web"))
+	m, cmd := pressKey(t, m, 13) // enter
+	m, cmd = step(t, m, drain(cmd))
+	m, _ = step(t, m, drain(cmd))
+	if m.cur.Title() != "Nodes" {
+		t.Errorf("current kind = %q, want Nodes", m.cur.Title())
+	}
+	if got := names(m.filteredRows()); !equal(got, []string{"web01", "web02"}) {
+		t.Errorf("rows = %v, want web01,web02", got)
+	}
+}
+
+func TestSearchCancelFromKindMenuReturnsToMenu(t *testing.T) {
+	m := modelOnKinds(t, testClient(t, searchMux(t)))
+	m, _ = pressRune(t, m, 's')
+	if m.screen != screenSearch {
+		t.Fatalf("screen = %v, want search", m.screen)
+	}
+	m, _ = pressKey(t, m, 27) // esc cancels back to the menu it came from
+	if m.screen != screenKinds {
+		t.Errorf("screen = %v, want kinds after cancel", m.screen)
+	}
+}
+
+func TestSearchKeyInertOnUnsearchableKindMenu(t *testing.T) {
+	mux := http.NewServeMux()
+	jsonHandler(mux, "/organizations/acme/users", `{"alice":"u"}`)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	m := modelOnKinds(t, testClient(t, srv))
+	m.kindCursor = 5 // Users, an unsearchable kind
+	m, _ = pressRune(t, m, 's')
+	if m.screen != screenKinds {
+		t.Errorf("screen = %v, want kinds (search inert on Users)", m.screen)
+	}
+}
+
+func TestSearchModalLabelsTypeWithPluralTitle(t *testing.T) {
+	m := modelOnKinds(t, testClient(t, searchMux(t)))
+	m, _ = pressRune(t, m, 's') // search the highlighted Nodes kind
+
+	view := m.View()
+	if !strings.Contains(view, "Search Nodes") {
+		t.Errorf("search modal header missing plural type; view = %q", view)
+	}
+	if strings.Contains(view, "Search node\n") || strings.Contains(view, "Search node ") {
+		t.Errorf("search modal still shows singular index name; view = %q", view)
 	}
 }
 

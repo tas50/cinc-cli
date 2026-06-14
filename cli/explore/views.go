@@ -192,6 +192,9 @@ func (m model) viewKinds() string {
 		b.WriteString(m.renderChoice(k.Title(), i == m.kindCursor) + "\n")
 	}
 	hints := []string{m.hint("↑/↓", "move"), m.hint("↵", "open")}
+	if _, ok := searchIndexOf(m.kinds[m.kindCursor]); ok {
+		hints = append(hints, m.hint("s", "search"))
+	}
 	if len(m.profileNames) > 1 {
 		hints = append(hints, m.hint("esc", "profiles"))
 	}
@@ -438,8 +441,9 @@ func (m model) viewResult() string {
 }
 
 func (m model) viewSearch() string {
-	idx, _ := searchIndexOf(m.searchKind)
-	body := "\n" + m.styles.Header.Render("Search "+idx) + "\n\n" + m.searchInput.View()
+	// Label the modal with the kind's display title (plural, e.g. "Nodes")
+	// to match the index picker and kind menu, not the singular Solr index.
+	body := "\n" + m.styles.Header.Render("Search "+m.searchKind.Title()) + "\n\n" + m.searchInput.View()
 	return m.frame(m.crumb(), body, []string{
 		m.hint("↵", "search"), m.hint("tab", "change index"), m.hint("esc", "cancel"),
 	})

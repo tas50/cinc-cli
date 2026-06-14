@@ -71,6 +71,10 @@ func (m model) updateKindsKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.kindCursor < len(m.kinds)-1 {
 			m.kindCursor++
 		}
+	case key.Matches(msg, m.keys.Search):
+		// Search the highlighted kind straight from the menu, before its
+		// list is ever opened; inert on kinds that aren't search-indexed.
+		return m.startSearch(m.kinds[m.kindCursor])
 	case key.Matches(msg, m.keys.Esc):
 		// Back to the profile picker only when there's a choice to make.
 		if len(m.profileNames) > 1 {
@@ -114,7 +118,7 @@ func (m model) updateListKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		cmd := m.filter.Focus()
 		return m, cmd
 	case key.Matches(msg, m.keys.Search):
-		return m.startSearch()
+		return m.startSearch(m.cur)
 	case key.Matches(msg, m.keys.Esc):
 		if m.searchActive {
 			return m.clearSearch()
@@ -238,13 +242,17 @@ func (m model) updateDetailKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // ----- search ----------------------------------------------------------
 
-// startSearch opens the search modal for the current list, defaulting the
-// index to the current kind. It's inert on kinds that aren't search-indexed.
-func (m model) startSearch() (tea.Model, tea.Cmd) {
-	if _, ok := searchIndexOf(m.cur); !ok {
+// startSearch opens the search modal for kind k, defaulting the index to
+// it. It's inert on kinds that aren't search-indexed. Callers pass the
+// list's current kind, or — from the kind menu — the highlighted one, so
+// search works before a list is ever opened. returnTo records the screen
+// to fall back to when the modal is cancelled.
+func (m model) startSearch(k Kind) (tea.Model, tea.Cmd) {
+	if _, ok := searchIndexOf(k); !ok {
 		return m, nil
 	}
-	m.searchKind = m.cur
+	m.returnTo = m.screen
+	m.searchKind = k
 	m.searchInput.SetValue(m.searchQuery)
 	m.searchInput.CursorEnd()
 	m.screen = screenSearch
@@ -280,7 +288,7 @@ func (m model) updateSearchKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, searchCmd(m.ctx, m.client, m.searchKind, idx, query, m.nextReqID())
 	case tea.KeyEsc:
 		m.searchInput.Blur()
-		m.screen = screenList
+		m.screen = m.returnTo
 		return m, nil
 	case tea.KeyCtrlC:
 		return m, tea.Quit
