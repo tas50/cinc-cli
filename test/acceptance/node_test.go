@@ -260,6 +260,27 @@ func TestNodeCreateAgainstCincZero(t *testing.T) {
 	}
 }
 
+func TestNodeCreateWithPolicyAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	out := runCinc(t, env.binary, "node", "create", "policynode",
+		"--policy-group", "prod", "--policy-name", "appserver",
+		"--config", env.cfgPath)
+	if out != "Created node \"policynode\"\n" {
+		t.Errorf("node create output = %q", out)
+	}
+
+	jsonOut := runCinc(t, env.binary, "node", "show", "policynode", "--config", env.cfgPath, "--format", "json")
+	var got cinc.Node
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("node show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.PolicyName != "appserver" || got.PolicyGroup != "prod" {
+		t.Errorf("created policy node = %q/%q, want appserver/prod", got.PolicyName, got.PolicyGroup)
+	}
+}
+
 // TestNodeEditAgainstCincZero edits a seeded node through --file (moving it to
 // the seeded "staging" environment) and confirms the change is persisted.
 func TestNodeEditAgainstCincZero(t *testing.T) {
