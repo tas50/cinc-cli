@@ -31,7 +31,7 @@ cinc_server_url = "%s/organizations/acme"
 		t.Fatalf("cinc config validate: %v", err)
 	}
 	got := out.String()
-	for _, want := range []string{"is valid", "default [VALID]", "✓ Server is reachable"} {
+	for _, want := range []string{"is valid", "default profile [VALID]", "✓ Server is reachable"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("stdout = %q, want %q", got, want)
 		}
@@ -92,7 +92,7 @@ cinc_server_url = "%s/organizations/acme"
 		t.Fatal("expected validation error for an unreachable server")
 	}
 	got := out.String()
-	for _, want := range []string{"is invalid", "default [INVALID]", "✗ Server is reachable"} {
+	for _, want := range []string{"is invalid", "default profile [INVALID]", "✗ Server is reachable"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("stdout = %q, want %q", got, want)
 		}
@@ -119,7 +119,7 @@ client_name = "tim"
 	}
 	got := out.String()
 	for _, want := range []string{
-		"broken [INVALID]",
+		"broken profile [INVALID]",
 		"✗ Client key is configured: client_key is required",
 		"✗ An endpoint is configured: configure cinc_server_url, chef_server_url, or supermarket_site",
 	} {
@@ -156,7 +156,7 @@ client_name = "tim"
 	}
 	// A blank line separates the top-level checks from the profile block, which
 	// is tagged and has indented per-profile checks.
-	if !strings.Contains(got, "\n\nbroken [INVALID]\n") {
+	if !strings.Contains(got, "\n\nbroken profile [INVALID]\n") {
 		t.Errorf("profile block not separated/tagged:\n%s", got)
 	}
 	if !strings.Contains(got, "  ✓ Client name is set\n") {

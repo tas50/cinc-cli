@@ -228,7 +228,7 @@ func renderConfigChecks(w io.Writer, result configValidationResult) {
 	}
 	for _, pr := range result.Profiles {
 		fmt.Fprintln(w)
-		fmt.Fprintf(w, "%s %s\n", pr.Name, validTag(color, pr.Valid))
+		fmt.Fprintf(w, "%s profile %s\n", pr.Name, validTag(color, pr.Valid))
 		for _, c := range pr.Checks {
 			writeCheckLine(w, color, "  ", c)
 		}
