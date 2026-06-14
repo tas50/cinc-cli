@@ -44,6 +44,12 @@ func TestNodeRunListAgainstCincZero(t *testing.T) {
 	if got := nodeRunList(t, env, "web01"); strings.Join(got, ",") != "recipe[base],recipe[ntp]" {
 		t.Errorf("after remove, run list = %v, want role[web] gone", got)
 	}
+
+	// The read-only list verb reports the same entries without changing them.
+	listed := runCinc(t, env.binary, "node", "run-list", "list", "web01", "--config", env.cfgPath)
+	if !strings.Contains(listed, "recipe[base]") || !strings.Contains(listed, "recipe[ntp]") {
+		t.Errorf("run-list list = %q, want both remaining entries", listed)
+	}
 }
 
 // TestNodeTagAgainstCincZero exercises add/list/remove of node tags and
@@ -63,5 +69,12 @@ func TestNodeTagAgainstCincZero(t *testing.T) {
 	after := runCinc(t, env.binary, "node", "tag", "list", "db01", "--config", env.cfgPath)
 	if !strings.Contains(after, "prod") || strings.Contains(after, "primary") {
 		t.Errorf("tag list after remove = %q, want only prod", after)
+	}
+
+	// set replaces the whole tag set wholesale.
+	runCinc(t, env.binary, "node", "tag", "set", "db01", "alpha,beta", "--config", env.cfgPath)
+	final := runCinc(t, env.binary, "node", "tag", "list", "db01", "--config", env.cfgPath)
+	if !strings.Contains(final, "alpha") || !strings.Contains(final, "beta") || strings.Contains(final, "prod") {
+		t.Errorf("tag list after set = %q, want only alpha,beta", final)
 	}
 }

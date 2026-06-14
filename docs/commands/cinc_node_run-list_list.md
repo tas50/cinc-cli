@@ -1,15 +1,15 @@
-## cinc node tag remove
+## cinc node run-list list
 
-Remove tags from a node
+List a node's run list
 
 ```
-cinc node tag remove <node> <tag>... [flags]
+cinc node run-list list <node> [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for remove
+  -h, --help   help for list
 ```
 
 ### Options inherited from parent commands
@@ -22,5 +22,5 @@ cinc node tag remove <node> <tag>... [flags]
 
 ### SEE ALSO
 
-* [cinc node tag](cinc_node_tag.md)	 - Add, remove, set, or list a node's tags
+* [cinc node run-list](cinc_node_run-list.md)	 - List, add, remove, or set a node's run list
 

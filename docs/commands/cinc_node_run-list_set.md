@@ -22,5 +22,5 @@ cinc node run-list set <node> <entry>... [flags]
 
 ### SEE ALSO
 
-* [cinc node run-list](cinc_node_run-list.md)	 - Add, remove, or set a node's run list
+* [cinc node run-list](cinc_node_run-list.md)	 - List, add, remove, or set a node's run list
 

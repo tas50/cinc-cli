@@ -69,6 +69,29 @@ func TestNodeRunListSetReplacesEntireList(t *testing.T) {
 	}
 }
 
+func TestNodeRunListListReadsWithoutPut(t *testing.T) {
+	var gotPut cinc.Node
+	current := cinc.Node{Name: "web01", RunList: []string{"recipe[base]", "role[web]"}}
+	srv := nodeItemServer(t, "web01", current, &gotPut)
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"node", "run-list", "list", "web01", "--config", writeNodeConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("node run-list list: %v", err)
+	}
+	// A read verb must not PUT.
+	if gotPut.Name != "" {
+		t.Errorf("run-list list issued a PUT (gotPut=%+v); it must be read-only", gotPut)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "recipe[base]") || !strings.Contains(out, "role[web]") {
+		t.Errorf("run-list list output = %q, want both entries", out)
+	}
+}
+
 func TestNodeRunListJSONFormatEmitsArray(t *testing.T) {
 	var gotPut cinc.Node
 	current := cinc.Node{Name: "web01", RunList: []string{}}

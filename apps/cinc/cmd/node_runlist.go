@@ -10,19 +10,49 @@ import (
 	"github.com/tas50/cinc-cli/cli/printer"
 )
 
-// newNodeRunListCmd builds the `cinc node run-list` sub-group, which mutates a
-// node's run list in place: add appends new entries, remove drops matching
-// ones, and set replaces the whole list. Each verb fetches the node, applies
-// the change, and PUTs it back, mirroring knife's `node run_list` verbs.
+// newNodeRunListCmd builds the `cinc node run-list` sub-group: add appends new
+// entries, remove drops matching ones, set replaces the whole list, and list
+// reads it. The mutators fetch the node, apply the change, and PUT it back;
+// knife exposes add/remove/set, and list rounds out the sub-noun so the run
+// list is reachable without `node show`.
 func newNodeRunListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run-list",
-		Short: "Add, remove, or set a node's run list",
+		Short: "List, add, remove, or set a node's run list",
 	}
 	cmd.AddCommand(newNodeRunListChangeCmd("add"))
 	cmd.AddCommand(newNodeRunListChangeCmd("remove"))
 	cmd.AddCommand(newNodeRunListChangeCmd("set"))
+	cmd.AddCommand(newNodeRunListListCmd())
 	return cmd
+}
+
+// newNodeRunListListCmd builds `cinc node run-list list <node>`, a read verb
+// that prints the node's run list without modifying the server.
+func newNodeRunListListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list <node>",
+		Short: "List a node's run list",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			node, _, err := c.Nodes.Get(cmd.Context(), args[0])
+			if err != nil {
+				return err
+			}
+			if format == printer.FormatJSON {
+				return printer.New(cmd.OutOrStdout(), format).Value(node.RunList)
+			}
+			return printer.New(cmd.OutOrStdout(), format).List(node.RunList)
+		},
+	}
 }
 
 // newNodeRunListChangeCmd builds one of the run-list verbs. Items may be given

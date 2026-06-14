@@ -67,6 +67,25 @@ func TestNodeTagRemoveDropsTags(t *testing.T) {
 	}
 }
 
+func TestNodeTagSetReplacesAllTags(t *testing.T) {
+	var gotPut cinc.Node
+	current := cinc.Node{Name: "web01", RunList: []string{}, Normal: cinc.Attributes{"tags": []any{"old1", "old2"}}}
+	srv := nodeItemServer(t, "web01", current, &gotPut)
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"node", "tag", "set", "web01", "fresh,only", "--config", writeNodeConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("node tag set: %v", err)
+	}
+	got := nodeTags(&gotPut)
+	want := []string{"fresh", "only"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("PUT normal.tags = %v, want %v (set must replace, not merge)", got, want)
+	}
+}
+
 func TestNodeTagListReadsTagsWithoutPut(t *testing.T) {
 	var gotPut cinc.Node
 	current := cinc.Node{Name: "web01", RunList: []string{}, Normal: cinc.Attributes{"tags": []any{"prod", "web"}}}

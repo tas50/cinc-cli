@@ -22,5 +22,5 @@ cinc node tag list <node> [flags]
 
 ### SEE ALSO
 
-* [cinc node tag](cinc_node_tag.md)	 - Add, remove, or list a node's tags
+* [cinc node tag](cinc_node_tag.md)	 - Add, remove, set, or list a node's tags
 

@@ -1,15 +1,15 @@
-## cinc node tag remove
+## cinc node tag set
 
-Remove tags from a node
+Replace a node's tags
 
 ```
-cinc node tag remove <node> <tag>... [flags]
+cinc node tag set <node> <tag>... [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for remove
+  -h, --help   help for set
 ```
 
 ### Options inherited from parent commands

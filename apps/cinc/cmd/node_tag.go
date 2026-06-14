@@ -12,16 +12,18 @@ import (
 )
 
 // newNodeTagCmd builds the `cinc node tag` sub-group. Chef stores a node's
-// tags as a string array under its normal attributes (`normal.tags`); add and
-// remove mutate that array and PUT the node back, while list reads it without
-// modifying the server, mirroring knife's `tag` verbs.
+// tags as a string array under its normal attributes (`normal.tags`); add,
+// remove, and set mutate that array and PUT the node back, while list reads it
+// without modifying the server. knife exposes add/remove/list; set rounds out
+// the sub-noun with a wholesale replace.
 func newNodeTagCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tag",
-		Short: "Add, remove, or list a node's tags",
+		Short: "Add, remove, set, or list a node's tags",
 	}
 	cmd.AddCommand(newNodeTagChangeCmd("add"))
 	cmd.AddCommand(newNodeTagChangeCmd("remove"))
+	cmd.AddCommand(newNodeTagChangeCmd("set"))
 	cmd.AddCommand(newNodeTagListCmd())
 	return cmd
 }
@@ -30,6 +32,7 @@ func newNodeTagChangeCmd(verb string) *cobra.Command {
 	short := map[string]string{
 		"add":    "Add tags to a node",
 		"remove": "Remove tags from a node",
+		"set":    "Replace a node's tags",
 	}[verb]
 	return &cobra.Command{
 		Use:   verb + " <node> <tag>...",
@@ -56,6 +59,8 @@ func newNodeTagChangeCmd(verb string) *cobra.Command {
 				setNodeTags(node, appendNew(nodeTags(node), tags))
 			case "remove":
 				setNodeTags(node, removeItems(nodeTags(node), tags))
+			case "set":
+				setNodeTags(node, tags)
 			}
 			node.Name = name
 			if node.RunList == nil {

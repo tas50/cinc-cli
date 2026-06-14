@@ -1,6 +1,6 @@
 ## cinc node tag
 
-Add, remove, or list a node's tags
+Add, remove, set, or list a node's tags
 
 ### Options
 
@@ -22,4 +22,5 @@ Add, remove, or list a node's tags
 * [cinc node tag add](cinc_node_tag_add.md)	 - Add tags to a node
 * [cinc node tag list](cinc_node_tag_list.md)	 - List a node's tags
 * [cinc node tag remove](cinc_node_tag_remove.md)	 - Remove tags from a node
+* [cinc node tag set](cinc_node_tag_set.md)	 - Replace a node's tags
 

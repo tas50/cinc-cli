@@ -1,6 +1,6 @@
 ## cinc node run-list
 
-Add, remove, or set a node's run list
+List, add, remove, or set a node's run list
 
 ### Options
 
@@ -20,6 +20,7 @@ Add, remove, or set a node's run list
 
 * [cinc node](cinc_node.md)	 - Manage nodes on the Cinc Server
 * [cinc node run-list add](cinc_node_run-list_add.md)	 - Append entries to a node's run list
+* [cinc node run-list list](cinc_node_run-list_list.md)	 - List a node's run list
 * [cinc node run-list remove](cinc_node_run-list_remove.md)	 - Remove entries from a node's run list
 * [cinc node run-list set](cinc_node_run-list_set.md)	 - Replace a node's run list
 
