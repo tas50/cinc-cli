@@ -23,6 +23,8 @@ Manage Policyfile policies on the Cinc Server
 * [cinc policy create](cinc_policy_create.md)	 - Scaffold a new Policyfile on disk
 * [cinc policy delete](cinc_policy_delete.md)	 - Delete a policy and all its revisions from the server
 * [cinc policy diff](cinc_policy_diff.md)	 - Compare two revisions of a policy
+* [cinc policy export](cinc_policy_export.md)	 - Assemble a standalone bundle from a Policyfile lock
 * [cinc policy list](cinc_policy_list.md)	 - List policies on the server
+* [cinc policy push](cinc_policy_push.md)	 - Deploy a Policyfile lock to a policy group
 * [cinc policy show](cinc_policy_show.md)	 - Show a policy's revisions
 

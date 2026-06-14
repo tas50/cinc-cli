@@ -13,7 +13,7 @@ require (
 	github.com/kevinburke/ssh_config v1.6.0
 	github.com/mattn/go-isatty v0.0.22
 	github.com/spf13/cobra v1.10.2
-	github.com/tas50/cinc-api v0.4.0
+	github.com/tas50/cinc-api v0.5.0
 	github.com/tas50/cinc-supermarket v0.1.1
 	golang.org/x/crypto v0.53.0
 )
