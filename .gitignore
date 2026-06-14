@@ -3,3 +3,4 @@
 *.test
 .claude/
 docs/superpowers/
+*.swp

@@ -57,31 +57,35 @@ noun-verb grammar described below.
   every push to `main`. Start at [`commands/cinc.md`](commands/cinc.md)
   for the root command, or jump straight to a resource:
   - [`cinc client`](commands/cinc_client.md) — API clients
-    (`create`, `delete`, `edit`, `list`)
+    (`create`, `delete`, `edit`, `list`, `show`)
   - [`cinc config`](commands/cinc_config.md) — local configuration
     (`create`, `validate`)
   - [`cinc cookbook`](commands/cinc_cookbook.md) — cookbooks
-    (`delete`, `list`, `upload`)
+    (`delete`, `list`, `show`, `upload`)
   - [`cinc databag`](commands/cinc_databag.md) — data bags
-    (`create`, `delete`, `item edit`, `list`)
+    (`create`, `delete`, `list`, `show`, `item delete`, `item edit`,
+    `item list`, `item show`)
   - [`cinc environment`](commands/cinc_environment.md) — environments
-    (`create`, `delete`, `list`)
+    (`create`, `delete`, `edit`, `list`, `show`)
   - [`cinc explore`](commands/cinc_explore.md) — a k9s-style terminal UI
     for the whole server (browse, view, edit, create, delete, download)
   - [`cinc group`](commands/cinc_group.md) — ACL groups
-    (`create`, `delete`, `list`, `member add`, `member remove`, `show`)
+    (`create`, `delete`, `edit`, `list`, `member add`, `member remove`, `show`)
   - [`cinc node`](commands/cinc_node.md) — nodes
     (`bootstrap`, `delete`, `list`, `show`, `ssh`)
   - [`cinc policy`](commands/cinc_policy.md) — Policyfile policies
-    (`list`, `show`)
+    (`clean`, `create`, `delete`, `diff`, `list`, `show`)
   - [`cinc policy-group`](commands/cinc_policy-group.md) — policy groups
-    (`list`, `show`)
+    (`delete`, `list`, `show`)
   - [`cinc role`](commands/cinc_role.md) — roles
-    (`delete`, `list`)
+    (`create`, `delete`, `edit`, `list`, `show`)
+  - [`cinc search`](commands/cinc_search.md) — search the server for
+    nodes, roles, environments, clients, or data bag items
   - [`cinc supermarket`](commands/cinc_supermarket.md) — cookbooks on
-    Chef Supermarket (`share`)
+    Chef Supermarket (`download`, `explore`, `list`, `search`, `share`,
+    `show`)
   - [`cinc user`](commands/cinc_user.md) — global users
-    (`create`, `delete`, `list`, `password`, `show`)
+    (`create`, `delete`, `edit`, `list`, `password`, `show`)
   - [`cinc version`](commands/cinc_version.md) — version info
 - **[`dev/`](dev/)** — design background: the command taxonomy and
   internal architecture. Read these when changing the shape of the
