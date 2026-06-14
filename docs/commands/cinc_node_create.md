@@ -14,6 +14,12 @@ Create a node with a starting environment and run-list.
 cinc node create web01 --environment prod --run-list 'recipe[base],role[web]'
 ```
 
+Create a Policyfile-managed node pinned to a policy group.
+
+```bash
+cinc node create web01 --policy-group prod --policy-name base
+```
+
 Create a node from a JSON file.
 
 ```bash
@@ -23,10 +29,12 @@ cinc node create web01 --file web01.json
 ### Options
 
 ```
-  -E, --environment string   chef_environment for the new node
-      --file string          read the full node JSON from this file instead of using flags
-  -h, --help                 help for create
-      --run-list string      comma-separated run list for the new node
+  -E, --environment string    chef_environment for the new node
+      --file string           read the full node JSON from this file instead of using flags
+  -h, --help                  help for create
+      --policy-group string   policy group for a Policyfile-managed node (requires --policy-name)
+      --policy-name string    policy name for a Policyfile-managed node (requires --policy-group)
+      --run-list string       comma-separated run list for the new node
 ```
 
 ### Options inherited from parent commands

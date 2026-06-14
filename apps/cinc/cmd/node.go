@@ -51,6 +51,8 @@ func newNodeCreateCmd() *cobra.Command {
 	var (
 		environment string
 		runList     string
+		policyName  string
+		policyGroup string
 		inputFile   string
 	)
 	cmd := &cobra.Command{
@@ -59,10 +61,21 @@ func newNodeCreateCmd() *cobra.Command {
 		Example: `Create a node with a starting environment and run-list.
 cinc node create web01 --environment prod --run-list 'recipe[base],role[web]'
 
+Create a Policyfile-managed node pinned to a policy group.
+cinc node create web01 --policy-group prod --policy-name base
+
 Create a node from a JSON file.
 cinc node create web01 --file web01.json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if (policyName == "") != (policyGroup == "") {
+				return fmt.Errorf("--policy-name and --policy-group must be provided together")
+			}
+			// A node is managed either by a run-list/environment or by a
+			// Policyfile, never both — they are two incompatible methods.
+			if policyName != "" && (cmd.Flags().Changed("run-list") || cmd.Flags().Changed("environment")) {
+				return fmt.Errorf("--policy-name/--policy-group cannot be combined with --run-list or --environment (use a run-list/environment or a Policyfile, not both)")
+			}
 			c, err := resolveClient(cmd)
 			if err != nil {
 				return err
@@ -87,6 +100,10 @@ cinc node create web01 --file web01.json`,
 			if node.RunList == nil {
 				node.RunList = []string{}
 			}
+			if policyName != "" {
+				node.PolicyName = policyName
+				node.PolicyGroup = policyGroup
+			}
 			if _, _, err := c.Nodes.Create(cmd.Context(), &node); err != nil {
 				return err
 			}
@@ -96,6 +113,8 @@ cinc node create web01 --file web01.json`,
 	}
 	cmd.Flags().StringVarP(&environment, "environment", "E", "", "chef_environment for the new node")
 	cmd.Flags().StringVar(&runList, "run-list", "", "comma-separated run list for the new node")
+	cmd.Flags().StringVar(&policyName, "policy-name", "", "policy name for a Policyfile-managed node (requires --policy-group)")
+	cmd.Flags().StringVar(&policyGroup, "policy-group", "", "policy group for a Policyfile-managed node (requires --policy-name)")
 	cmd.Flags().StringVar(&inputFile, "file", "", "read the full node JSON from this file instead of using flags")
 	return cmd
 }
