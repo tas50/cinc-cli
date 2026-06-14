@@ -3,9 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -13,6 +10,7 @@ import (
 	cliclient "github.com/tas50/cinc-cli/cli/client"
 	"github.com/tas50/cinc-cli/cli/config"
 	"github.com/tas50/cinc-cli/cli/printer"
+	"github.com/tas50/cinc-cli/cli/supermarket"
 )
 
 // newConfigCmd builds the `cinc config` command group.
@@ -152,22 +150,16 @@ func preflightProfile(ctx context.Context, name string, profile config.Profile) 
 	return issues
 }
 
+// preflightSupermarket checks that a configured supermarket_site is reachable.
+// It delegates the network call to the cinc-supermarket client (via an
+// anonymous reader) rather than building an HTTP request here, keeping the
+// command layer free of direct Supermarket transport.
 func preflightSupermarket(ctx context.Context, site string) error {
-	endpoint := strings.TrimRight(site, "/") + "/api/v1/cookbooks"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	client, err := supermarket.NewAnonymous(site)
 	if err != nil {
 		return err
 	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, resp.Body)
-	if resp.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf("GET %s: %s", endpoint, resp.Status)
-	}
-	return nil
+	return client.Reachable(ctx)
 }
 
 func printConfigValidation(cmd *cobra.Command, result configValidationResult) {
