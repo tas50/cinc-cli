@@ -10,7 +10,7 @@ cinc node edit <name> [flags]
 
 Open a node's JSON in your editor and save changes back.
 
-```
+```bash
 cinc node edit web01
 ```
 

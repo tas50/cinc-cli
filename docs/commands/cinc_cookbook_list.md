@@ -10,7 +10,7 @@ cinc cookbook list [flags]
 
 List every cookbook on the server.
 
-```
+```bash
 cinc cookbook list
 ```
 

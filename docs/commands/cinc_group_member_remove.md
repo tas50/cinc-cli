@@ -10,7 +10,7 @@ cinc group member remove <group> <name>... [flags]
 
 Remove an actor from a group.
 
-```
+```bash
 cinc group member remove admins alice
 ```
 

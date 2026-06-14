@@ -10,7 +10,7 @@ cinc node policy-set <node> <policy-group> <policy-name> [flags]
 
 Switch a node to Policyfile-based management.
 
-```
+```bash
 cinc node policy-set web01 prod base
 ```
 

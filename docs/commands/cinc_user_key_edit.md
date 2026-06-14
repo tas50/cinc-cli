@@ -10,7 +10,7 @@ cinc user key edit <user> <key-name> [flags]
 
 Edit one of a user's keys, for example its expiration.
 
-```
+```bash
 cinc user key edit alice default
 ```
 

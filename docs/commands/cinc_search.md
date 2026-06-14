@@ -19,7 +19,7 @@ cinc search <index> <query> [flags]
 
 Search an index — node, role, environment, client, or a data bag name.
 
-```
+```bash
 cinc search node 'role:web'
 ```
 

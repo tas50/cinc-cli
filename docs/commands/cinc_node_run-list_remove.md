@@ -10,7 +10,7 @@ cinc node run-list remove <node> <entry>... [flags]
 
 Remove an entry from a node's run-list.
 
-```
+```bash
 cinc node run-list remove web01 'recipe[ntp]'
 ```
 

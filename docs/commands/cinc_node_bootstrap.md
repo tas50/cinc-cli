@@ -10,7 +10,7 @@ cinc node bootstrap [target] [flags]
 
 Install Cinc Client on a host over SSH and register it as a node.
 
-```
+```bash
 cinc node bootstrap web01.example.com --ssh-user ubuntu --run-list 'recipe[base]'
 ```
 

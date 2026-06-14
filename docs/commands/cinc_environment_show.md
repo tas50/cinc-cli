@@ -10,7 +10,7 @@ cinc environment show <name> [flags]
 
 Show an environment.
 
-```
+```bash
 cinc environment show prod
 ```
 

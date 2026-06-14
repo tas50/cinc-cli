@@ -10,7 +10,7 @@ cinc config create [flags]
 
 Create or update the default credentials profile interactively.
 
-```
+```bash
 cinc config create
 ```
 

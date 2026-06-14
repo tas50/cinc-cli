@@ -10,7 +10,7 @@ cinc node tag list <node> [flags]
 
 Show a node's current tags.
 
-```
+```bash
 cinc node tag list web01
 ```
 

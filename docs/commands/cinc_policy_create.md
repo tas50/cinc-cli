@@ -10,7 +10,7 @@ cinc policy create <name> [flags]
 
 Scaffold a starter Policyfile.rb on disk.
 
-```
+```bash
 cinc policy create base
 ```
 

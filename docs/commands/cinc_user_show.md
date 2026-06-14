@@ -10,7 +10,7 @@ cinc user show <name> [flags]
 
 Show a user's profile.
 
-```
+```bash
 cinc user show alice
 ```
 

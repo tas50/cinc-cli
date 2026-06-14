@@ -10,7 +10,7 @@ cinc user key show <user> <key-name> [flags]
 
 Show one of a user's keys.
 
-```
+```bash
 cinc user key show alice default
 ```
 

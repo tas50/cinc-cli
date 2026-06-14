@@ -10,7 +10,7 @@ cinc environment delete <name> [flags]
 
 Delete an environment from the server.
 
-```
+```bash
 cinc environment delete prod
 ```
 

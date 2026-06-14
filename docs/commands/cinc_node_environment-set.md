@@ -10,7 +10,7 @@ cinc node environment-set <node> <environment> [flags]
 
 Move a node into a different environment.
 
-```
+```bash
 cinc node environment-set web01 prod
 ```
 

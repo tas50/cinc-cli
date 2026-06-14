@@ -10,7 +10,7 @@ cinc version [flags]
 
 Print the cinc version, commit, and build date.
 
-```
+```bash
 cinc version
 ```
 

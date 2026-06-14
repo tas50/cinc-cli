@@ -10,7 +10,7 @@ cinc group member add <group> <name>... [flags]
 
 Add users or clients to a group.
 
-```
+```bash
 cinc group member add admins alice worker-01
 ```
 

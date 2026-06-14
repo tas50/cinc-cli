@@ -10,7 +10,7 @@ cinc user create <name> [flags]
 
 Create a user, writing the generated private key to a file.
 
-```
+```bash
 cinc user create alice --email alice@example.com --first-name Alice --last-name Smith --key-file alice.pem
 ```
 

@@ -10,7 +10,7 @@ cinc client key create <client> <key-name> [flags]
 
 Add a key to a client, writing the generated private key to a file.
 
-```
+```bash
 cinc client key create worker-01 rotation --key-file rotation.pem
 ```
 

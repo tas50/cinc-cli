@@ -10,7 +10,7 @@ cinc config validate [path] [flags]
 
 Validate your credentials file and check each profile's server is reachable.
 
-```
+```bash
 cinc config validate
 ```
 

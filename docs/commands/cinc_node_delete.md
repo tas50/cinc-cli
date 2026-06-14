@@ -10,7 +10,7 @@ cinc node delete <name> [flags]
 
 Delete a node from the server.
 
-```
+```bash
 cinc node delete web01
 ```
 

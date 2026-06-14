@@ -10,7 +10,7 @@ cinc user key list <user> [flags]
 
 List a user's keys.
 
-```
+```bash
 cinc user key list alice
 ```
 

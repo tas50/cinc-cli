@@ -10,7 +10,7 @@ cinc policy show <name> [flags]
 
 Show a policy's revisions.
 
-```
+```bash
 cinc policy show appserver
 ```
 

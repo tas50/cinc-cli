@@ -10,7 +10,7 @@ cinc group show <name> [flags]
 
 Show a group's members.
 
-```
+```bash
 cinc group show admins
 ```
 

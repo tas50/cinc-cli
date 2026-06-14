@@ -10,7 +10,7 @@ cinc cookbook upload <name>... [flags]
 
 Upload a cookbook from your cookbook path.
 
-```
+```bash
 cinc cookbook upload nginx
 ```
 

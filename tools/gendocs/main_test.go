@@ -10,7 +10,7 @@ func TestRenderExamples(t *testing.T) {
 		got := renderExamples("Create a node with a run-list.\ncinc node create web01 --run-list 'recipe[base]'")
 		want := "### Examples\n\n" +
 			"Create a node with a run-list.\n\n" +
-			"```\ncinc node create web01 --run-list 'recipe[base]'\n```\n\n"
+			"```bash\ncinc node create web01 --run-list 'recipe[base]'\n```\n\n"
 		if got != want {
 			t.Errorf("renderExamples =\n%q\nwant\n%q", got, want)
 		}
@@ -19,8 +19,8 @@ func TestRenderExamples(t *testing.T) {
 	t.Run("multiple prose+command blocks", func(t *testing.T) {
 		got := renderExamples("Show every node.\ncinc node status\n\nLimit to a query.\ncinc node status 'role:web'")
 		for _, frag := range []string{
-			"Show every node.\n\n```\ncinc node status\n```",
-			"Limit to a query.\n\n```\ncinc node status 'role:web'\n```",
+			"Show every node.\n\n```bash\ncinc node status\n```",
+			"Limit to a query.\n\n```bash\ncinc node status 'role:web'\n```",
 		} {
 			if !strings.Contains(got, frag) {
 				t.Errorf("missing fragment %q in\n%s", frag, got)
@@ -37,7 +37,7 @@ func TestRenderExamples(t *testing.T) {
 		if strings.Count(got, "```") != 2 {
 			t.Errorf("consecutive commands should share one fenced block; got %d fences in\n%s", strings.Count(got, "```"), got)
 		}
-		if !strings.Contains(got, "```\ncinc node list\ncinc role list\n```") {
+		if !strings.Contains(got, "```bash\ncinc node list\ncinc role list\n```") {
 			t.Errorf("commands not grouped:\n%s", got)
 		}
 	})

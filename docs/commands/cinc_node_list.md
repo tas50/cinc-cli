@@ -10,7 +10,7 @@ cinc node list [flags]
 
 List every node registered on the server.
 
-```
+```bash
 cinc node list
 ```
 

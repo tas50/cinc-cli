@@ -10,7 +10,7 @@ cinc node tag set <node> <tag>... [flags]
 
 Replace a node's tags entirely.
 
-```
+```bash
 cinc node tag set web01 prod web
 ```
 

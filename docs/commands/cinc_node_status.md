@@ -10,13 +10,13 @@ cinc node status [query] [flags]
 
 Show every node with how long ago it last checked in.
 
-```
+```bash
 cinc node status
 ```
 
 Limit the report to nodes matching a search query.
 
-```
+```bash
 cinc node status 'role:web'
 ```
 

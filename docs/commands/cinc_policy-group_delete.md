@@ -10,7 +10,7 @@ cinc policy-group delete <name> [flags]
 
 Delete a policy group.
 
-```
+```bash
 cinc policy-group delete prod
 ```
 

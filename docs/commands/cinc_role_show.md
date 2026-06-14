@@ -10,7 +10,7 @@ cinc role show <name> [flags]
 
 Show a role.
 
-```
+```bash
 cinc role show webserver
 ```
 

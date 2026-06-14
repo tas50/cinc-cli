@@ -10,13 +10,13 @@ cinc policy push <group> [lock] [flags]
 
 Deploy ./Policyfile.lock.json to a policy group, uploading its cookbooks.
 
-```
+```bash
 cinc policy push prod
 ```
 
 Deploy a specific lock file.
 
-```
+```bash
 cinc policy push prod Policyfile.lock.json
 ```
 

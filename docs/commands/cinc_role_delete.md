@@ -10,7 +10,7 @@ cinc role delete <name> [flags]
 
 Delete a role from the server.
 
-```
+```bash
 cinc role delete webserver
 ```
 

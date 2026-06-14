@@ -10,7 +10,7 @@ cinc user list [flags]
 
 List every user on the server.
 
-```
+```bash
 cinc user list
 ```
 

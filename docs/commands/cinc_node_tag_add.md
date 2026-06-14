@@ -10,7 +10,7 @@ cinc node tag add <node> <tag>... [flags]
 
 Add one or more tags to a node.
 
-```
+```bash
 cinc node tag add web01 prod canary
 ```
 

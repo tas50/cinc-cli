@@ -10,7 +10,7 @@ cinc role create <name> [flags]
 
 Create a role; your editor opens to define its run-list and attributes.
 
-```
+```bash
 cinc role create webserver
 ```
 

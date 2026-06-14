@@ -16,7 +16,7 @@ cinc supermarket list [flags]
 
 List cookbooks available on Chef Supermarket.
 
-```
+```bash
 cinc supermarket list
 ```
 

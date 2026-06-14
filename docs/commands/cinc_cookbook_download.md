@@ -10,13 +10,13 @@ cinc cookbook download <name> [version] [flags]
 
 Download a cookbook's latest version into ./<name>-<version>/.
 
-```
+```bash
 cinc cookbook download nginx
 ```
 
 Download a specific version into a chosen directory.
 
-```
+```bash
 cinc cookbook download nginx 1.2.0 --dir ./cookbooks
 ```
 

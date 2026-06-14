@@ -10,7 +10,7 @@ cinc user delete <name> [flags]
 
 Delete a user from the server.
 
-```
+```bash
 cinc user delete alice
 ```
 

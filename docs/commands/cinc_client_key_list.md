@@ -10,7 +10,7 @@ cinc client key list <client> [flags]
 
 List a client's keys.
 
-```
+```bash
 cinc client key list worker-01
 ```
 

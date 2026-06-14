@@ -10,7 +10,7 @@ cinc environment edit <name> [flags]
 
 Edit an environment's cookbook version constraints and attributes.
 
-```
+```bash
 cinc environment edit prod
 ```
 

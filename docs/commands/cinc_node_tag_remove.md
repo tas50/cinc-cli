@@ -10,7 +10,7 @@ cinc node tag remove <node> <tag>... [flags]
 
 Remove a tag from a node.
 
-```
+```bash
 cinc node tag remove web01 canary
 ```
 

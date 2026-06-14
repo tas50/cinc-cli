@@ -16,7 +16,7 @@ cinc supermarket search <query> [flags]
 
 Search Supermarket for cookbooks.
 
-```
+```bash
 cinc supermarket search nginx
 ```
 

@@ -10,7 +10,7 @@ cinc databag show <bag> [flags]
 
 Show the item IDs in a data bag.
 
-```
+```bash
 cinc databag show passwords
 ```
 
