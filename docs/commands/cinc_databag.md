@@ -23,4 +23,5 @@ Manage data bags on the Cinc Server
 * [cinc databag delete](cinc_databag_delete.md)	 - Delete a data bag from the server
 * [cinc databag item](cinc_databag_item.md)	 - Manage items within a data bag
 * [cinc databag list](cinc_databag_list.md)	 - List data bags on the server
+* [cinc databag show](cinc_databag_show.md)	 - Show a data bag's item IDs
 

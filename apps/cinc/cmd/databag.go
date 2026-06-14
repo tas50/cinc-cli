@@ -22,10 +22,38 @@ func newDataBagCmd() *cobra.Command {
 		Short: "Manage data bags on the Cinc Server",
 	}
 	cmd.AddCommand(newDataBagListCmd())
+	cmd.AddCommand(newDataBagShowCmd())
 	cmd.AddCommand(newDataBagCreateCmd())
 	cmd.AddCommand(newDataBagDeleteCmd())
 	cmd.AddCommand(newDataBagItemCmd())
 	return cmd
+}
+
+// newDataBagShowCmd builds the `cinc databag show <bag>` command. A
+// data bag has no document of its own on the server, so showing a bag
+// enumerates the item IDs it holds — mirroring knife's `data bag show
+// BAG`. Drill into an individual item with `cinc databag item show`.
+func newDataBagShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <bag>",
+		Short: "Show a data bag's item IDs",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			ids, err := fetchDataBagItemIDs(cmd.Context(), c, args[0])
+			if err != nil {
+				return err
+			}
+			return printer.New(cmd.OutOrStdout(), format).List(ids)
+		},
+	}
 }
 
 // newDataBagCreateCmd builds `cinc databag create <bag> [item]`,
@@ -125,8 +153,59 @@ func newDataBagItemCmd() *cobra.Command {
 		Short: "Manage items within a data bag",
 	}
 	cmd.AddCommand(newDataBagItemListCmd())
+	cmd.AddCommand(newDataBagItemShowCmd())
 	cmd.AddCommand(newDataBagItemEditCmd())
+	cmd.AddCommand(newDataBagItemDeleteCmd())
 	return cmd
+}
+
+// newDataBagItemShowCmd builds `cinc databag item show <bag> <id>`. It
+// fetches a single item and renders its JSON document — the human
+// format is the same pretty-printed JSON knife emits.
+func newDataBagItemShowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show <bag> <id>",
+		Short: "Show a data bag item on the server",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			bag, id := args[0], args[1]
+			item, _, err := c.DataBags.Items(bag).Get(cmd.Context(), id)
+			if err != nil {
+				return err
+			}
+			return printer.New(cmd.OutOrStdout(), format).Value(item)
+		},
+	}
+}
+
+// newDataBagItemDeleteCmd builds `cinc databag item delete <bag> <id>`.
+// It removes a single item from a bag, leaving the bag itself in place.
+func newDataBagItemDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <bag> <id>",
+		Short: "Delete a data bag item from the server",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			bag, id := args[0], args[1]
+			if _, err := c.DataBags.Items(bag).Delete(cmd.Context(), id); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted item %q from data bag %q\n", id, bag)
+			return nil
+		},
+	}
 }
 
 // newDataBagItemListCmd builds the `cinc databag item list <bag>`

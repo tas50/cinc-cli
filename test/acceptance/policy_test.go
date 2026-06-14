@@ -48,3 +48,20 @@ func TestPolicyShowAgainstCincZero(t *testing.T) {
 		t.Errorf("policy show revisions = %v, want a 1.0.0 entry", got.Revisions)
 	}
 }
+
+// TestPolicyDeleteAgainstCincZero deletes the seeded policy and asserts
+// it disappears from the index.
+func TestPolicyDeleteAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	out := runCinc(t, env.binary, "policy", "delete", "appserver", "--config", env.cfgPath)
+	if out != "Deleted policy \"appserver\"\n" {
+		t.Errorf("policy delete output = %q", out)
+	}
+
+	after := runCinc(t, env.binary, "policy", "list", "--config", env.cfgPath)
+	if after != "" {
+		t.Errorf("policy list after delete = %q, want empty", after)
+	}
+}

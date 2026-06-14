@@ -542,6 +542,78 @@ func TestDataBagItemEditCommandRejectsFileMissingID(t *testing.T) {
 	}
 }
 
+func TestDataBagShowCommandEndToEnd(t *testing.T) {
+	srv := databagItemIndexServer(t, "users", "bob", "alice", "carol")
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"databag", "show", "users", "--config", writeDataBagConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc databag show: %v", err)
+	}
+	if got := buf.String(); got != "alice\nbob\ncarol\n" {
+		t.Errorf("databag show output = %q, want sorted item ids", got)
+	}
+}
+
+func TestDataBagItemShowCommandEndToEnd(t *testing.T) {
+	var gotPut cinc.DataBagItem
+	var gotPath string
+	current := cinc.DataBagItem{"id": "alice", "role": "admin"}
+	srv := databagItemServer(t, "users", "alice", current, &gotPut, &gotPath)
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"databag", "item", "show", "users", "alice", "--config", writeDataBagConfig(t, srv.URL), "--format", "json"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc databag item show: %v", err)
+	}
+	if gotPath != "" {
+		t.Errorf("show issued a PUT at %q, want read-only", gotPath)
+	}
+	var got cinc.DataBagItem
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("show output is not valid JSON: %v\noutput: %s", err, buf.String())
+	}
+	if got["id"] != "alice" || got["role"] != "admin" {
+		t.Errorf("show item = %+v, want id=alice role=admin", got)
+	}
+}
+
+func TestDataBagItemDeleteCommandEndToEnd(t *testing.T) {
+	var deleted bool
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/data/users/alice", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %q, want DELETE", r.Method)
+		}
+		deleted = true
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(cinc.DataBagItem{"id": "alice"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"databag", "item", "delete", "users", "alice", "--config", writeDataBagConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc databag item delete: %v", err)
+	}
+	if !deleted {
+		t.Error("server never saw the DELETE")
+	}
+	if got := buf.String(); got != "Deleted item \"alice\" from data bag \"users\"\n" {
+		t.Errorf("databag item delete output = %q", got)
+	}
+}
+
 func TestDataBagListCommandEndToEnd(t *testing.T) {
 	srv := databagServer(t, "users", "apps", "secrets")
 
