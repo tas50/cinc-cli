@@ -55,6 +55,16 @@ func NewAnonymous(site string) (*Client, error) {
 	return &Client{base: base, api: api}, nil
 }
 
+// Reachable verifies the Supermarket endpoint is responding by hitting its
+// health endpoint through the cinc-supermarket client. It is the
+// unauthenticated preflight used by `cinc config validate`; network access
+// stays delegated to the library rather than being hand-rolled in the command
+// layer.
+func (c *Client) Reachable(ctx context.Context) error {
+	_, _, err := c.api.Health.Status(ctx)
+	return err
+}
+
 // Download fetches a cookbook tarball from Supermarket and writes it
 // to opts.File (or the resolved default location).
 func (c *Client) Download(ctx context.Context, opts DownloadOptions) (DownloadResult, error) {

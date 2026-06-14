@@ -290,3 +290,31 @@ func mustAnonymousClient(t *testing.T, site string) *Client {
 	}
 	return client
 }
+
+func TestReachableHitsHealthEndpoint(t *testing.T) {
+	var gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"status":"ok"}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	if err := mustAnonymousClient(t, srv.URL).Reachable(context.Background()); err != nil {
+		t.Fatalf("Reachable: %v", err)
+	}
+	if gotPath != "/api/v1/health" {
+		t.Errorf("Reachable hit %q, want /api/v1/health", gotPath)
+	}
+}
+
+func TestReachableReportsUnreachableSite(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+
+	if err := mustAnonymousClient(t, srv.URL).Reachable(context.Background()); err == nil {
+		t.Error("Reachable returned nil for an unhealthy endpoint, want an error")
+	}
+}

@@ -37,12 +37,14 @@ cinc_server_url = "%s/organizations/acme"
 func TestConfigValidateCommandPreflightsSupermarketSite(t *testing.T) {
 	hit := false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/cookbooks" {
-			t.Errorf("path = %q, want /api/v1/cookbooks", r.URL.Path)
+		// The preflight now reaches the Supermarket via the cinc-supermarket
+		// client's health check rather than a hand-rolled cookbooks GET.
+		if r.URL.Path != "/api/v1/health" {
+			t.Errorf("path = %q, want /api/v1/health", r.URL.Path)
 		}
 		hit = true
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"items": []any{}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok"})
 	}))
 	t.Cleanup(srv.Close)
 	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
