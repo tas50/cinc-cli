@@ -32,7 +32,9 @@ func newNodeRunListListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list <node>",
 		Short: "List a node's run list",
-		Args:  cobra.ExactArgs(1),
+		Example: "Show a node's current run-list.\n" +
+			"cinc node run-list list web01",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -63,10 +65,16 @@ func newNodeRunListChangeCmd(verb string) *cobra.Command {
 		"remove": "Remove entries from a node's run list",
 		"set":    "Replace a node's run list",
 	}[verb]
+	example := map[string]string{
+		"add":    "Append an entry to a node's run-list (existing entries are kept).\ncinc node run-list add web01 'recipe[ntp]'",
+		"remove": "Remove an entry from a node's run-list.\ncinc node run-list remove web01 'recipe[ntp]'",
+		"set":    "Replace a node's run-list entirely.\ncinc node run-list set web01 'recipe[base],role[web]'",
+	}[verb]
 	return &cobra.Command{
-		Use:   verb + " <node> <entry>...",
-		Short: short,
-		Args:  cobra.MinimumNArgs(2),
+		Use:     verb + " <node> <entry>...",
+		Short:   short,
+		Example: example,
+		Args:    cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {

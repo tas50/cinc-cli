@@ -6,6 +6,14 @@ Show one of a client's keys
 cinc client key show <client> <key-name> [flags]
 ```
 
+### Examples
+
+Show one of a client's keys.
+
+```
+cinc client key show worker-01 default
+```
+
 ### Options
 
 ```

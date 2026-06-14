@@ -6,6 +6,14 @@ Remove entries from a node's run list
 cinc node run-list remove <node> <entry>... [flags]
 ```
 
+### Examples
+
+Remove an entry from a node's run-list.
+
+```
+cinc node run-list remove web01 'recipe[ntp]'
+```
+
 ### Options
 
 ```

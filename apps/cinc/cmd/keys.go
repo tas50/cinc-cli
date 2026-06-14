@@ -20,18 +20,21 @@ import (
 // except for which scope they target, so newKeyCmd builds the verbs once and
 // each noun supplies its own owner descriptor.
 type keyOwner struct {
-	noun  string // "client" or "user", used in help text and messages
-	scope func(*cinc.Client, string) *cinc.KeyScope
+	noun   string // "client" or "user", used in help text and messages
+	sample string // a sample owner name used in generated examples
+	scope  func(*cinc.Client, string) *cinc.KeyScope
 }
 
 var clientKeyOwner = keyOwner{
-	noun:  "client",
-	scope: func(c *cinc.Client, name string) *cinc.KeyScope { return c.Keys.Client(name) },
+	noun:   "client",
+	sample: "worker-01",
+	scope:  func(c *cinc.Client, name string) *cinc.KeyScope { return c.Keys.Client(name) },
 }
 
 var userKeyOwner = keyOwner{
-	noun:  "user",
-	scope: func(c *cinc.Client, name string) *cinc.KeyScope { return c.Keys.User(name) },
+	noun:   "user",
+	sample: "alice",
+	scope:  func(c *cinc.Client, name string) *cinc.KeyScope { return c.Keys.User(name) },
 }
 
 // newKeyCmd builds the `key` sub-group for the given owner, e.g.
@@ -54,9 +57,10 @@ func newKeyCmd(owner keyOwner) *cobra.Command {
 // material; use `key show` for a single key's details.
 func newKeyListCmd(owner keyOwner) *cobra.Command {
 	return &cobra.Command{
-		Use:   "list <" + owner.noun + ">",
-		Short: "List a " + owner.noun + "'s keys",
-		Args:  cobra.ExactArgs(1),
+		Use:     "list <" + owner.noun + ">",
+		Short:   "List a " + owner.noun + "'s keys",
+		Example: "List a " + owner.noun + "'s keys.\ncinc " + owner.noun + " key list " + owner.sample,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -83,9 +87,10 @@ func newKeyListCmd(owner keyOwner) *cobra.Command {
 // newKeyShowCmd builds `cinc <owner> key show <name> <key-name>`.
 func newKeyShowCmd(owner keyOwner) *cobra.Command {
 	return &cobra.Command{
-		Use:   "show <" + owner.noun + "> <key-name>",
-		Short: "Show one of a " + owner.noun + "'s keys",
-		Args:  cobra.ExactArgs(2),
+		Use:     "show <" + owner.noun + "> <key-name>",
+		Short:   "Show one of a " + owner.noun + "'s keys",
+		Example: "Show one of a " + owner.noun + "'s keys.\ncinc " + owner.noun + " key show " + owner.sample + " default",
+		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -118,9 +123,10 @@ func newKeyCreateCmd(owner keyOwner) *cobra.Command {
 		expires       string
 	)
 	cmd := &cobra.Command{
-		Use:   "create <" + owner.noun + "> <key-name>",
-		Short: "Add a key to a " + owner.noun,
-		Args:  cobra.ExactArgs(2),
+		Use:     "create <" + owner.noun + "> <key-name>",
+		Short:   "Add a key to a " + owner.noun,
+		Example: "Add a key to a " + owner.noun + ", writing the generated private key to a file.\ncinc " + owner.noun + " key create " + owner.sample + " rotation --key-file rotation.pem",
+		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -163,9 +169,10 @@ func newKeyCreateCmd(owner keyOwner) *cobra.Command {
 func newKeyEditCmd(owner keyOwner) *cobra.Command {
 	var inputFile string
 	cmd := &cobra.Command{
-		Use:   "edit <" + owner.noun + "> <key-name>",
-		Short: "Edit one of a " + owner.noun + "'s keys",
-		Args:  cobra.ExactArgs(2),
+		Use:     "edit <" + owner.noun + "> <key-name>",
+		Short:   "Edit one of a " + owner.noun + "'s keys",
+		Example: "Edit one of a " + owner.noun + "'s keys, for example its expiration.\ncinc " + owner.noun + " key edit " + owner.sample + " default",
+		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -220,9 +227,10 @@ func newKeyEditCmd(owner keyOwner) *cobra.Command {
 // newKeyDeleteCmd builds `cinc <owner> key delete <name> <key-name>`.
 func newKeyDeleteCmd(owner keyOwner) *cobra.Command {
 	return &cobra.Command{
-		Use:   "delete <" + owner.noun + "> <key-name>",
-		Short: "Delete one of a " + owner.noun + "'s keys",
-		Args:  cobra.ExactArgs(2),
+		Use:     "delete <" + owner.noun + "> <key-name>",
+		Short:   "Delete one of a " + owner.noun + "'s keys",
+		Example: "Delete one of a " + owner.noun + "'s keys.\ncinc " + owner.noun + " key delete " + owner.sample + " rotation",
+		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {

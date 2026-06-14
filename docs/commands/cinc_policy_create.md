@@ -6,6 +6,14 @@ Scaffold a new Policyfile on disk
 cinc policy create <name> [flags]
 ```
 
+### Examples
+
+Scaffold a starter Policyfile.rb on disk.
+
+```
+cinc policy create base
+```
+
 ### Options
 
 ```

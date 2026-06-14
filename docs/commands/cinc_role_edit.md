@@ -6,6 +6,14 @@ Edit a role on the server
 cinc role edit <name> [flags]
 ```
 
+### Examples
+
+Edit a role's run-list and attributes in your editor.
+
+```
+cinc role edit webserver
+```
+
 ### Options
 
 ```

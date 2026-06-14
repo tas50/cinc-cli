@@ -6,6 +6,14 @@ Replace a node's tags
 cinc node tag set <node> <tag>... [flags]
 ```
 
+### Examples
+
+Replace a node's tags entirely.
+
+```
+cinc node tag set web01 prod web
+```
+
 ### Options
 
 ```

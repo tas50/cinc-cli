@@ -6,6 +6,14 @@ Create a group on the server
 cinc group create <name> [flags]
 ```
 
+### Examples
+
+Create a group.
+
+```
+cinc group create admins
+```
+
 ### Options
 
 ```

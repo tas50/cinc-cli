@@ -6,6 +6,14 @@ List groups on the server
 cinc group list [flags]
 ```
 
+### Examples
+
+List every group on the server.
+
+```
+cinc group list
+```
+
 ### Options
 
 ```

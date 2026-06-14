@@ -43,7 +43,9 @@ func newPolicyCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Scaffold a new Policyfile on disk",
-		Args:  cobra.ExactArgs(1),
+		Example: "Scaffold a starter Policyfile.rb on disk.\n" +
+			"cinc policy create base",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			path := outFile
@@ -257,6 +259,8 @@ func newPolicyDiffCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "diff <name> <ref1> <ref2>",
 		Short: "Compare two revisions of a policy",
+		Example: "Compare two revisions of a policy.\n" +
+			"cinc policy diff appserver 1.0.0 1.1.0",
 		Long: "Compare two revisions of a policy.\n\n" +
 			"By default ref1 and ref2 name policy groups and the comparison is\n" +
 			"between the revision active in each. Pass --revisions to treat them as\n" +
@@ -370,7 +374,9 @@ func newPolicyCleanCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "clean [name]",
 		Short: "Delete policy revisions that no policy group references",
-		Args:  cobra.MaximumNArgs(1),
+		Example: "Delete revisions of a policy that no policy group references.\n" +
+			"cinc policy clean appserver",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {

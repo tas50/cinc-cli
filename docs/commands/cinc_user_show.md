@@ -6,6 +6,14 @@ Show a user
 cinc user show <name> [flags]
 ```
 
+### Examples
+
+Show a user's profile.
+
+```
+cinc user show alice
+```
+
 ### Options
 
 ```

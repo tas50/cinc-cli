@@ -6,6 +6,14 @@ Append entries to a node's run list
 cinc node run-list add <node> <entry>... [flags]
 ```
 
+### Examples
+
+Append an entry to a node's run-list (existing entries are kept).
+
+```
+cinc node run-list add web01 'recipe[ntp]'
+```
+
 ### Options
 
 ```

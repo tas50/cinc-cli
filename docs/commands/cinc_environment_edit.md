@@ -6,6 +6,14 @@ Edit an environment on the server
 cinc environment edit <name> [flags]
 ```
 
+### Examples
+
+Edit an environment's cookbook version constraints and attributes.
+
+```
+cinc environment edit prod
+```
+
 ### Options
 
 ```

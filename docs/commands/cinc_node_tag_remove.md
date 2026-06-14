@@ -6,6 +6,14 @@ Remove tags from a node
 cinc node tag remove <node> <tag>... [flags]
 ```
 
+### Examples
+
+Remove a tag from a node.
+
+```
+cinc node tag remove web01 canary
+```
+
 ### Options
 
 ```

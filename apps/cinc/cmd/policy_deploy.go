@@ -22,7 +22,12 @@ func newPolicyPushCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "push <group> [lock]",
 		Short: "Deploy a Policyfile lock to a policy group",
-		Args:  cobra.RangeArgs(1, 2),
+		Example: "Deploy ./Policyfile.lock.json to a policy group, uploading its cookbooks.\n" +
+			"cinc policy push prod" +
+			"\n" +
+			"Deploy a specific lock file.\n" +
+			"cinc policy push prod Policyfile.lock.json",
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -69,7 +74,9 @@ func newPolicyExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "export [lock] [dir]",
 		Short: "Assemble a standalone bundle from a Policyfile lock",
-		Args:  cobra.MaximumNArgs(2),
+		Example: "Assemble a standalone bundle for an air-gapped cinc-client -z run.\n" +
+			"cinc policy export Policyfile.lock.json ./bundle --archive",
+		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {

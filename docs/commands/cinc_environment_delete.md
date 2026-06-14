@@ -6,6 +6,14 @@ Delete an environment from the server
 cinc environment delete <name> [flags]
 ```
 
+### Examples
+
+Delete an environment from the server.
+
+```
+cinc environment delete prod
+```
+
 ### Options
 
 ```

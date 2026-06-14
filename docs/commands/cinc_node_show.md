@@ -6,6 +6,14 @@ Show a node
 cinc node show <name> [flags]
 ```
 
+### Examples
+
+Show a node's full object, including its attributes and run-list.
+
+```
+cinc node show web01
+```
+
 ### Options
 
 ```

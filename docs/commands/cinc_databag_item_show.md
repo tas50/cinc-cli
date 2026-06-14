@@ -6,6 +6,14 @@ Show a data bag item on the server
 cinc databag item show <bag> <id> [flags]
 ```
 
+### Examples
+
+Show a data bag item.
+
+```
+cinc databag item show passwords mysql
+```
+
 ### Options
 
 ```

@@ -42,8 +42,22 @@ func main() {
 	root := cmd.NewRootCmd()
 	root.DisableAutoGenTag = true
 
+	// Capture each command's Example and clear it before generation. Cobra
+	// would wrap the whole Example in a single code fence; instead gendocs
+	// renders examples as Markdown (prose paragraphs, with command lines turned
+	// into fenced code blocks) and injects them after generation.
+	examples := map[string]string{}
+	captureExamples(root, examples)
+
 	if err := doc.GenMarkdownTreeCustom(root, outDir, frontmatter, linkHandler); err != nil {
 		exit("generate docs: %v", err)
+	}
+
+	for path, ex := range examples {
+		file := filepath.Join(outDir, strings.ReplaceAll(path, " ", "_")+".md")
+		if err := injectExamples(file, ex); err != nil {
+			exit("inject examples into %s: %v", file, err)
+		}
 	}
 
 	if err := writeIndex(root, outDir); err != nil {
@@ -52,6 +66,76 @@ func main() {
 
 	abs, _ := filepath.Abs(outDir)
 	fmt.Printf("Wrote %s\n", abs)
+}
+
+// captureExamples records each command's authored Example keyed by command
+// path, clearing it so cobra does not render its own fenced Examples block.
+func captureExamples(c *cobra.Command, into map[string]string) {
+	if strings.TrimSpace(c.Example) != "" {
+		into[c.CommandPath()] = c.Example
+		c.Example = ""
+	}
+	for _, sub := range c.Commands() {
+		captureExamples(sub, into)
+	}
+}
+
+// renderExamples turns an authored Example into a Markdown "Examples" section.
+// Examples are authored as plain text with no indentation: lines that begin
+// with the binary name are grouped into fenced code blocks, and every other
+// non-blank line is prose explaining what the following command does.
+func renderExamples(raw string) string {
+	var b strings.Builder
+	b.WriteString("### Examples\n\n")
+	inCode := false
+	closeCode := func() {
+		if inCode {
+			b.WriteString("```\n\n")
+			inCode = false
+		}
+	}
+	for _, line := range strings.Split(raw, "\n") {
+		t := strings.TrimSpace(line)
+		switch {
+		case t == "":
+			closeCode()
+		case t == "cinc" || strings.HasPrefix(t, "cinc "):
+			if !inCode {
+				b.WriteString("```\n")
+				inCode = true
+			}
+			b.WriteString(t + "\n")
+		default:
+			closeCode()
+			b.WriteString(t + "\n\n")
+		}
+	}
+	closeCode()
+	return b.String()
+}
+
+// injectExamples inserts the rendered Examples section into a generated command
+// page, immediately before the first "### Options" / "### SEE ALSO" heading —
+// where cobra would otherwise have placed its own Examples block.
+func injectExamples(file, raw string) error {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return err
+	}
+	content := string(data)
+	idx := -1
+	for _, marker := range []string{"### Options", "### SEE ALSO"} {
+		if i := strings.Index(content, marker); i >= 0 && (idx == -1 || i < idx) {
+			idx = i
+		}
+	}
+	section := renderExamples(raw)
+	if idx == -1 {
+		content += "\n" + section
+	} else {
+		content = content[:idx] + section + content[idx:]
+	}
+	return os.WriteFile(file, []byte(content), 0o644)
 }
 
 // frontmatter returns an empty prefix; we keep the generated output as

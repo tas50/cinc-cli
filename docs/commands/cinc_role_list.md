@@ -6,6 +6,14 @@ List roles on the server
 cinc role list [flags]
 ```
 
+### Examples
+
+List every role on the server.
+
+```
+cinc role list
+```
+
 ### Options
 
 ```

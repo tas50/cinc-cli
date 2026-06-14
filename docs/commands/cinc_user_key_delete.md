@@ -6,6 +6,14 @@ Delete one of a user's keys
 cinc user key delete <user> <key-name> [flags]
 ```
 
+### Examples
+
+Delete one of a user's keys.
+
+```
+cinc user key delete alice rotation
+```
+
 ### Options
 
 ```

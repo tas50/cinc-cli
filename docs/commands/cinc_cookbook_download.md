@@ -6,6 +6,20 @@ Download a cookbook version from the server
 cinc cookbook download <name> [version] [flags]
 ```
 
+### Examples
+
+Download a cookbook's latest version into ./<name>-<version>/.
+
+```
+cinc cookbook download nginx
+```
+
+Download a specific version into a chosen directory.
+
+```
+cinc cookbook download nginx 1.2.0 --dir ./cookbooks
+```
+
 ### Options
 
 ```

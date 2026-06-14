@@ -6,6 +6,14 @@ Set a node's policy group and policy name
 cinc node policy-set <node> <policy-group> <policy-name> [flags]
 ```
 
+### Examples
+
+Switch a node to Policyfile-based management.
+
+```
+cinc node policy-set web01 prod base
+```
+
 ### Options
 
 ```

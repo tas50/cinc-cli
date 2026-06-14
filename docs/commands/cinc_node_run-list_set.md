@@ -6,6 +6,14 @@ Replace a node's run list
 cinc node run-list set <node> <entry>... [flags]
 ```
 
+### Examples
+
+Replace a node's run-list entirely.
+
+```
+cinc node run-list set web01 'recipe[base],role[web]'
+```
+
 ### Options
 
 ```

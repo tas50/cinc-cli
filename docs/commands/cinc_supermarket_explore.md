@@ -13,6 +13,14 @@ and q to quit.
 cinc supermarket explore [flags]
 ```
 
+### Examples
+
+Browse Supermarket cookbooks in an interactive terminal UI.
+
+```
+cinc supermarket explore
+```
+
 ### Options
 
 ```

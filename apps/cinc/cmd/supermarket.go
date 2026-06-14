@@ -40,6 +40,8 @@ func newSupermarketListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List cookbooks on Chef Supermarket",
+		Example: "List cookbooks available on Chef Supermarket.\n" +
+			"cinc supermarket list",
 		Long: "Lists every cookbook on Chef Supermarket. With --verbose the\n" +
 			"output also includes the maintainer and latest published version\n" +
 			"of each cookbook (one extra request to /universe, fast).",
@@ -83,6 +85,8 @@ func newSupermarketSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search <query>",
 		Short: "Search cookbooks on Chef Supermarket",
+		Example: "Search Supermarket for cookbooks.\n" +
+			"cinc supermarket search nginx",
 		Long: "Fuzzy-searches cookbook name, description, and maintainer on\n" +
 			"Chef Supermarket. With --verbose the output also includes the\n" +
 			"maintainer and latest published version of each hit.",
@@ -120,6 +124,11 @@ func newSupermarketShowCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show <cookbook> [version]",
 		Short: "Show a cookbook (or one of its versions) on Chef Supermarket",
+		Example: "Show a Supermarket cookbook.\n" +
+			"cinc supermarket show nginx" +
+			"\n" +
+			"Show a specific version.\n" +
+			"cinc supermarket show nginx 1.2.0",
 		Long: "Without a version argument, shows the cookbook record: maintainer,\n" +
 			"description, latest version, total downloads, and the versions\n" +
 			"published. With a version argument, shows that version's license,\n" +
@@ -289,6 +298,8 @@ func newSupermarketDownloadCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "download <cookbook> [version]",
 		Short: "Download a cookbook tarball from Chef Supermarket",
+		Example: "Download a cookbook tarball from Supermarket.\n" +
+			"cinc supermarket download nginx",
 		Long: "Downloads a cookbook from Chef Supermarket and writes it to disk\n" +
 			"as a gzipped tarball. The version defaults to the latest published\n" +
 			"version. By default the tarball lands at ./<cookbook>-<version>.tar.gz;\n" +
@@ -336,6 +347,8 @@ func newSupermarketExploreCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "explore",
 		Short: "Browse Chef Supermarket cookbooks in a terminal UI",
+		Example: "Browse Supermarket cookbooks in an interactive terminal UI.\n" +
+			"cinc supermarket explore",
 		Long: "Launches an interactive terminal UI for browsing cookbooks on Chef\n" +
 			"Supermarket. Move with arrow keys, press / to search, press d/u/a to\n" +
 			"sort by Downloads, Updated, or Alphabetical, enter for full details,\n" +
@@ -365,7 +378,9 @@ func newSupermarketShareCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "share <cookbook> [category]",
 		Short: "Share a cookbook on Chef Supermarket",
-		Args:  cobra.RangeArgs(1, 2),
+		Example: "Share a local cookbook to Supermarket (requires credentials).\n" +
+			"cinc supermarket share nginx 'Web Servers'",
+		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {

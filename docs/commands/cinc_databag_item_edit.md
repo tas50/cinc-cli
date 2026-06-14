@@ -6,6 +6,14 @@ Edit a data bag item on the server
 cinc databag item edit <bag> <id> [flags]
 ```
 
+### Examples
+
+Edit a data bag item in your editor.
+
+```
+cinc databag item edit passwords mysql
+```
+
 ### Options
 
 ```

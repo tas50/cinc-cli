@@ -6,6 +6,14 @@ Run an SSH command on nodes
 cinc node ssh [search-query] [command] [flags]
 ```
 
+### Examples
+
+Run a command on every node matching a search query.
+
+```
+cinc node ssh 'role:web' 'sudo systemctl restart nginx' --ssh-user ubuntu
+```
+
 ### Options
 
 ```

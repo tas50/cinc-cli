@@ -6,6 +6,14 @@ Delete an API client from the server
 cinc client delete <name> [flags]
 ```
 
+### Examples
+
+Delete an API client from the server.
+
+```
+cinc client delete worker-01
+```
+
 ### Options
 
 ```

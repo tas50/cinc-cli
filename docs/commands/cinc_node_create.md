@@ -6,6 +6,14 @@ Create a node on the server
 cinc node create <name> [flags]
 ```
 
+### Examples
+
+Create a node with a starting environment and run-list.
+
+```
+cinc node create web01 --environment prod --run-list 'recipe[base],role[web]'
+```
+
 ### Options
 
 ```

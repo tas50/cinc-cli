@@ -37,7 +37,9 @@ func newEnvironmentEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <name>",
 		Short: "Edit an environment on the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Edit an environment's cookbook version constraints and attributes.\n" +
+			"cinc environment edit prod",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -87,7 +89,9 @@ func newEnvironmentShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Show an environment",
-		Args:  cobra.ExactArgs(1),
+		Example: "Show an environment.\n" +
+			"cinc environment show prod",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -120,7 +124,9 @@ func newEnvironmentCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create an environment on the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Create an environment; your editor opens to define it.\n" +
+			"cinc environment create prod",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -157,7 +163,9 @@ func newEnvironmentDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete an environment from the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Delete an environment from the server.\n" +
+			"cinc environment delete prod",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -178,7 +186,9 @@ func newEnvironmentListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List environments on the server",
-		Args:  cobra.NoArgs,
+		Example: "List every environment on the server.\n" +
+			"cinc environment list",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {

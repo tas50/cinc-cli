@@ -6,6 +6,14 @@ Delete a policy group from the server
 cinc policy-group delete <name> [flags]
 ```
 
+### Examples
+
+Delete a policy group.
+
+```
+cinc policy-group delete prod
+```
+
 ### Options
 
 ```

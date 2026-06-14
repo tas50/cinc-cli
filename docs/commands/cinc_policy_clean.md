@@ -6,6 +6,14 @@ Delete policy revisions that no policy group references
 cinc policy clean [name] [flags]
 ```
 
+### Examples
+
+Delete revisions of a policy that no policy group references.
+
+```
+cinc policy clean appserver
+```
+
 ### Options
 
 ```

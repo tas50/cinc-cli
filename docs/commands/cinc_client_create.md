@@ -6,6 +6,14 @@ Create an API client on the server
 cinc client create <name> [flags]
 ```
 
+### Examples
+
+Create a client and write its generated private key to a file.
+
+```
+cinc client create worker-01 --key-file worker-01.pem
+```
+
 ### Options
 
 ```

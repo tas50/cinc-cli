@@ -6,6 +6,14 @@ Upload cookbook versions to the Cinc Server
 cinc cookbook upload <name>... [flags]
 ```
 
+### Examples
+
+Upload a cookbook from your cookbook path.
+
+```
+cinc cookbook upload nginx
+```
+
 ### Options
 
 ```

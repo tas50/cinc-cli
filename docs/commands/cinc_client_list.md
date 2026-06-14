@@ -6,6 +6,14 @@ List API clients on the server
 cinc client list [flags]
 ```
 
+### Examples
+
+List every API client on the server.
+
+```
+cinc client list
+```
+
 ### Options
 
 ```

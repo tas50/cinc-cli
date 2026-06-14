@@ -6,6 +6,14 @@ Set a user's password
 cinc user password <name> [flags]
 ```
 
+### Examples
+
+Set or reset a user's password (you are prompted if --password is omitted).
+
+```
+cinc user password alice
+```
+
 ### Options
 
 ```

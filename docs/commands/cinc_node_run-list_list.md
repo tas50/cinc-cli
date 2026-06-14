@@ -6,6 +6,14 @@ List a node's run list
 cinc node run-list list <node> [flags]
 ```
 
+### Examples
+
+Show a node's current run-list.
+
+```
+cinc node run-list list web01
+```
+
 ### Options
 
 ```

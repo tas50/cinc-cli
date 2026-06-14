@@ -6,6 +6,14 @@ List items in a data bag
 cinc databag item list <bag> [flags]
 ```
 
+### Examples
+
+List the item IDs in a data bag.
+
+```
+cinc databag item list passwords
+```
+
 ### Options
 
 ```

@@ -6,6 +6,14 @@ List environments on the server
 cinc environment list [flags]
 ```
 
+### Examples
+
+List every environment on the server.
+
+```
+cinc environment list
+```
+
 ### Options
 
 ```

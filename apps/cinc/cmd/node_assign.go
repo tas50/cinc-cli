@@ -13,7 +13,9 @@ func newNodeEnvironmentSetCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "environment-set <node> <environment>",
 		Short: "Set a node's environment",
-		Args:  cobra.ExactArgs(2),
+		Example: "Move a node into a different environment.\n" +
+			"cinc node environment-set web01 prod",
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -45,7 +47,9 @@ func newNodePolicySetCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "policy-set <node> <policy-group> <policy-name>",
 		Short: "Set a node's policy group and policy name",
-		Args:  cobra.ExactArgs(3),
+		Example: "Switch a node to Policyfile-based management.\n" +
+			"cinc node policy-set web01 prod base",
+		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {

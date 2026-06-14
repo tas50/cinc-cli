@@ -6,6 +6,14 @@ List policy groups on the server
 cinc policy-group list [flags]
 ```
 
+### Examples
+
+List every policy group.
+
+```
+cinc policy-group list
+```
+
 ### Options
 
 ```

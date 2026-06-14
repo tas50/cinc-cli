@@ -6,6 +6,14 @@ Create an environment on the server
 cinc environment create <name> [flags]
 ```
 
+### Examples
+
+Create an environment; your editor opens to define it.
+
+```
+cinc environment create prod
+```
+
 ### Options
 
 ```

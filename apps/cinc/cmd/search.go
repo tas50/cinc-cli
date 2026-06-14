@@ -36,6 +36,8 @@ func newSearchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "search <index> <query>",
 		Short: "Search the Cinc Server",
+		Example: "Search an index — node, role, environment, client, or a data bag name.\n" +
+			"cinc search node 'role:web'",
 		Long: "Search the Cinc Server's index for objects matching a Solr/Lucene query.\n\n" +
 			"The index is one of node, role, environment, client, or a data bag name.\n" +
 			"By default matches render as an aligned table; -a projects specific\n" +

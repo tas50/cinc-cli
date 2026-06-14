@@ -6,6 +6,14 @@ Delete one of a client's keys
 cinc client key delete <client> <key-name> [flags]
 ```
 
+### Examples
+
+Delete one of a client's keys.
+
+```
+cinc client key delete worker-01 rotation
+```
+
 ### Options
 
 ```

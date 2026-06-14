@@ -6,6 +6,14 @@ List a client's keys
 cinc client key list <client> [flags]
 ```
 
+### Examples
+
+List a client's keys.
+
+```
+cinc client key list worker-01
+```
+
 ### Options
 
 ```

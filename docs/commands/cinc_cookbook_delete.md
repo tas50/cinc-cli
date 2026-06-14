@@ -6,6 +6,14 @@ Delete a cookbook version from the server
 cinc cookbook delete <name> <version> [flags]
 ```
 
+### Examples
+
+Delete a specific cookbook version from the server.
+
+```
+cinc cookbook delete nginx 1.2.0
+```
+
 ### Options
 
 ```

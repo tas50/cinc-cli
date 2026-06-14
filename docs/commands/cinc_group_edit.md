@@ -6,6 +6,14 @@ Edit a group's members on the server
 cinc group edit <name> [flags]
 ```
 
+### Examples
+
+Edit a group's membership in your editor.
+
+```
+cinc group edit admins
+```
+
 ### Options
 
 ```

@@ -40,7 +40,9 @@ func newClientReregisterCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reregister <name>",
 		Short: "Regenerate a client's default key, invalidating the old one",
-		Args:  cobra.ExactArgs(1),
+		Example: "Regenerate a client's key and write the new private key to disk.\n" +
+			"cinc client reregister worker-01 --key-file worker-01.pem",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -67,7 +69,9 @@ func newClientShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Show an API client",
-		Args:  cobra.ExactArgs(1),
+		Example: "Show an API client, including whether it is a validator.\n" +
+			"cinc client show worker-01",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -98,7 +102,9 @@ func newClientEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <name>",
 		Short: "Edit an API client on the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Open an API client's JSON in your editor and save it back.\n" +
+			"cinc client edit worker-01",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -160,7 +166,9 @@ func newClientCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create an API client on the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Create a client and write its generated private key to a file.\n" +
+			"cinc client create worker-01 --key-file worker-01.pem",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -209,7 +217,9 @@ func newClientDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete an API client from the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Delete an API client from the server.\n" +
+			"cinc client delete worker-01",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -230,7 +240,9 @@ func newClientListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List API clients on the server",
-		Args:  cobra.NoArgs,
+		Example: "List every API client on the server.\n" +
+			"cinc client list",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {

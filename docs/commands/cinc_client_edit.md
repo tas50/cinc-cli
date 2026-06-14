@@ -6,6 +6,14 @@ Edit an API client on the server
 cinc client edit <name> [flags]
 ```
 
+### Examples
+
+Open an API client's JSON in your editor and save it back.
+
+```
+cinc client edit worker-01
+```
+
 ### Options
 
 ```

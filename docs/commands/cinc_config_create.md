@@ -6,6 +6,14 @@ Create or update a local credentials profile
 cinc config create [flags]
 ```
 
+### Examples
+
+Create or update the default credentials profile interactively.
+
+```
+cinc config create
+```
+
 ### Options
 
 ```

@@ -6,6 +6,14 @@ Show a policy's revisions
 cinc policy show <name> [flags]
 ```
 
+### Examples
+
+Show a policy's revisions.
+
+```
+cinc policy show appserver
+```
+
 ### Options
 
 ```

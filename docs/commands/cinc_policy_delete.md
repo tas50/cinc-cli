@@ -6,6 +6,14 @@ Delete a policy and all its revisions from the server
 cinc policy delete <name> [flags]
 ```
 
+### Examples
+
+Delete a policy and all of its revisions.
+
+```
+cinc policy delete appserver
+```
+
 ### Options
 
 ```

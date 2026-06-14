@@ -6,6 +6,14 @@ Share a cookbook on Chef Supermarket
 cinc supermarket share <cookbook> [category] [flags]
 ```
 
+### Examples
+
+Share a local cookbook to Supermarket (requires credentials).
+
+```
+cinc supermarket share nginx 'Web Servers'
+```
+
 ### Options
 
 ```

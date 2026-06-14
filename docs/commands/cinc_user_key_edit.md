@@ -6,6 +6,14 @@ Edit one of a user's keys
 cinc user key edit <user> <key-name> [flags]
 ```
 
+### Examples
+
+Edit one of a user's keys, for example its expiration.
+
+```
+cinc user key edit alice default
+```
+
 ### Options
 
 ```
