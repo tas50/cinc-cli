@@ -1,0 +1,26 @@
+## cinc node policy-set
+
+Set a node's policy group and policy name
+
+```
+cinc node policy-set <node> <policy-group> <policy-name> [flags]
+```
+
+### Options
+
+```
+  -h, --help   help for policy-set
+```
+
+### Options inherited from parent commands
+
+```
+      --config string    path to the Cinc credentials file (default ~/.cinc/credentials)
+      --format string    output format: human or json (default "human")
+      --profile string   credentials profile to use (default: $CINC_PROFILE, then $CHEF_PROFILE, then "default")
+```
+
+### SEE ALSO
+
+* [cinc node](cinc_node.md)	 - Manage nodes on the Cinc Server
+
