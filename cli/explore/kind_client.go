@@ -10,7 +10,8 @@ import (
 // one-time private key, surfaced through CreateResult.Secret.
 func newClientKind() Kind {
 	return editorKind[cinc.APIClient]{
-		title: "Clients",
+		title:       "Clients",
+		searchIndex: "client",
 		listFn: func(ctx context.Context, c *cinc.Client) (map[string]string, error) {
 			index, _, err := c.Clients.List(ctx)
 			return index, err

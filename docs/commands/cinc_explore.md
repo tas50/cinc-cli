@@ -9,8 +9,9 @@ Server. Pick a profile (when more than one is configured), choose an
 object type, and browse, view, edit, create, delete, or download
 objects from a contextual action bar.
 
-Move with the arrow keys, / to filter, : for the object-type menu,
-enter to open or drill in, esc to go back, and q to quit.
+Move with the arrow keys, / to filter the loaded list, s to run a
+server-side search, : for the object-type menu, enter to open or
+drill in, esc to go back, and q to quit.
 
 ```
 cinc explore [flags]

@@ -95,6 +95,50 @@ type Summarizable interface {
 	Summary(ctx context.Context, c *cinc.Client, name string) (summaryView, error)
 }
 
+// Searchable kinds can be queried server-side with a Solr/Lucene query.
+// SearchIndex names the index to hit; an empty string means the kind is
+// not search-indexed (the `s` key stays inert for it). Only node, role,
+// environment, client, and data bag items live in the Chef search index.
+type Searchable interface {
+	SearchIndex() string
+}
+
+// searchIndexOf returns a kind's Solr index and whether it is searchable.
+func searchIndexOf(k Kind) (string, bool) {
+	s, ok := k.(Searchable)
+	if !ok {
+		return "", false
+	}
+	idx := s.SearchIndex()
+	return idx, idx != ""
+}
+
+// searchableKinds returns the top-level kinds that can be searched, in
+// registry order, for the index picker. Data bag items are searchable too
+// but only reachable by drilling into a specific bag, so they are not
+// offered as a standalone picker choice.
+func searchableKinds() []Kind {
+	var out []Kind
+	for _, k := range registry() {
+		if _, ok := searchIndexOf(k); ok {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// indexOfKind returns the position of the kind sharing target's search
+// index within ks, or 0 when there's no match.
+func indexOfKind(ks []Kind, target Kind) int {
+	want, _ := searchIndexOf(target)
+	for i, k := range ks {
+		if idx, _ := searchIndexOf(k); idx == want {
+			return i
+		}
+	}
+	return 0
+}
+
 // registry returns the kinds shown in the top-level menu, in display
 // order.
 func registry() []Kind {
@@ -133,9 +177,14 @@ type editorKind[T any] struct {
 	// when nil the kind falls back to JSON in the summary pane.
 	summaryFn func(*T) []summaryField
 	template  func() []byte
+	// searchIndex names this kind's Solr index when it is search-indexed
+	// (node, role, environment, client); empty leaves the kind unsearchable.
+	searchIndex string
 }
 
 func (k editorKind[T]) Title() string { return k.title }
+
+func (k editorKind[T]) SearchIndex() string { return k.searchIndex }
 
 func (k editorKind[T]) Columns() []string {
 	if len(k.columns) == 0 {

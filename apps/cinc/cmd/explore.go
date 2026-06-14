@@ -19,8 +19,9 @@ func newExploreCmd() *cobra.Command {
 			"Server. Pick a profile (when more than one is configured), choose an\n" +
 			"object type, and browse, view, edit, create, delete, or download\n" +
 			"objects from a contextual action bar.\n\n" +
-			"Move with the arrow keys, / to filter, : for the object-type menu,\n" +
-			"enter to open or drill in, esc to go back, and q to quit.",
+			"Move with the arrow keys, / to filter the loaded list, s to run a\n" +
+			"server-side search, : for the object-type menu, enter to open or\n" +
+			"drill in, esc to go back, and q to quit.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfg, err := loadCredentials(cmd)

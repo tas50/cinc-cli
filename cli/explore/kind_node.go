@@ -10,7 +10,8 @@ import (
 // newNodeKind builds the Nodes kind: full view/edit/create/delete.
 func newNodeKind() Kind {
 	return editorKind[cinc.Node]{
-		title: "Nodes",
+		title:       "Nodes",
+		searchIndex: "node",
 		summaryFn: func(n *cinc.Node) []summaryField {
 			return nodeSummaryFields(n, time.Now())
 		},

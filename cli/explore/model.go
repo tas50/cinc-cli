@@ -34,6 +34,8 @@ const (
 	screenConfirm
 	screenName
 	screenResult
+	screenSearch
+	screenSearchIndex
 )
 
 // editAction distinguishes the two ways the JSON editor is used.
@@ -86,6 +88,20 @@ type model struct {
 	// list filtering
 	filtering bool
 	filter    textinput.Model
+
+	// server search: when active, the list is restricted to the identities
+	// the server's search index returned for searchQuery against searchIndex.
+	searchActive bool
+	searchIndex  string
+	searchQuery  string
+	searchNames  map[string]bool
+
+	// search modal: searchInput holds the query being composed, searchKind
+	// the index it will hit; searchKinds/searchKindCur drive the index picker.
+	searchInput   textinput.Model
+	searchKind    Kind
+	searchKinds   []Kind
+	searchKindCur int
 
 	// split-screen summary panel: the right pane's per-row object summary,
 	// cached by name and cleared when the list changes.
@@ -145,6 +161,10 @@ func newModel(ctx context.Context, opts Options, s startup) model {
 	name := textinput.New()
 	name.Prompt = "› "
 
+	search := textinput.New()
+	search.Prompt = "› "
+	search.Placeholder = "name:web* AND chef_environment:prod…"
+
 	return model{
 		ctx:          ctx,
 		opts:         opts,
@@ -156,6 +176,7 @@ func newModel(ctx context.Context, opts Options, s startup) model {
 		kinds:        registry(),
 		filter:       filter,
 		nameInput:    name,
+		searchInput:  search,
 		styles:       newStyles(),
 		keys:         newKeyMap(),
 	}
@@ -239,6 +260,18 @@ type summaryLoadedMsg struct {
 	err  error
 }
 
+// searchLoadedMsg carries the outcome of a server search: the identities
+// that matched, plus the index/query/kind they belong to so the list can
+// switch to and label them.
+type searchLoadedMsg struct {
+	reqID uint64
+	index string
+	query string
+	kind  Kind
+	names map[string]bool
+	err   error
+}
+
 // ----- commands --------------------------------------------------------
 
 func buildClientCmd(opts Options, name string, profile config.Profile) tea.Cmd {
@@ -312,6 +345,41 @@ func summaryCmd(ctx context.Context, s Summarizable, c *cinc.Client, name string
 	}
 }
 
+// searchCmd runs a server search and reduces the matches to the set of
+// identities the list filters by. kind/index/query ride along so the
+// handler can switch the view to that index and render the banner.
+func searchCmd(ctx context.Context, c *cinc.Client, kind Kind, index, query string, reqID uint64) tea.Cmd {
+	return func() tea.Msg {
+		rows, err := c.Search.SearchAll(ctx, index, query)
+		if err != nil {
+			return searchLoadedMsg{reqID: reqID, index: index, query: query, kind: kind, err: err}
+		}
+		names := make(map[string]bool, len(rows))
+		for _, raw := range rows {
+			if id := searchRowIdentity(raw); id != "" {
+				names[id] = true
+			}
+		}
+		return searchLoadedMsg{reqID: reqID, index: index, query: query, kind: kind, names: names}
+	}
+}
+
+// searchRowIdentity pulls a search hit's list identity: its name, or its
+// id for objects keyed by id (data bag items).
+func searchRowIdentity(raw json.RawMessage) string {
+	var o struct {
+		Name string `json:"name"`
+		ID   string `json:"id"`
+	}
+	if err := json.Unmarshal(raw, &o); err != nil {
+		return ""
+	}
+	if o.Name != "" {
+		return o.Name
+	}
+	return o.ID
+}
+
 // serverInfoCmd makes one cheap authenticated request and reads the
 // server's Chef API version out of the X-Ops-Server-Api-Version response
 // header. A failure just leaves the version blank — it's title-bar trim,
@@ -377,6 +445,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleSummaryTick(msg)
 	case summaryLoadedMsg:
 		return m.handleSummaryLoaded(msg), nil
+	case searchLoadedMsg:
+		return m.handleSearchLoaded(msg)
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	}
@@ -401,6 +471,10 @@ func (m model) View() string {
 		return m.viewName()
 	case screenResult:
 		return m.viewResult()
+	case screenSearch:
+		return m.viewSearch()
+	case screenSearchIndex:
+		return m.viewSearchIndex()
 	default:
 		return m.viewList()
 	}
@@ -438,6 +512,8 @@ func (m model) forwardToActive(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.editor, cmd = m.editor.Update(msg)
 	case screenName:
 		m.nameInput, cmd = m.nameInput.Update(msg)
+	case screenSearch:
+		m.searchInput, cmd = m.searchInput.Update(msg)
 	case screenList:
 		if m.filtering {
 			m.filter, cmd = m.filter.Update(msg)
@@ -611,12 +687,24 @@ func (m model) handleDownloadDone(msg downloadDoneMsg) model {
 // filteredRows returns the rows matching the active filter (case
 // -insensitive substring on Name). With no filter it returns all rows.
 func (m model) filteredRows() []Row {
+	rows := m.rows
+	// An active server search restricts the list to the matched identities;
+	// the text filter (if any) then narrows further within those.
+	if m.searchActive {
+		kept := make([]Row, 0, len(rows))
+		for _, r := range rows {
+			if m.searchNames[r.Name] {
+				kept = append(kept, r)
+			}
+		}
+		rows = kept
+	}
 	q := strings.TrimSpace(strings.ToLower(m.filter.Value()))
 	if q == "" {
-		return m.rows
+		return rows
 	}
-	out := make([]Row, 0, len(m.rows))
-	for _, r := range m.rows {
+	out := make([]Row, 0, len(rows))
+	for _, r := range rows {
 		if strings.Contains(strings.ToLower(r.Name), q) {
 			out = append(out, r)
 		}
@@ -643,10 +731,57 @@ func (m *model) openList(k Kind) tea.Cmd {
 	m.status = ""
 	m.filtering = false
 	m.filter.SetValue("")
+	m.clearSearchState()
 	m.summaryCache = map[string]summaryView{}
 	m.summaryErr = ""
 	m.screen = screenList
 	return listCmd(m.ctx, m.client, k, m.nextReqID())
+}
+
+// clearSearchState drops any active server search so a plain list shows
+// all of its rows again.
+func (m *model) clearSearchState() {
+	m.searchActive = false
+	m.searchNames = nil
+	m.searchIndex = ""
+	m.searchQuery = ""
+}
+
+// handleSearchLoaded installs a server search's result set as the active
+// list filter. A stale response (a newer request was issued) is dropped.
+func (m model) handleSearchLoaded(msg searchLoadedMsg) (tea.Model, tea.Cmd) {
+	if msg.reqID != m.reqID {
+		return m, nil
+	}
+	if msg.err != nil {
+		m.loading = false
+		m.listErr = msg.err.Error()
+		m.screen = screenList
+		return m, nil
+	}
+	return m, m.applySearch(msg.kind, msg.index, msg.query, msg.names)
+}
+
+// applySearch switches the view to the searched index and reloads its
+// list; filteredRows then restricts the rows to the matched identities,
+// so results reuse that kind's columns, summary pane, and actions.
+func (m *model) applySearch(kind Kind, index, query string, names map[string]bool) tea.Cmd {
+	m.cur = kind
+	m.rows = nil
+	m.cursor = 0
+	m.loading = true
+	m.listErr = ""
+	m.status = ""
+	m.filtering = false
+	m.filter.SetValue("")
+	m.summaryCache = map[string]summaryView{}
+	m.summaryErr = ""
+	m.searchActive = true
+	m.searchIndex = index
+	m.searchQuery = query
+	m.searchNames = names
+	m.screen = screenList
+	return listCmd(m.ctx, m.client, kind, m.nextReqID())
 }
 
 // reloadList re-fetches the current kind after a mutation.
