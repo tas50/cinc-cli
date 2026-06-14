@@ -8,7 +8,7 @@ cinc config validate [path] [flags]
 
 ### Examples
 
-Validate your credentials file and check each profile's server is reachable.
+Run the pre-flight checks for every profile in your credentials file.
 
 ```bash
 cinc config validate

@@ -30,16 +30,19 @@ cinc_server_url = "%s/organizations/acme"
 	if err := root.Execute(); err != nil {
 		t.Fatalf("cinc config validate: %v", err)
 	}
-	if got := out.String(); !strings.Contains(got, "is valid (1 profile(s))") {
-		t.Fatalf("stdout = %q", got)
+	got := out.String()
+	for _, want := range []string{"is valid", "default [VALID]", "✓ Server is reachable"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("stdout = %q, want %q", got, want)
+		}
 	}
 }
 
 func TestConfigValidateCommandPreflightsSupermarketSite(t *testing.T) {
 	hit := false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// The preflight now reaches the Supermarket via the cinc-supermarket
-		// client's health check rather than a hand-rolled cookbooks GET.
+		// The reachable check hits the Supermarket health endpoint via the
+		// cinc-supermarket client.
 		if r.URL.Path != "/api/v1/health" {
 			t.Errorf("path = %q, want /api/v1/health", r.URL.Path)
 		}
@@ -64,11 +67,14 @@ supermarket_site = "%s"
 		t.Fatalf("cinc config validate: %v", err)
 	}
 	if !hit {
-		t.Fatal("supermarket preflight endpoint was not contacted")
+		t.Fatal("supermarket reachable check did not contact the site")
+	}
+	if got := out.String(); !strings.Contains(got, "✓ Supermarket is reachable") {
+		t.Errorf("stdout = %q, want the supermarket check to pass", got)
 	}
 }
 
-func TestConfigValidateCommandReportsPreflightFailure(t *testing.T) {
+func TestConfigValidateCommandReportsUnreachableServer(t *testing.T) {
 	srv := configValidateServer(t, http.StatusInternalServerError)
 	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
 [default]
@@ -82,15 +88,11 @@ cinc_server_url = "%s/organizations/acme"
 	root.SetOut(&out)
 	root.SetArgs([]string{"config", "validate", cfgPath})
 
-	err := root.Execute()
-	if err == nil {
-		t.Fatal("expected preflight validation error")
+	if err := root.Execute(); err == nil {
+		t.Fatal("expected validation error for an unreachable server")
 	}
 	got := out.String()
-	for _, want := range []string{
-		"is invalid",
-		"default\tcinc_server_url\tpreflight failed:",
-	} {
+	for _, want := range []string{"is invalid", "default [INVALID]", "✗ Server is reachable"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("stdout = %q, want %q", got, want)
 		}
@@ -112,14 +114,14 @@ client_name = "tim"
 	if err == nil {
 		t.Fatal("expected validation error")
 	}
-	if !strings.Contains(err.Error(), "config validation failed with") {
+	if !strings.Contains(err.Error(), "config validation failed") {
 		t.Fatalf("error = %v", err)
 	}
 	got := out.String()
 	for _, want := range []string{
-		"is invalid",
-		"broken\tclient_key\tclient_key is required",
-		"broken\tendpoint\tconfigure cinc_server_url, chef_server_url, or supermarket_site",
+		"broken [INVALID]",
+		"✗ Client key is configured: client_key is required",
+		"✗ An endpoint is configured: configure cinc_server_url, chef_server_url, or supermarket_site",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("stdout = %q, want %q", got, want)
@@ -127,7 +129,7 @@ client_name = "tim"
 	}
 }
 
-func TestConfigValidateCommandFormatsIssues(t *testing.T) {
+func TestConfigValidateCommandFormatsChecks(t *testing.T) {
 	cfgPath := writeValidateConfig(t, `
 [broken]
 client_name = "tim"
@@ -143,18 +145,31 @@ client_name = "tim"
 		t.Fatal("expected validation error")
 	}
 	got := out.String()
-	// Header ends in a colon, not the old "(N issue(s))".
-	if !strings.Contains(got, "is invalid:\n") || strings.Contains(got, "issue(s)") {
-		t.Errorf("header not reformatted:\n%s", got)
+
+	// Overall line, then the top-level checks.
+	if !strings.HasPrefix(got, "Config ") || !strings.Contains(got, " is invalid\n") {
+		t.Errorf("missing overall line:\n%s", got)
 	}
-	// Issues are indented and numbered.
-	if !strings.Contains(got, "  1. ") || !strings.Contains(got, "  2. ") {
-		t.Errorf("issues not numbered/indented:\n%s", got)
+	if !strings.Contains(got, "✓ Credentials file is valid TOML") ||
+		!strings.Contains(got, "✓ At least one profile is defined") {
+		t.Errorf("missing top-level checks:\n%s", got)
 	}
-	// The error wraps errAlreadyReported, which is how Execute suppresses the
-	// second generic "Error: ..." line while still exiting non-zero.
+	// A blank line separates the top-level checks from the profile block, which
+	// is tagged and has indented per-profile checks.
+	if !strings.Contains(got, "\n\nbroken [INVALID]\n") {
+		t.Errorf("profile block not separated/tagged:\n%s", got)
+	}
+	if !strings.Contains(got, "  ✓ Client name is set\n") {
+		t.Errorf("per-profile checks not indented:\n%s", got)
+	}
+	// No leftover wording from the old issue-count format.
+	if strings.Contains(got, "issue(s)") {
+		t.Errorf("output still mentions issue counts:\n%s", got)
+	}
+	// The error wraps errAlreadyReported so Execute exits non-zero without
+	// re-printing a generic "Error: ..." line.
 	if !errors.Is(err, errAlreadyReported) {
-		t.Errorf("error should wrap errAlreadyReported so Execute does not re-print it; got %v", err)
+		t.Errorf("error should wrap errAlreadyReported; got %v", err)
 	}
 }
 
@@ -169,15 +184,34 @@ client_key = "/keys/tim.pem"
 	root.SetOut(&out)
 	root.SetArgs([]string{"config", "validate", cfgPath, "--format", "json"})
 
-	err := root.Execute()
-	if err == nil {
+	if err := root.Execute(); err == nil {
 		t.Fatal("expected validation error")
 	}
-	got := out.String()
-	for _, want := range []string{`"valid": false`, `"profile": "broken"`, `"field": "client_name"`} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("stdout = %q, want %q", got, want)
+
+	var result configValidationResult
+	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+		t.Fatalf("output is not valid JSON: %v\n%s", err, out.String())
+	}
+	if result.Valid {
+		t.Error("result.valid should be false")
+	}
+	if len(result.TopLevel) == 0 {
+		t.Error("expected top-level checks in JSON")
+	}
+	if len(result.Profiles) != 1 || result.Profiles[0].Name != "broken" || result.Profiles[0].Valid {
+		t.Fatalf("profiles = %+v", result.Profiles)
+	}
+	var found bool
+	for _, c := range result.Profiles[0].Checks {
+		if c.Name == "Client name is set" {
+			found = true
+			if c.Passed {
+				t.Error("'Client name is set' should have failed for the broken profile")
+			}
 		}
+	}
+	if !found {
+		t.Error("expected a 'Client name is set' check in the JSON output")
 	}
 }
 

@@ -214,7 +214,7 @@ func NewProfile(serverURL, clientName, clientKey, sslVerifyMode, supermarketSite
 			if supermarketSite != "" {
 				return Profile{}, err
 			}
-			if err := validateSiteURL(serverURL); err != nil {
+			if err := ValidateSiteURL(serverURL); err != nil {
 				return Profile{}, err
 			}
 			supermarketSite = serverURL
@@ -261,7 +261,7 @@ func resolveProfile(rp rawProfile) (Profile, error) {
 	return p, nil
 }
 
-func validateSiteURL(raw string) error {
+func ValidateSiteURL(raw string) error {
 	u, parseErr := url.Parse(raw)
 	if parseErr != nil || u.Scheme == "" || u.Host == "" {
 		return fmt.Errorf("invalid site URL %q", raw)
@@ -313,7 +313,7 @@ func validateProfile(name string, p Profile) []ValidationIssue {
 		add("cinc_server_url", "server URL must include /organizations/<org>")
 	}
 	if p.SupermarketSite != "" {
-		if err := validateSiteURL(p.SupermarketSite); err != nil {
+		if err := ValidateSiteURL(p.SupermarketSite); err != nil {
 			add("supermarket_site", err.Error())
 		}
 	}
