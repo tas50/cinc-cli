@@ -22,6 +22,8 @@ Manage API clients on the Cinc Server
 * [cinc client create](cinc_client_create.md)	 - Create an API client on the server
 * [cinc client delete](cinc_client_delete.md)	 - Delete an API client from the server
 * [cinc client edit](cinc_client_edit.md)	 - Edit an API client on the server
+* [cinc client key](cinc_client_key.md)	 - Manage a client's public keys
 * [cinc client list](cinc_client_list.md)	 - List API clients on the server
+* [cinc client reregister](cinc_client_reregister.md)	 - Regenerate a client's default key, invalidating the old one
 * [cinc client show](cinc_client_show.md)	 - Show an API client
 

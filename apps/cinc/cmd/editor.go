@@ -42,6 +42,7 @@ var (
 	editEnvironment = openObjectJSONEditor[cinc.Environment]
 	editUser        = openObjectJSONEditor[cinc.User]
 	editGroup       = openObjectJSONEditor[cinc.Group]
+	editKey         = openObjectJSONEditor[cinc.Key]
 )
 
 // openObjectJSONEditor is the generic edit-as-JSON flow shared by the simple
