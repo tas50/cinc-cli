@@ -229,6 +229,27 @@ func TestEnsureCookbookGitClonesAndCaches(t *testing.T) {
 	}
 }
 
+func TestEnsureCookbookGitRejectsFlagInjection(t *testing.T) {
+	f := &Fetcher{CacheRoot: t.TempDir(), LockDir: t.TempDir()}
+	cases := []struct {
+		name string
+		opts map[string]any
+	}{
+		{"flag-like repo URL", map[string]any{"git": "--upload-pack=touch /tmp/pwn", "revision": "abc"}},
+		{"flag-like revision", map[string]any{"git": "https://example.test/cb.git", "revision": "--orphan"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := f.EnsureCookbook(context.Background(), "cb", cinc.CookbookLock{
+				CacheKey: "cb", SourceOptions: tc.opts,
+			})
+			if err == nil || !contains(err.Error(), "refusing") {
+				t.Errorf("error = %v, want a refusal of the '-'-prefixed git argument", err)
+			}
+		})
+	}
+}
+
 func TestEnsureCookbookGitNeedsRevision(t *testing.T) {
 	f := &Fetcher{CacheRoot: t.TempDir(), LockDir: t.TempDir()}
 	_, err := f.EnsureCookbook(context.Background(), "gitcb", cinc.CookbookLock{

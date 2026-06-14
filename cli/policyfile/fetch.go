@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	cinc "github.com/tas50/cinc-api"
 	sm "github.com/tas50/cinc-supermarket"
@@ -152,6 +153,17 @@ func (f *Fetcher) fetchGit(ctx context.Context, lock cinc.CookbookLock, repoURL,
 	if revision == "" {
 		return fmt.Errorf("git source has no revision or branch to check out")
 	}
+	// repoURL and revision come from the (potentially untrusted) lock. Reject
+	// values that begin with "-" so they cannot be smuggled in as git flags
+	// (argv injection). clone additionally gets a "--" separator; checkout
+	// cannot use "--" (it would treat the revision as a pathspec), so the
+	// leading-dash rejection is its guard.
+	if strings.HasPrefix(repoURL, "-") {
+		return fmt.Errorf("refusing git source URL beginning with '-': %q", repoURL)
+	}
+	if strings.HasPrefix(revision, "-") {
+		return fmt.Errorf("refusing git revision beginning with '-': %q", revision)
+	}
 
 	clone, err := os.MkdirTemp("", "cinc-git-")
 	if err != nil {
@@ -159,7 +171,7 @@ func (f *Fetcher) fetchGit(ctx context.Context, lock cinc.CookbookLock, repoURL,
 	}
 	defer os.RemoveAll(clone)
 
-	if out, err := runGit(ctx, "", "clone", "--quiet", repoURL, clone); err != nil {
+	if out, err := runGit(ctx, "", "clone", "--quiet", "--", repoURL, clone); err != nil {
 		return fmt.Errorf("git clone %s: %w: %s", repoURL, err, out)
 	}
 	if out, err := runGit(ctx, clone, "checkout", "--quiet", revision); err != nil {
