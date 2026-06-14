@@ -14,6 +14,14 @@ revision ids instead: cinc policy diff NAME --revisions A B.
 cinc policy diff <name> <ref1> <ref2> [flags]
 ```
 
+### Examples
+
+Compare two revisions of a policy.
+
+```
+cinc policy diff appserver 1.0.0 1.1.0
+```
+
 ### Options
 
 ```

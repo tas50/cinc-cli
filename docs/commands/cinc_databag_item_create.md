@@ -6,6 +6,14 @@ Create an item in a data bag
 cinc databag item create <bag> <id> [flags]
 ```
 
+### Examples
+
+Create an item in a data bag; your editor opens to edit its JSON.
+
+```
+cinc databag item create passwords mysql
+```
+
 ### Options
 
 ```

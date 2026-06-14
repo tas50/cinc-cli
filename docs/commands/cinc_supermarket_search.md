@@ -12,6 +12,14 @@ maintainer and latest published version of each hit.
 cinc supermarket search <query> [flags]
 ```
 
+### Examples
+
+Search Supermarket for cookbooks.
+
+```
+cinc supermarket search nginx
+```
+
 ### Options
 
 ```

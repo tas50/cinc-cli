@@ -17,6 +17,14 @@ drill in, esc to go back, and q to quit.
 cinc explore [flags]
 ```
 
+### Examples
+
+Launch the interactive terminal UI to browse nodes, roles, and more.
+
+```
+cinc explore
+```
+
 ### Options
 
 ```

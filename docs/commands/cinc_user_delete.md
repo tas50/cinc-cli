@@ -6,6 +6,14 @@ Delete a user from the server
 cinc user delete <name> [flags]
 ```
 
+### Examples
+
+Delete a user from the server.
+
+```
+cinc user delete alice
+```
+
 ### Options
 
 ```

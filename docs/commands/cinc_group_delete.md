@@ -6,6 +6,14 @@ Delete a group from the server
 cinc group delete <name> [flags]
 ```
 
+### Examples
+
+Delete a group from the server.
+
+```
+cinc group delete admins
+```
+
 ### Options
 
 ```

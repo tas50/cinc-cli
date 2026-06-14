@@ -6,6 +6,20 @@ Deploy a Policyfile lock to a policy group
 cinc policy push <group> [lock] [flags]
 ```
 
+### Examples
+
+Deploy ./Policyfile.lock.json to a policy group, uploading its cookbooks.
+
+```
+cinc policy push prod
+```
+
+Deploy a specific lock file.
+
+```
+cinc policy push prod Policyfile.lock.json
+```
+
 ### Options
 
 ```

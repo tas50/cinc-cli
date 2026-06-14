@@ -6,6 +6,14 @@ Delete a data bag item from the server
 cinc databag item delete <bag> <id> [flags]
 ```
 
+### Examples
+
+Delete an item from a data bag.
+
+```
+cinc databag item delete passwords mysql
+```
+
 ### Options
 
 ```

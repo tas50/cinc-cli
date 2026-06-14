@@ -6,6 +6,14 @@ Show a role
 cinc role show <name> [flags]
 ```
 
+### Examples
+
+Show a role.
+
+```
+cinc role show webserver
+```
+
 ### Options
 
 ```

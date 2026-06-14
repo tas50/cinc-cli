@@ -12,6 +12,14 @@ of each cookbook (one extra request to /universe, fast).
 cinc supermarket list [flags]
 ```
 
+### Examples
+
+List cookbooks available on Chef Supermarket.
+
+```
+cinc supermarket list
+```
+
 ### Options
 
 ```

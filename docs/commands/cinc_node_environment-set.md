@@ -6,6 +6,14 @@ Set a node's environment
 cinc node environment-set <node> <environment> [flags]
 ```
 
+### Examples
+
+Move a node into a different environment.
+
+```
+cinc node environment-set web01 prod
+```
+
 ### Options
 
 ```

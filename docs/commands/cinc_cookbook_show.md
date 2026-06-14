@@ -6,6 +6,20 @@ Show a cookbook version manifest
 cinc cookbook show <name> [version] [flags]
 ```
 
+### Examples
+
+Show the latest version's file manifest.
+
+```
+cinc cookbook show nginx
+```
+
+Show a specific version.
+
+```
+cinc cookbook show nginx 1.2.0
+```
+
 ### Options
 
 ```

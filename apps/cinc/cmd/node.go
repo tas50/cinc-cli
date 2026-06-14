@@ -56,7 +56,9 @@ func newNodeCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a node on the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Create a node with a starting environment and run-list.\n" +
+			"cinc node create web01 --environment prod --run-list 'recipe[base],role[web]'",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -104,7 +106,9 @@ func newNodeEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <name>",
 		Short: "Edit a node on the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Open a node's JSON in your editor and save changes back.\n" +
+			"cinc node edit web01",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -173,7 +177,9 @@ func newNodeSSHCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ssh [search-query] [command]",
 		Short: "Run an SSH command on nodes",
-		Args:  cobra.MaximumNArgs(2),
+		Example: "Run a command on every node matching a search query.\n" +
+			"cinc node ssh 'role:web' 'sudo systemctl restart nginx' --ssh-user ubuntu",
+		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -232,7 +238,9 @@ func newNodeBootstrapCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bootstrap [target]",
 		Short: "Bootstrap a node with Cinc Client over SSH",
-		Args:  cobra.MaximumNArgs(1),
+		Example: "Install Cinc Client on a host over SSH and register it as a node.\n" +
+			"cinc node bootstrap web01.example.com --ssh-user ubuntu --run-list 'recipe[base]'",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target := argAt(args, 0)
 			if err := promptNodeBootstrap(cmd, &target, &flags); err != nil {
@@ -319,7 +327,9 @@ func newNodeListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List nodes on the server",
-		Args:  cobra.NoArgs,
+		Example: "List every node registered on the server.\n" +
+			"cinc node list",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -343,7 +353,9 @@ func newNodeShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Show a node",
-		Args:  cobra.ExactArgs(1),
+		Example: "Show a node's full object, including its attributes and run-list.\n" +
+			"cinc node show web01",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -367,7 +379,9 @@ func newNodeDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a node from the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Delete a node from the server.\n" +
+			"cinc node delete web01",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {

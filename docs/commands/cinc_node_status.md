@@ -6,6 +6,20 @@ Show nodes and when they last checked in
 cinc node status [query] [flags]
 ```
 
+### Examples
+
+Show every node with how long ago it last checked in.
+
+```
+cinc node status
+```
+
+Limit the report to nodes matching a search query.
+
+```
+cinc node status 'role:web'
+```
+
 ### Options
 
 ```

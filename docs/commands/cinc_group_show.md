@@ -6,6 +6,14 @@ Show a group's members
 cinc group show <name> [flags]
 ```
 
+### Examples
+
+Show a group's members.
+
+```
+cinc group show admins
+```
+
 ### Options
 
 ```

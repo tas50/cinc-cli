@@ -6,6 +6,20 @@ Create a data bag, optionally with an initial item
 cinc databag create <bag> [item] [flags]
 ```
 
+### Examples
+
+Create an empty data bag.
+
+```
+cinc databag create passwords
+```
+
+Create a data bag and add an item in one step (opens your editor).
+
+```
+cinc databag create passwords mysql
+```
+
 ### Options
 
 ```

@@ -6,6 +6,14 @@ List policies on the server
 cinc policy list [flags]
 ```
 
+### Examples
+
+List every policy on the server.
+
+```
+cinc policy list
+```
+
 ### Options
 
 ```

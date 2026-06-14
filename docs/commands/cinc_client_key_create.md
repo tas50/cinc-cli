@@ -6,6 +6,14 @@ Add a key to a client
 cinc client key create <client> <key-name> [flags]
 ```
 
+### Examples
+
+Add a key to a client, writing the generated private key to a file.
+
+```
+cinc client key create worker-01 rotation --key-file rotation.pem
+```
+
 ### Options
 
 ```

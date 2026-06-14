@@ -6,6 +6,14 @@ Show an API client
 cinc client show <name> [flags]
 ```
 
+### Examples
+
+Show an API client, including whether it is a validator.
+
+```
+cinc client show worker-01
+```
+
 ### Options
 
 ```

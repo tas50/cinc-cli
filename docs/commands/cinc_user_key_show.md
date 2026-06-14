@@ -6,6 +6,14 @@ Show one of a user's keys
 cinc user key show <user> <key-name> [flags]
 ```
 
+### Examples
+
+Show one of a user's keys.
+
+```
+cinc user key show alice default
+```
+
 ### Options
 
 ```

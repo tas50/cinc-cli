@@ -13,6 +13,20 @@ tarball size, dependencies, and supported platforms.
 cinc supermarket show <cookbook> [version] [flags]
 ```
 
+### Examples
+
+Show a Supermarket cookbook.
+
+```
+cinc supermarket show nginx
+```
+
+Show a specific version.
+
+```
+cinc supermarket show nginx 1.2.0
+```
+
 ### Options
 
 ```

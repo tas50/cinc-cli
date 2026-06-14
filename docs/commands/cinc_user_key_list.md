@@ -6,6 +6,14 @@ List a user's keys
 cinc user key list <user> [flags]
 ```
 
+### Examples
+
+List a user's keys.
+
+```
+cinc user key list alice
+```
+
 ### Options
 
 ```

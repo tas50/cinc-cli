@@ -6,6 +6,14 @@ Remove actors from a group
 cinc group member remove <group> <name>... [flags]
 ```
 
+### Examples
+
+Remove an actor from a group.
+
+```
+cinc group member remove admins alice
+```
+
 ### Options
 
 ```

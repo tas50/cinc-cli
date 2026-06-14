@@ -6,6 +6,14 @@ Regenerate a client's default key, invalidating the old one
 cinc client reregister <name> [flags]
 ```
 
+### Examples
+
+Regenerate a client's key and write the new private key to disk.
+
+```
+cinc client reregister worker-01 --key-file worker-01.pem
+```
+
 ### Options
 
 ```

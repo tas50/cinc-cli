@@ -6,6 +6,14 @@ Validate local Cinc TOML configuration and endpoint reachability
 cinc config validate [path] [flags]
 ```
 
+### Examples
+
+Validate your credentials file and check each profile's server is reachable.
+
+```
+cinc config validate
+```
+
 ### Options
 
 ```

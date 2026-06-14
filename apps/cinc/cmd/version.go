@@ -50,7 +50,9 @@ func newVersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Print cinc version information",
-		Args:  cobra.NoArgs,
+		Example: "Print the cinc version, commit, and build date.\n" +
+			"cinc version",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			fmt.Fprint(cmd.OutOrStdout(), newVersionInfo().String())
 			return nil

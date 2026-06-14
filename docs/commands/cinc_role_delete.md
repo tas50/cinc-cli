@@ -6,6 +6,14 @@ Delete a role from the server
 cinc role delete <name> [flags]
 ```
 
+### Examples
+
+Delete a role from the server.
+
+```
+cinc role delete webserver
+```
+
 ### Options
 
 ```

@@ -6,6 +6,14 @@ Show an environment
 cinc environment show <name> [flags]
 ```
 
+### Examples
+
+Show an environment.
+
+```
+cinc environment show prod
+```
+
 ### Options
 
 ```

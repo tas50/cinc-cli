@@ -6,6 +6,14 @@ Create a role on the server
 cinc role create <name> [flags]
 ```
 
+### Examples
+
+Create a role; your editor opens to define its run-list and attributes.
+
+```
+cinc role create webserver
+```
+
 ### Options
 
 ```

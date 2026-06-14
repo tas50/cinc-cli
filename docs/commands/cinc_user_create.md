@@ -6,6 +6,14 @@ Create a user on the server
 cinc user create <name> [flags]
 ```
 
+### Examples
+
+Create a user, writing the generated private key to a file.
+
+```
+cinc user create alice --email alice@example.com --first-name Alice --last-name Smith --key-file alice.pem
+```
+
 ### Options
 
 ```

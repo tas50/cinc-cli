@@ -6,6 +6,14 @@ List nodes on the server
 cinc node list [flags]
 ```
 
+### Examples
+
+List every node registered on the server.
+
+```
+cinc node list
+```
+
 ### Options
 
 ```

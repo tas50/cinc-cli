@@ -35,7 +35,9 @@ func newConfigValidateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate [path]",
 		Short: "Validate local Cinc TOML configuration and endpoint reachability",
-		Args:  cobra.MaximumNArgs(1),
+		Example: "Validate your credentials file and check each profile's server is reachable.\n" +
+			"cinc config validate",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path, err := configValidatePath(cmd, args)
 			if err != nil {

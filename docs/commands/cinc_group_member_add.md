@@ -6,6 +6,14 @@ Add actors to a group
 cinc group member add <group> <name>... [flags]
 ```
 
+### Examples
+
+Add users or clients to a group.
+
+```
+cinc group member add admins alice worker-01
+```
+
 ### Options
 
 ```

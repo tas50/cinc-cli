@@ -6,6 +6,14 @@ Add tags to a node
 cinc node tag add <node> <tag>... [flags]
 ```
 
+### Examples
+
+Add one or more tags to a node.
+
+```
+cinc node tag add web01 prod canary
+```
+
 ### Options
 
 ```

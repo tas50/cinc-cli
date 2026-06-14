@@ -6,6 +6,14 @@ List cookbooks on the server
 cinc cookbook list [flags]
 ```
 
+### Examples
+
+List every cookbook on the server.
+
+```
+cinc cookbook list
+```
+
 ### Options
 
 ```

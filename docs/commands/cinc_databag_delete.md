@@ -6,6 +6,14 @@ Delete a data bag from the server
 cinc databag delete <name> [flags]
 ```
 
+### Examples
+
+Delete a data bag and all of its items.
+
+```
+cinc databag delete passwords
+```
+
 ### Options
 
 ```

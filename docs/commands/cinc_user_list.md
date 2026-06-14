@@ -6,6 +6,14 @@ List users on the server
 cinc user list [flags]
 ```
 
+### Examples
+
+List every user on the server.
+
+```
+cinc user list
+```
+
 ### Options
 
 ```

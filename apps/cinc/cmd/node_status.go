@@ -35,7 +35,11 @@ func newNodeStatusCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status [query]",
 		Short: "Show nodes and when they last checked in",
-		Args:  cobra.MaximumNArgs(1),
+		Example: "Show every node with how long ago it last checked in.\n" +
+			"cinc node status\n\n" +
+			"Limit the report to nodes matching a search query.\n" +
+			"cinc node status 'role:web'",
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {

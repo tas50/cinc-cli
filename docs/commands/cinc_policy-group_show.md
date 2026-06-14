@@ -6,6 +6,14 @@ Show a policy group's active policy revisions
 cinc policy-group show <name> [flags]
 ```
 
+### Examples
+
+Show the policies and revisions active in a group.
+
+```
+cinc policy-group show prod
+```
+
 ### Options
 
 ```

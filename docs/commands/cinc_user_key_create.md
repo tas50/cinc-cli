@@ -6,6 +6,14 @@ Add a key to a user
 cinc user key create <user> <key-name> [flags]
 ```
 
+### Examples
+
+Add a key to a user, writing the generated private key to a file.
+
+```
+cinc user key create alice rotation --key-file rotation.pem
+```
+
 ### Options
 
 ```

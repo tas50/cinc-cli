@@ -6,6 +6,14 @@ List a node's tags
 cinc node tag list <node> [flags]
 ```
 
+### Examples
+
+Show a node's current tags.
+
+```
+cinc node tag list web01
+```
+
 ### Options
 
 ```

@@ -6,6 +6,14 @@ Show a data bag's item IDs
 cinc databag show <bag> [flags]
 ```
 
+### Examples
+
+Show the item IDs in a data bag.
+
+```
+cinc databag show passwords
+```
+
 ### Options
 
 ```

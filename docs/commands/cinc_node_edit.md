@@ -6,6 +6,14 @@ Edit a node on the server
 cinc node edit <name> [flags]
 ```
 
+### Examples
+
+Open a node's JSON in your editor and save changes back.
+
+```
+cinc node edit web01
+```
+
 ### Options
 
 ```

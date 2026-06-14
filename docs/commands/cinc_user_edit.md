@@ -6,6 +6,14 @@ Edit a user on the server
 cinc user edit <name> [flags]
 ```
 
+### Examples
+
+Open a user's JSON in your editor and save it back.
+
+```
+cinc user edit alice
+```
+
 ### Options
 
 ```

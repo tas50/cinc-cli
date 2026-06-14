@@ -13,6 +13,14 @@ pass --file to choose a target file or directory.
 cinc supermarket download <cookbook> [version] [flags]
 ```
 
+### Examples
+
+Download a cookbook tarball from Supermarket.
+
+```
+cinc supermarket download nginx
+```
+
 ### Options
 
 ```

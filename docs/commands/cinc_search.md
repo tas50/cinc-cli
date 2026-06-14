@@ -15,6 +15,14 @@ emits the full result.
 cinc search <index> <query> [flags]
 ```
 
+### Examples
+
+Search an index — node, role, environment, client, or a data bag name.
+
+```
+cinc search node 'role:web'
+```
+
 ### Options
 
 ```

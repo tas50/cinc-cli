@@ -6,6 +6,14 @@ List data bags on the server
 cinc databag list [flags]
 ```
 
+### Examples
+
+List every data bag on the server.
+
+```
+cinc databag list
+```
+
 ### Options
 
 ```

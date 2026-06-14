@@ -6,6 +6,14 @@ Delete a node from the server
 cinc node delete <name> [flags]
 ```
 
+### Examples
+
+Delete a node from the server.
+
+```
+cinc node delete web01
+```
+
 ### Options
 
 ```

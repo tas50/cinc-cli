@@ -40,7 +40,9 @@ func newRoleCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a role on the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Create a role; your editor opens to define its run-list and attributes.\n" +
+			"cinc role create webserver",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -84,7 +86,9 @@ func newRoleEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <name>",
 		Short: "Edit a role on the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Edit a role's run-list and attributes in your editor.\n" +
+			"cinc role edit webserver",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -137,7 +141,9 @@ func newRoleShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Show a role",
-		Args:  cobra.ExactArgs(1),
+		Example: "Show a role.\n" +
+			"cinc role show webserver",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -161,7 +167,9 @@ func newRoleDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a role from the server",
-		Args:  cobra.ExactArgs(1),
+		Example: "Delete a role from the server.\n" +
+			"cinc role delete webserver",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -182,7 +190,9 @@ func newRoleListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List roles on the server",
-		Args:  cobra.NoArgs,
+		Example: "List every role on the server.\n" +
+			"cinc role list",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {

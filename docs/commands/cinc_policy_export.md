@@ -6,6 +6,14 @@ Assemble a standalone bundle from a Policyfile lock
 cinc policy export [lock] [dir] [flags]
 ```
 
+### Examples
+
+Assemble a standalone bundle for an air-gapped cinc-client -z run.
+
+```
+cinc policy export Policyfile.lock.json ./bundle --archive
+```
+
 ### Options
 
 ```

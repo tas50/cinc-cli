@@ -6,6 +6,14 @@ Print cinc version information
 cinc version [flags]
 ```
 
+### Examples
+
+Print the cinc version, commit, and build date.
+
+```
+cinc version
+```
+
 ### Options
 
 ```
