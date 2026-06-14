@@ -5,11 +5,17 @@ package client
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	cinc "github.com/tas50/cinc-api"
 
 	"github.com/tas50/cinc-cli/cli/config"
 )
+
+// tlsWarnWriter is where the "TLS verification disabled" warning is written. It
+// is a package variable so tests can capture it.
+var tlsWarnWriter io.Writer = os.Stderr
 
 // New builds a cinc-api client from a resolved configuration profile. All
 // server authentication and transport is handled by the cinc-api library;
@@ -28,6 +34,9 @@ func New(p config.Profile) (*cinc.Client, error) {
 	var opts []cinc.Option
 	if p.SSLVerifyMode == ":verify_none" {
 		opts = append(opts, cinc.WithSkipTLSVerify(true))
+		fmt.Fprintf(tlsWarnWriter,
+			"Warning: TLS certificate verification is disabled (ssl_verify_mode = :verify_none); the connection to %s is not authenticated and is vulnerable to interception.\n",
+			p.ServerURL)
 	}
 
 	c, err := cinc.NewClient(cinc.Config{

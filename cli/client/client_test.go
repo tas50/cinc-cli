@@ -1,12 +1,14 @@
 package client
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/tas50/cinc-cli/cli/config"
@@ -63,5 +65,49 @@ func TestNewBuildsClientFromValidProfile(t *testing.T) {
 	}
 	if c == nil {
 		t.Fatal("New returned a nil client")
+	}
+}
+
+// withCapturedTLSWarn swaps tlsWarnWriter for a buffer for the test's duration.
+func withCapturedTLSWarn(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	orig := tlsWarnWriter
+	tlsWarnWriter = &buf
+	t.Cleanup(func() { tlsWarnWriter = orig })
+	return &buf
+}
+
+func TestNewWarnsWhenTLSVerificationDisabled(t *testing.T) {
+	buf := withCapturedTLSWarn(t)
+	p := config.Profile{
+		ServerURL:     "https://chef.example.com",
+		Org:           "acme",
+		ClientName:    "tim",
+		KeyPath:       writeKeyFile(t),
+		SSLVerifyMode: ":verify_none",
+	}
+	if _, err := New(p); err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	got := buf.String()
+	if !strings.Contains(got, "verification is disabled") || !strings.Contains(got, "chef.example.com") {
+		t.Errorf("expected a TLS-disabled warning naming the server, got %q", got)
+	}
+}
+
+func TestNewDoesNotWarnWhenTLSVerified(t *testing.T) {
+	buf := withCapturedTLSWarn(t)
+	p := config.Profile{
+		ServerURL:  "https://chef.example.com",
+		Org:        "acme",
+		ClientName: "tim",
+		KeyPath:    writeKeyFile(t),
+	}
+	if _, err := New(p); err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("did not expect a warning with verification on, got %q", buf.String())
 	}
 }
