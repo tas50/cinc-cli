@@ -232,3 +232,56 @@ func exitStatusPayload(status uint32) []byte {
 	binary.BigEndian.PutUint32(payload[:], status)
 	return payload[:]
 }
+
+// TestNodeCreateAgainstCincZero creates a node with an environment and run
+// list, then confirms it is persisted.
+func TestNodeCreateAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	out := runCinc(t, env.binary, "node", "create", "app01",
+		"--environment", "_default",
+		"--run-list", "recipe[base],recipe[app]",
+		"--config", env.cfgPath)
+	if out != "Created node \"app01\"\n" {
+		t.Errorf("node create output = %q", out)
+	}
+
+	jsonOut := runCinc(t, env.binary, "node", "show", "app01", "--config", env.cfgPath, "--format", "json")
+	var got cinc.Node
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("node show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.Name != "app01" || got.Environment != "_default" {
+		t.Errorf("created node = %+v, want name=app01 environment=_default", got)
+	}
+	if !contains(got.RunList, "recipe[base]") || !contains(got.RunList, "recipe[app]") {
+		t.Errorf("created node run_list = %v, want both recipes", got.RunList)
+	}
+}
+
+// TestNodeEditAgainstCincZero edits a seeded node through --file (moving it to
+// the seeded "staging" environment) and confirms the change is persisted.
+func TestNodeEditAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	file := writeJSONFile(t, cinc.Node{
+		Name:        "ignored",
+		Environment: "staging",
+		RunList:     []string{"recipe[base]"},
+	})
+	out := runCinc(t, env.binary, "node", "edit", "web01", "--file", file, "--config", env.cfgPath)
+	if out != "Updated node \"web01\"\n" {
+		t.Errorf("node edit output = %q", out)
+	}
+
+	jsonOut := runCinc(t, env.binary, "node", "show", "web01", "--config", env.cfgPath, "--format", "json")
+	var got cinc.Node
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("node show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got.Name != "web01" || got.Environment != "staging" {
+		t.Errorf("edited node = %+v, want name=web01 environment=staging", got)
+	}
+}

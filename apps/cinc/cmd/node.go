@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -27,9 +29,121 @@ func newNodeCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newNodeListCmd())
 	cmd.AddCommand(newNodeShowCmd())
+	cmd.AddCommand(newNodeCreateCmd())
+	cmd.AddCommand(newNodeEditCmd())
 	cmd.AddCommand(newNodeDeleteCmd())
 	cmd.AddCommand(newNodeSSHCmd())
 	cmd.AddCommand(newNodeBootstrapCmd())
+	return cmd
+}
+
+// newNodeCreateCmd builds the `cinc node create <name>` command. By default it
+// POSTs a minimal node carrying the name, an empty run list, and the optional
+// --environment / --run-list values. With --file the full node JSON is read
+// from disk, with the positional name overriding whatever "name" the file
+// declares.
+func newNodeCreateCmd() *cobra.Command {
+	var (
+		environment string
+		runList     string
+		inputFile   string
+	)
+	cmd := &cobra.Command{
+		Use:   "create <name>",
+		Short: "Create a node on the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			node := cinc.Node{Name: args[0], RunList: []string{}}
+			if inputFile != "" {
+				data, err := os.ReadFile(inputFile)
+				if err != nil {
+					return fmt.Errorf("cinc: read %s: %w", inputFile, err)
+				}
+				if err := json.Unmarshal(data, &node); err != nil {
+					return fmt.Errorf("cinc: parse %s: %w", inputFile, err)
+				}
+				node.Name = args[0]
+			}
+			if environment != "" {
+				node.Environment = environment
+			}
+			if cmd.Flags().Changed("run-list") {
+				node.RunList = splitCSV(runList)
+			}
+			if node.RunList == nil {
+				node.RunList = []string{}
+			}
+			if _, _, err := c.Nodes.Create(cmd.Context(), &node); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Created node %q\n", node.Name)
+			return nil
+		},
+	}
+	cmd.Flags().StringVarP(&environment, "environment", "E", "", "chef_environment for the new node")
+	cmd.Flags().StringVar(&runList, "run-list", "", "comma-separated run list for the new node")
+	cmd.Flags().StringVar(&inputFile, "file", "", "read the full node JSON from this file instead of using flags")
+	return cmd
+}
+
+// newNodeEditCmd builds the `cinc node edit <name>` command. It fetches the
+// node, opens its JSON in the shared editor, and PUTs the result back. The
+// path arg pins the node name. `--file` reads the updated JSON from disk for
+// scripted use.
+func newNodeEditCmd() *cobra.Command {
+	var inputFile string
+	cmd := &cobra.Command{
+		Use:   "edit <name>",
+		Short: "Edit a node on the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+
+			var updated cinc.Node
+			if inputFile != "" {
+				data, err := os.ReadFile(inputFile)
+				if err != nil {
+					return fmt.Errorf("cinc: read %s: %w", inputFile, err)
+				}
+				if err := json.Unmarshal(data, &updated); err != nil {
+					return fmt.Errorf("cinc: parse %s: %w", inputFile, err)
+				}
+			} else {
+				current, _, err := c.Nodes.Get(cmd.Context(), name)
+				if err != nil {
+					return err
+				}
+				edited, err := editNode(current)
+				if err != nil {
+					return err
+				}
+				if reflect.DeepEqual(*current, *edited) {
+					fmt.Fprintf(cmd.OutOrStdout(), "Node %q unchanged\n", name)
+					return nil
+				}
+				updated = *edited
+			}
+			updated.Name = name
+			if updated.RunList == nil {
+				updated.RunList = []string{}
+			}
+
+			if _, _, err := c.Nodes.Update(cmd.Context(), &updated); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Updated node %q\n", name)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&inputFile, "file", "", "read the updated node JSON from this file instead of launching the editor")
 	return cmd
 }
 

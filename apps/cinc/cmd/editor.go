@@ -37,6 +37,7 @@ func openClientJSONEditor(in *cinc.APIClient) (*cinc.APIClient, error) {
 // result. Each is a package variable so tests can override it without
 // spawning a TUI, mirroring editClient.
 var (
+	editNode        = openObjectJSONEditor[cinc.Node]
 	editRole        = openObjectJSONEditor[cinc.Role]
 	editEnvironment = openObjectJSONEditor[cinc.Environment]
 	editUser        = openObjectJSONEditor[cinc.User]

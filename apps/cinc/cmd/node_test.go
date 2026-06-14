@@ -412,3 +412,199 @@ func (r *recordingRunner) Run(_ context.Context, target remote.Target, command s
 	}
 	return result
 }
+
+// nodeItemServer serves GET of current at /nodes/<name> and records the PUT
+// body into *gotPut.
+func nodeItemServer(t *testing.T, name string, current cinc.Node, gotPut *cinc.Node) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/nodes/"+name, func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(current)
+		case http.MethodPut:
+			if err := json.NewDecoder(r.Body).Decode(gotPut); err != nil {
+				t.Fatalf("decode PUT body: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(gotPut)
+		default:
+			t.Errorf("unexpected method %q on %s", r.Method, r.URL.Path)
+		}
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func withStubNodeEditor(t *testing.T, stub func(*cinc.Node) (*cinc.Node, error)) {
+	t.Helper()
+	orig := editNode
+	editNode = stub
+	t.Cleanup(func() { editNode = orig })
+}
+
+func writeNodeConfig(t *testing.T, serverURL string) string {
+	t.Helper()
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, serverURL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return cfgPath
+}
+
+func TestNodeCreateCommandEndToEnd(t *testing.T) {
+	var created cinc.Node
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/nodes", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %q, want POST", r.Method)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&created); err != nil {
+			t.Fatalf("decode create body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(created)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"node", "create", "web01", "--environment", "prod", "--run-list", "recipe[base],recipe[apache]", "--config", writeNodeConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc node create: %v", err)
+	}
+	if created.Name != "web01" || created.Environment != "prod" {
+		t.Errorf("server received %+v, want name=web01 environment=prod", created)
+	}
+	if !slices.Equal(created.RunList, []string{"recipe[base]", "recipe[apache]"}) {
+		t.Errorf("create run_list = %v, want from --run-list", created.RunList)
+	}
+	if got := buf.String(); got != "Created node \"web01\"\n" {
+		t.Errorf("node create output = %q", got)
+	}
+}
+
+func TestNodeCreateCommandDefaultsRunListToEmpty(t *testing.T) {
+	var created cinc.Node
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/nodes", func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&created); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(created)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"node", "create", "web01", "--config", writeNodeConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc node create: %v", err)
+	}
+	if created.RunList == nil {
+		t.Errorf("run_list should serialize as [] not null")
+	}
+}
+
+func TestNodeCreateCommandReadsFromFile(t *testing.T) {
+	var created cinc.Node
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/nodes", func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&created); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(created)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	filePath := filepath.Join(t.TempDir(), "node.json")
+	body, _ := json.Marshal(cinc.Node{Name: "ignored", Environment: "staging", RunList: []string{"recipe[base]"}})
+	if err := os.WriteFile(filePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"node", "create", "web01", "--file", filePath, "--config", writeNodeConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc node create --file: %v", err)
+	}
+	if created.Name != "web01" {
+		t.Errorf("create body name = %q, want web01 (path arg must win over file)", created.Name)
+	}
+	if created.Environment != "staging" || !slices.Equal(created.RunList, []string{"recipe[base]"}) {
+		t.Errorf("create body = %+v, want from file", created)
+	}
+}
+
+func TestNodeEditCommandPutsEditorResult(t *testing.T) {
+	var gotPut cinc.Node
+	current := cinc.Node{Name: "web01", Environment: "prod", RunList: []string{"recipe[base]"}}
+	srv := nodeItemServer(t, "web01", current, &gotPut)
+
+	withStubNodeEditor(t, func(in *cinc.Node) (*cinc.Node, error) {
+		out := *in
+		out.Environment = "staging"
+		return &out, nil
+	})
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"node", "edit", "web01", "--config", writeNodeConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc node edit: %v", err)
+	}
+	if gotPut.Name != "web01" || gotPut.Environment != "staging" {
+		t.Errorf("PUT body = %+v, want name=web01 environment=staging", gotPut)
+	}
+	if got := buf.String(); got != "Updated node \"web01\"\n" {
+		t.Errorf("node edit output = %q", got)
+	}
+}
+
+func TestNodeEditCommandReadsFromFile(t *testing.T) {
+	var gotPut cinc.Node
+	current := cinc.Node{Name: "web01", RunList: []string{"recipe[base]"}}
+	srv := nodeItemServer(t, "web01", current, &gotPut)
+
+	withStubNodeEditor(t, func(*cinc.Node) (*cinc.Node, error) {
+		t.Fatal("editor was invoked despite --file")
+		return nil, nil
+	})
+
+	filePath := filepath.Join(t.TempDir(), "node.json")
+	body, _ := json.Marshal(cinc.Node{Name: "ignored", Environment: "qa", RunList: []string{"recipe[x]"}})
+	if err := os.WriteFile(filePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"node", "edit", "web01", "--file", filePath, "--config", writeNodeConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc node edit --file: %v", err)
+	}
+	if gotPut.Name != "web01" || gotPut.Environment != "qa" {
+		t.Errorf("PUT body = %+v, want name=web01 environment=qa", gotPut)
+	}
+}
