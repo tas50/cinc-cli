@@ -78,7 +78,10 @@ cinc config validate`,
 				printConfigValidation(cmd, result)
 			}
 			if !result.Valid {
-				return fmt.Errorf("config validation failed with %d issue(s)", len(result.Issues))
+				// The issues were already printed above; wrap the sentinel so
+				// Execute does not re-print a generic "Error: ..." line, while
+				// still exiting non-zero.
+				return fmt.Errorf("config validation failed with %d issue(s): %w", len(result.Issues), errAlreadyReported)
 			}
 			return nil
 		},
@@ -169,12 +172,12 @@ func printConfigValidation(cmd *cobra.Command, result configValidationResult) {
 		fmt.Fprintf(cmd.OutOrStdout(), "Config %s is valid (%d profile(s))\n", result.Path, result.Profiles)
 		return
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Config %s is invalid (%d issue(s))\n", result.Path, len(result.Issues))
-	for _, issue := range result.Issues {
+	fmt.Fprintf(cmd.OutOrStdout(), "Config %s is invalid:\n", result.Path)
+	for i, issue := range result.Issues {
 		if issue.Profile != "" {
-			fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\t%s\n", issue.Profile, issue.Field, issue.Message)
+			fmt.Fprintf(cmd.OutOrStdout(), "  %d. %s\t%s\t%s\n", i+1, issue.Profile, issue.Field, issue.Message)
 		} else {
-			fmt.Fprintf(cmd.OutOrStdout(), "%s\t%s\n", issue.Field, issue.Message)
+			fmt.Fprintf(cmd.OutOrStdout(), "  %d. %s\t%s\n", i+1, issue.Field, issue.Message)
 		}
 	}
 }
