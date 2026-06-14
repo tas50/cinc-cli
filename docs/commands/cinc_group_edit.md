@@ -10,7 +10,7 @@ cinc group edit <name> [flags]
 
 Edit a group's membership in your editor.
 
-```
+```bash
 cinc group edit admins
 ```
 

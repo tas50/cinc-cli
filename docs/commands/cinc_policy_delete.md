@@ -10,7 +10,7 @@ cinc policy delete <name> [flags]
 
 Delete a policy and all of its revisions.
 
-```
+```bash
 cinc policy delete appserver
 ```
 

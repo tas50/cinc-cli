@@ -10,7 +10,7 @@ cinc policy list [flags]
 
 List every policy on the server.
 
-```
+```bash
 cinc policy list
 ```
 

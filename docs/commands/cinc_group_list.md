@@ -10,7 +10,7 @@ cinc group list [flags]
 
 List every group on the server.
 
-```
+```bash
 cinc group list
 ```
 

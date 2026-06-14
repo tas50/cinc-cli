@@ -10,7 +10,7 @@ cinc cookbook delete <name> <version> [flags]
 
 Delete a specific cookbook version from the server.
 
-```
+```bash
 cinc cookbook delete nginx 1.2.0
 ```
 

@@ -10,7 +10,7 @@ cinc client delete <name> [flags]
 
 Delete an API client from the server.
 
-```
+```bash
 cinc client delete worker-01
 ```
 

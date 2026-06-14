@@ -10,7 +10,7 @@ cinc environment list [flags]
 
 List every environment on the server.
 
-```
+```bash
 cinc environment list
 ```
 

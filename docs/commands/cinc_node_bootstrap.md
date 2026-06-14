@@ -10,7 +10,7 @@ cinc node bootstrap [target] [flags]
 
 Bootstrap a host with a first-run run-list.
 
-```
+```bash
 cinc node bootstrap web01.example.com --ssh-user ubuntu --run-list 'recipe[base]'
 ```
 

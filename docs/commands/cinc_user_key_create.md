@@ -10,7 +10,7 @@ cinc user key create <user> <key-name> [flags]
 
 Have the server generate the key pair and write the private key to a file.
 
-```
+```bash
 cinc user key create alice rotation --key-file rotation.pem
 ```
 

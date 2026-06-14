@@ -10,7 +10,7 @@ cinc client key show <client> <key-name> [flags]
 
 Show one of a client's keys.
 
-```
+```bash
 cinc client key show worker-01 default
 ```
 

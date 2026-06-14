@@ -10,7 +10,7 @@ cinc client key delete <client> <key-name> [flags]
 
 Delete one of a client's keys.
 
-```
+```bash
 cinc client key delete worker-01 rotation
 ```
 

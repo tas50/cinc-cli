@@ -10,7 +10,7 @@ cinc node run-list set <node> <entry>... [flags]
 
 Replace a node's run-list entirely.
 
-```
+```bash
 cinc node run-list set web01 'recipe[base],role[web]'
 ```
 

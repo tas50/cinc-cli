@@ -10,7 +10,7 @@ cinc databag item list <bag> [flags]
 
 List the item IDs in a data bag.
 
-```
+```bash
 cinc databag item list passwords
 ```
 

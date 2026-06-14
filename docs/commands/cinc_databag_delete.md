@@ -10,7 +10,7 @@ cinc databag delete <name> [flags]
 
 Delete a data bag and all of its items.
 
-```
+```bash
 cinc databag delete passwords
 ```
 

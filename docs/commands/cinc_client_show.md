@@ -10,7 +10,7 @@ cinc client show <name> [flags]
 
 Show an API client, including whether it is a validator.
 
-```
+```bash
 cinc client show worker-01
 ```
 

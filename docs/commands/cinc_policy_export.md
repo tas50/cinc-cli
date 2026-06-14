@@ -10,7 +10,7 @@ cinc policy export [lock] [dir] [flags]
 
 Assemble a standalone bundle for an air-gapped cinc-client -z run.
 
-```
+```bash
 cinc policy export Policyfile.lock.json ./bundle --archive
 ```
 

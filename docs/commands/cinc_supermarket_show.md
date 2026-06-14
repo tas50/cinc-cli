@@ -17,13 +17,13 @@ cinc supermarket show <cookbook> [version] [flags]
 
 Show a Supermarket cookbook.
 
-```
+```bash
 cinc supermarket show nginx
 ```
 
 Show a specific version.
 
-```
+```bash
 cinc supermarket show nginx 1.2.0
 ```
 

@@ -17,7 +17,7 @@ cinc supermarket download <cookbook> [version] [flags]
 
 Download a cookbook tarball from Supermarket.
 
-```
+```bash
 cinc supermarket download nginx
 ```
 

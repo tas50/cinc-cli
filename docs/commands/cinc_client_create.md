@@ -10,7 +10,7 @@ cinc client create <name> [flags]
 
 Create a client; the server generates the key, written to a file.
 
-```
+```bash
 cinc client create worker-01 --key-file worker-01.pem
 ```
 

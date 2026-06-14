@@ -101,7 +101,7 @@ func renderExamples(raw string) string {
 			closeCode()
 		case t == "cinc" || strings.HasPrefix(t, "cinc "):
 			if !inCode {
-				b.WriteString("```\n")
+				b.WriteString("```bash\n")
 				inCode = true
 			}
 			b.WriteString(t + "\n")

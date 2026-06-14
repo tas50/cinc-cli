@@ -10,7 +10,7 @@ cinc role list [flags]
 
 List every role on the server.
 
-```
+```bash
 cinc role list
 ```
 

@@ -10,7 +10,7 @@ cinc node run-list add <node> <entry>... [flags]
 
 Append an entry to a node's run-list (existing entries are kept).
 
-```
+```bash
 cinc node run-list add web01 'recipe[ntp]'
 ```
 

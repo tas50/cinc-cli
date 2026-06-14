@@ -10,7 +10,7 @@ cinc node ssh [search-query] [command] [flags]
 
 Run a command on every node matching a search query.
 
-```
+```bash
 cinc node ssh 'role:web' 'sudo systemctl restart nginx' --ssh-user ubuntu
 ```
 

@@ -10,7 +10,7 @@ cinc node create <name> [flags]
 
 Create a node with a starting environment and run-list.
 
-```
+```bash
 cinc node create web01 --environment prod --run-list 'recipe[base],role[web]'
 ```
 

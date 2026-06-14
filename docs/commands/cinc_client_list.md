@@ -10,7 +10,7 @@ cinc client list [flags]
 
 List every API client on the server.
 
-```
+```bash
 cinc client list
 ```
 

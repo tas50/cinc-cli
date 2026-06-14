@@ -10,13 +10,13 @@ cinc cookbook show <name> [version] [flags]
 
 Show the latest version's file manifest.
 
-```
+```bash
 cinc cookbook show nginx
 ```
 
 Show a specific version.
 
-```
+```bash
 cinc cookbook show nginx 1.2.0
 ```
 

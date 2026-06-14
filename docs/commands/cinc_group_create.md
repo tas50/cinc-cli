@@ -10,7 +10,7 @@ cinc group create <name> [flags]
 
 Create a group.
 
-```
+```bash
 cinc group create admins
 ```
 

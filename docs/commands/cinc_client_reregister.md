@@ -10,7 +10,7 @@ cinc client reregister <name> [flags]
 
 Regenerate a client's key and write the new private key to disk.
 
-```
+```bash
 cinc client reregister worker-01 --key-file worker-01.pem
 ```
 

@@ -10,7 +10,7 @@ cinc client key edit <client> <key-name> [flags]
 
 Edit one of a client's keys, for example its expiration.
 
-```
+```bash
 cinc client key edit worker-01 default
 ```
 

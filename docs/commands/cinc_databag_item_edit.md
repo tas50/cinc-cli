@@ -10,7 +10,7 @@ cinc databag item edit <bag> <id> [flags]
 
 Edit a data bag item in your editor.
 
-```
+```bash
 cinc databag item edit passwords mysql
 ```
 

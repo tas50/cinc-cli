@@ -10,7 +10,7 @@ cinc client edit <name> [flags]
 
 Open an API client's JSON in your editor and save it back.
 
-```
+```bash
 cinc client edit worker-01
 ```
 

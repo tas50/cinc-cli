@@ -10,7 +10,7 @@ cinc role edit <name> [flags]
 
 Edit a role's run-list and attributes in your editor.
 
-```
+```bash
 cinc role edit webserver
 ```
 

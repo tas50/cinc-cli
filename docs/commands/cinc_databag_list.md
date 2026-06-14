@@ -10,7 +10,7 @@ cinc databag list [flags]
 
 List every data bag on the server.
 
-```
+```bash
 cinc databag list
 ```
 

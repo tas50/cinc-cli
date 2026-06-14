@@ -10,7 +10,7 @@ cinc node show <name> [flags]
 
 Show a node's full object, including its attributes and run-list.
 
-```
+```bash
 cinc node show web01
 ```
 

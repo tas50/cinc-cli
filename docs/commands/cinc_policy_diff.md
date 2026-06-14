@@ -18,7 +18,7 @@ cinc policy diff <name> <ref1> <ref2> [flags]
 
 Compare two revisions of a policy.
 
-```
+```bash
 cinc policy diff appserver 1.0.0 1.1.0
 ```
 

@@ -10,7 +10,7 @@ cinc user key delete <user> <key-name> [flags]
 
 Delete one of a user's keys.
 
-```
+```bash
 cinc user key delete alice rotation
 ```
 

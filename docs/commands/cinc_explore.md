@@ -21,7 +21,7 @@ cinc explore [flags]
 
 Launch the interactive terminal UI to browse nodes, roles, and more.
 
-```
+```bash
 cinc explore
 ```
 

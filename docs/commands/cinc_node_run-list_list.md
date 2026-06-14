@@ -10,7 +10,7 @@ cinc node run-list list <node> [flags]
 
 Show a node's current run-list.
 
-```
+```bash
 cinc node run-list list web01
 ```
 

@@ -10,7 +10,7 @@ cinc databag item show <bag> <id> [flags]
 
 Show a data bag item.
 
-```
+```bash
 cinc databag item show passwords mysql
 ```
 

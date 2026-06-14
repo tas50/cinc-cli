@@ -10,13 +10,13 @@ cinc databag create <bag> [item] [flags]
 
 Create an empty data bag.
 
-```
+```bash
 cinc databag create passwords
 ```
 
 Create a data bag and add an item in one step (opens your editor).
 
-```
+```bash
 cinc databag create passwords mysql
 ```
 

@@ -17,7 +17,7 @@ cinc supermarket explore [flags]
 
 Browse Supermarket cookbooks in an interactive terminal UI.
 
-```
+```bash
 cinc supermarket explore
 ```
 

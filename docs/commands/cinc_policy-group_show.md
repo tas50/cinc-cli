@@ -10,7 +10,7 @@ cinc policy-group show <name> [flags]
 
 Show the policies and revisions active in a group.
 
-```
+```bash
 cinc policy-group show prod
 ```
 

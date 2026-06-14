@@ -10,7 +10,7 @@ cinc databag item delete <bag> <id> [flags]
 
 Delete an item from a data bag.
 
-```
+```bash
 cinc databag item delete passwords mysql
 ```
 

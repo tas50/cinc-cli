@@ -10,7 +10,7 @@ cinc policy clean [name] [flags]
 
 Delete revisions of a policy that no policy group references.
 
-```
+```bash
 cinc policy clean appserver
 ```
 

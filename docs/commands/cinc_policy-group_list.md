@@ -10,7 +10,7 @@ cinc policy-group list [flags]
 
 List every policy group.
 
-```
+```bash
 cinc policy-group list
 ```
 

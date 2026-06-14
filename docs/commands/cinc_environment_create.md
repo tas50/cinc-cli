@@ -10,7 +10,7 @@ cinc environment create <name> [flags]
 
 Create an environment; your editor opens to define it.
 
-```
+```bash
 cinc environment create prod
 ```
 

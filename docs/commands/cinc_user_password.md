@@ -10,7 +10,7 @@ cinc user password <name> [flags]
 
 Set or reset a user's password (you are prompted if --password is omitted).
 
-```
+```bash
 cinc user password alice
 ```
 

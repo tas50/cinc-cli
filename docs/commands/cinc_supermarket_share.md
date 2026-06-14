@@ -10,7 +10,7 @@ cinc supermarket share <cookbook> [category] [flags]
 
 Share a local cookbook to Supermarket (requires credentials).
 
-```
+```bash
 cinc supermarket share nginx 'Web Servers'
 ```
 

@@ -10,7 +10,7 @@ cinc user edit <name> [flags]
 
 Open a user's JSON in your editor and save it back.
 
-```
+```bash
 cinc user edit alice
 ```
 

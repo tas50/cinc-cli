@@ -10,7 +10,7 @@ cinc group delete <name> [flags]
 
 Delete a group from the server.
 
-```
+```bash
 cinc group delete admins
 ```
 
