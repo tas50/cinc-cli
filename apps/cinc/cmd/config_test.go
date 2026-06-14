@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,10 +32,68 @@ cinc_server_url = "%s/organizations/acme"
 		t.Fatalf("cinc config validate: %v", err)
 	}
 	got := out.String()
-	for _, want := range []string{"is valid", "default profile [VALID]", "✓ Server is reachable"} {
+	for _, want := range []string{"is valid", "default profile [VALID]", "✓ Server URL is valid", "✓ Server is reachable"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("stdout = %q, want %q", got, want)
 		}
+	}
+}
+
+func TestParseServerHost(t *testing.T) {
+	ok := map[string]string{
+		"https://chef.example.com":     "chef.example.com",
+		"http://chef.example.com:8443": "chef.example.com",
+		"https://127.0.0.1:8889":       "127.0.0.1",
+	}
+	for in, want := range ok {
+		if got, err := parseServerHost(in); err != nil || got != want {
+			t.Errorf("parseServerHost(%q) = (%q, %v), want (%q, nil)", in, got, err, want)
+		}
+	}
+	for _, in := range []string{"", "chef.example.com", "ftp://host", "https://", "://nope"} {
+		if _, err := parseServerHost(in); err == nil {
+			t.Errorf("parseServerHost(%q) = nil error, want a format error", in)
+		}
+	}
+}
+
+func withStubResolver(t *testing.T, fn func(context.Context, string) ([]string, error)) {
+	t.Helper()
+	orig := resolveHost
+	resolveHost = fn
+	t.Cleanup(func() { resolveHost = orig })
+}
+
+func TestConfigValidateServerReachableFailsOnDNS(t *testing.T) {
+	// The reachable check resolves DNS before connecting; a resolution failure
+	// is reported there (and the server is never dialed).
+	srv := configValidateServer(t, http.StatusOK)
+	contacted := false
+	srv.Config.Handler = http.HandlerFunc(func(http.ResponseWriter, *http.Request) { contacted = true })
+	withStubResolver(t, func(context.Context, string) ([]string, error) {
+		return nil, fmt.Errorf("no such host")
+	})
+
+	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
+[default]
+client_name = "tim"
+client_key = %q
+cinc_server_url = "%s/organizations/acme"
+`, writeTestKey(t), srv.URL))
+
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"config", "validate", cfgPath})
+
+	if err := root.Execute(); err == nil {
+		t.Fatal("expected validation error when DNS fails")
+	}
+	if got := out.String(); !strings.Contains(got, "✗ Server is reachable: cannot resolve host") {
+		t.Errorf("stdout = %q, want a DNS resolution failure on the reachable check", got)
+	}
+	if contacted {
+		t.Error("the server should not be dialed when DNS resolution fails")
 	}
 }
 

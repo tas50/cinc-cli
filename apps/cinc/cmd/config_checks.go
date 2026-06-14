@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
+	"net/url"
 	"os"
 	"sort"
 	"time"
@@ -15,6 +17,10 @@ import (
 	"github.com/tas50/cinc-cli/cli/config"
 	"github.com/tas50/cinc-cli/cli/supermarket"
 )
+
+// resolveHost looks up a hostname; it is a package variable so the DNS check is
+// testable without real network access.
+var resolveHost = net.DefaultResolver.LookupHost
 
 // checkResult is the outcome of one named pre-flight check.
 type checkResult struct {
@@ -85,6 +91,16 @@ var profileChecks = []profileCheck{
 		},
 	},
 	{
+		name:    "Server URL is valid",
+		applies: func(p config.Profile) bool { return p.ServerURL != "" },
+		run: func(_ context.Context, p config.Profile) (bool, string) {
+			if _, err := parseServerHost(p.ServerURL); err != nil {
+				return false, err.Error()
+			}
+			return true, ""
+		},
+	},
+	{
 		name:    "Supermarket site URL is valid",
 		applies: func(p config.Profile) bool { return p.SupermarketSite != "" },
 		run: func(_ context.Context, p config.Profile) (bool, string) {
@@ -118,6 +134,13 @@ var profileChecks = []profileCheck{
 		name:    "Server is reachable",
 		applies: func(p config.Profile) bool { return p.ServerURL != "" && p.Org != "" },
 		run: func(ctx context.Context, p config.Profile) (bool, string) {
+			// Resolve DNS first so a name-resolution failure is reported
+			// distinctly from a connection failure, then try to connect.
+			if host, err := parseServerHost(p.ServerURL); err == nil {
+				if _, err := resolveHost(ctx, host); err != nil {
+					return false, fmt.Sprintf("cannot resolve host %q: %v", host, err)
+				}
+			}
 			c, err := cliclient.New(p)
 			if err != nil {
 				return false, err.Error()
@@ -194,6 +217,16 @@ func runConfigChecks(ctx context.Context, path string, cfg *config.Config) confi
 		}
 	}
 	return result
+}
+
+// parseServerHost validates that serverURL is a well-formed http(s) URL and
+// returns its hostname (without port).
+func parseServerHost(serverURL string) (string, error) {
+	u, err := url.Parse(serverURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+		return "", fmt.Errorf("not a valid http(s) server URL: %q", serverURL)
+	}
+	return u.Hostname(), nil
 }
 
 func allPassed(checks []checkResult) bool {
