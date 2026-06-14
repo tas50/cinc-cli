@@ -36,6 +36,9 @@ func newNodeCmd() *cobra.Command {
 	cmd.AddCommand(newNodeBootstrapCmd())
 	cmd.AddCommand(newNodeRunListCmd())
 	cmd.AddCommand(newNodeTagCmd())
+	cmd.AddCommand(newNodeStatusCmd())
+	cmd.AddCommand(newNodeEnvironmentSetCmd())
+	cmd.AddCommand(newNodePolicySetCmd())
 	return cmd
 }
 
