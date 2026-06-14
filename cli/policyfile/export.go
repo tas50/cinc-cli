@@ -45,7 +45,12 @@ func Export(ctx context.Context, fetcher *Fetcher, lock *cinc.PolicyRevision, lo
 		if ddi == "" {
 			ddi = cl.Identifier
 		}
-		dst := filepath.Join(destDir, "cookbooks", name+"-"+ddi)
+		// name and ddi come from the (untrusted) lock; keep them from escaping
+		// the export directory.
+		dst, err := safeJoin(destDir, "cookbooks", name+"-"+ddi)
+		if err != nil {
+			return ExportResult{}, fmt.Errorf("policyfile: cookbook %q: %w", name, err)
+		}
 		if err := copyTree(src, dst); err != nil {
 			return ExportResult{}, fmt.Errorf("policyfile: copy cookbook %q: %w", name, err)
 		}
@@ -55,7 +60,11 @@ func Export(ctx context.Context, fetcher *Fetcher, lock *cinc.PolicyRevision, lo
 	if revision == "" {
 		revision = "revision"
 	}
-	if err := os.WriteFile(filepath.Join(destDir, "policies", lock.Name+"-"+revision+".json"), lockJSON, 0o644); err != nil {
+	policyFile, err := safeJoin(destDir, "policies", lock.Name+"-"+revision+".json")
+	if err != nil {
+		return ExportResult{}, fmt.Errorf("policyfile: %w", err)
+	}
+	if err := os.WriteFile(policyFile, lockJSON, 0o644); err != nil {
 		return ExportResult{}, err
 	}
 	if err := os.WriteFile(filepath.Join(destDir, "Policyfile.lock.json"), lockJSON, 0o644); err != nil {

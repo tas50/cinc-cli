@@ -73,6 +73,30 @@ func TestExportAssemblesChefCompatibleTree(t *testing.T) {
 	}
 }
 
+func TestExportRejectsUnsafeCookbookName(t *testing.T) {
+	// A cookbook lock named to escape destDir must be refused, not written
+	// outside the export directory.
+	lockDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(lockDir, "realcb"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(lockDir, "realcb", "metadata.rb"), []byte("name 'realcb'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lock := &cinc.PolicyRevision{
+		Name: "p", RevisionID: "r",
+		CookbookLocks: map[string]cinc.CookbookLock{
+			"../../../../tmp/evil": {Identifier: "abc", SourceOptions: map[string]any{"path": "realcb"}},
+		},
+	}
+	lockJSON, _ := json.Marshal(lock)
+	dest := filepath.Join(t.TempDir(), "out")
+	f := &Fetcher{CacheRoot: t.TempDir(), LockDir: lockDir}
+	if _, err := Export(context.Background(), f, lock, lockJSON, dest, false); err == nil {
+		t.Error("expected Export to reject a traversal cookbook name")
+	}
+}
+
 func TestExportUsesIdentifierWhenNoDottedDecimal(t *testing.T) {
 	lockDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(lockDir, "cb"), 0o755); err != nil {
