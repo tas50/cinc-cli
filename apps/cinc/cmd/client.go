@@ -7,7 +7,6 @@ import (
 	"os"
 	"reflect"
 	"slices"
-	"strings"
 
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
@@ -26,6 +25,48 @@ func newClientCmd() *cobra.Command {
 	cmd.AddCommand(newClientCreateCmd())
 	cmd.AddCommand(newClientEditCmd())
 	cmd.AddCommand(newClientDeleteCmd())
+	cmd.AddCommand(newClientReregisterCmd())
+	cmd.AddCommand(newKeyCmd(clientKeyOwner))
+	return cmd
+}
+
+// newClientReregisterCmd builds `cinc client reregister <name>`. It
+// regenerates the client's "default" key, invalidating the old private
+// key and emitting the new one (to stdout, or to --key-file).
+//
+// The keys API has no in-place regenerate, so this deletes the existing
+// "default" key and creates a fresh one with the server generating the
+// pair. The two calls are not atomic: if the create fails after the
+// delete, the client is briefly left without a default key, and the
+// error tells the user to add one with `cinc client key create`.
+func newClientReregisterCmd() *cobra.Command {
+	var keyFile string
+	cmd := &cobra.Command{
+		Use:   "reregister <name>",
+		Short: "Regenerate a client's default key, invalidating the old one",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+			keys := clientKeyOwner.scope(c, name)
+			if _, err := keys.Delete(cmd.Context(), "default"); err != nil {
+				return err
+			}
+			created, _, err := keys.Create(cmd.Context(), &cinc.Key{Name: "default", CreateKey: true, ExpirationDate: "infinity"})
+			if err != nil {
+				return fmt.Errorf("cinc: reregister deleted the old default key but could not create a new one for %q (add one with `cinc client key create %s default`): %w", name, name, err)
+			}
+			if created.PrivateKey == "" {
+				return fmt.Errorf("cinc: server returned no private key when reregistering %q", name)
+			}
+			fileMsg := fmt.Sprintf("Reregistered client %q (key written to %s)", name, keyFile)
+			return writePrivateKey(cmd.OutOrStdout(), created.PrivateKey, keyFile, fileMsg)
+		},
+	}
+	cmd.Flags().StringVarP(&keyFile, "key-file", "f", "", "write the new private key to this file instead of stdout")
 	return cmd
 }
 
@@ -167,20 +208,8 @@ func emitClientCreateResult(cmd *cobra.Command, name string, created *cinc.APICl
 		fmt.Fprintf(out, "Created client %q\n", name)
 		return nil
 	}
-	if keyFile != "" {
-		if err := os.WriteFile(keyFile, []byte(priv), 0o600); err != nil {
-			return fmt.Errorf("cinc: write key file: %w", err)
-		}
-		fmt.Fprintf(out, "Created client %q (key written to %s)\n", name, keyFile)
-		return nil
-	}
-	if _, err := fmt.Fprint(out, priv); err != nil {
-		return err
-	}
-	if !strings.HasSuffix(priv, "\n") {
-		fmt.Fprintln(out)
-	}
-	return nil
+	fileMsg := fmt.Sprintf("Created client %q (key written to %s)", name, keyFile)
+	return writePrivateKey(out, priv, keyFile, fileMsg)
 }
 
 // newClientDeleteCmd builds the `cinc client delete <name>` command.

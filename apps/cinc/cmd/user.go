@@ -8,7 +8,6 @@ import (
 	"os"
 	"reflect"
 	"slices"
-	"strings"
 
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
@@ -30,6 +29,7 @@ func newUserCmd() *cobra.Command {
 	cmd.AddCommand(newUserEditCmd())
 	cmd.AddCommand(newUserDeleteCmd())
 	cmd.AddCommand(newUserPasswordCmd())
+	cmd.AddCommand(newKeyCmd(userKeyOwner))
 	return cmd
 }
 
@@ -164,20 +164,8 @@ func emitUserCreateResult(cmd *cobra.Command, name string, created *cinc.UserCre
 		fmt.Fprintf(out, "Created user %q\n", name)
 		return nil
 	}
-	if keyFile != "" {
-		if err := os.WriteFile(keyFile, []byte(priv), 0o600); err != nil {
-			return fmt.Errorf("cinc: write key file: %w", err)
-		}
-		fmt.Fprintf(out, "Created user %q (key written to %s)\n", name, keyFile)
-		return nil
-	}
-	if _, err := fmt.Fprint(out, priv); err != nil {
-		return err
-	}
-	if !strings.HasSuffix(priv, "\n") {
-		fmt.Fprintln(out)
-	}
-	return nil
+	fileMsg := fmt.Sprintf("Created user %q (key written to %s)", name, keyFile)
+	return writePrivateKey(out, priv, keyFile, fileMsg)
 }
 
 // newUserDeleteCmd builds the `cinc user delete <name>` command.
