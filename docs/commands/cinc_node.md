@@ -24,6 +24,8 @@ Manage nodes on the Cinc Server
 * [cinc node delete](cinc_node_delete.md)	 - Delete a node from the server
 * [cinc node edit](cinc_node_edit.md)	 - Edit a node on the server
 * [cinc node list](cinc_node_list.md)	 - List nodes on the server
+* [cinc node run-list](cinc_node_run-list.md)	 - Add, remove, or set a node's run list
 * [cinc node show](cinc_node_show.md)	 - Show a node
 * [cinc node ssh](cinc_node_ssh.md)	 - Run an SSH command on nodes
+* [cinc node tag](cinc_node_tag.md)	 - Add, remove, or list a node's tags
 
