@@ -29,6 +29,12 @@ import (
 // `cinc node list` running against a server they just typed in.
 var errFirstRunCompleted = errors.New("cinc: first-run setup completed")
 
+// errAlreadyReported marks an error whose details a command has already
+// printed for the user (e.g. `config validate`'s per-issue list). Execute
+// returns it for a non-zero exit but does not print a second generic
+// "Error: ..." line.
+var errAlreadyReported = errors.New("cinc: already reported")
+
 // migrateChef is the function used to migrate ~/.chef/credentials when the
 // default cinc credentials file is missing. It is a package-level variable
 // so tests can swap in a fake.

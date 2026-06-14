@@ -64,7 +64,9 @@ func Execute() error {
 	if errors.Is(err, errFirstRunCompleted) {
 		return nil
 	}
-	if err != nil {
+	// Some commands (e.g. `config validate`) already print their own detail;
+	// exit non-zero without a second generic "Error: ..." line.
+	if err != nil && !errors.Is(err, errAlreadyReported) {
 		fmt.Fprintln(root.ErrOrStderr(), "Error:", err)
 	}
 	return err

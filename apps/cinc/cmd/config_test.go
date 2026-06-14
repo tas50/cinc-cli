@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -123,6 +124,37 @@ client_name = "tim"
 		if !strings.Contains(got, want) {
 			t.Fatalf("stdout = %q, want %q", got, want)
 		}
+	}
+}
+
+func TestConfigValidateCommandFormatsIssues(t *testing.T) {
+	cfgPath := writeValidateConfig(t, `
+[broken]
+client_name = "tim"
+`)
+
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"config", "validate", cfgPath})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	got := out.String()
+	// Header ends in a colon, not the old "(N issue(s))".
+	if !strings.Contains(got, "is invalid:\n") || strings.Contains(got, "issue(s)") {
+		t.Errorf("header not reformatted:\n%s", got)
+	}
+	// Issues are indented and numbered.
+	if !strings.Contains(got, "  1. ") || !strings.Contains(got, "  2. ") {
+		t.Errorf("issues not numbered/indented:\n%s", got)
+	}
+	// The error wraps errAlreadyReported, which is how Execute suppresses the
+	// second generic "Error: ..." line while still exiting non-zero.
+	if !errors.Is(err, errAlreadyReported) {
+		t.Errorf("error should wrap errAlreadyReported so Execute does not re-print it; got %v", err)
 	}
 }
 
