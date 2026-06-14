@@ -1,10 +1,12 @@
 package policyfile
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	cinc "github.com/tas50/cinc-api"
@@ -89,7 +91,7 @@ func (f *Fetcher) EnsureCookbook(ctx context.Context, name string, lock cinc.Coo
 	case sourceChefServer:
 		err = f.fetchChefServer(ctx, name, sourceVersion(lock), staging)
 	case sourceGit:
-		err = fmt.Errorf("git-sourced cookbooks are not supported yet (coming in a follow-up); source %s", value)
+		err = f.fetchGit(ctx, lock, value, staging)
 	}
 	if err != nil {
 		_ = os.RemoveAll(staging)
@@ -136,6 +138,72 @@ func (f *Fetcher) fetchChefServer(ctx context.Context, name, version, dest strin
 		version = "_latest"
 	}
 	return f.Chef.Cookbooks.Download(ctx, name, version, dest)
+}
+
+// fetchGit clones the lock's git repository, checks out the pinned revision,
+// and copies the cookbook (the repo root, or the source_options "path"
+// subdirectory) into dest, omitting the .git directory. It shells out to the
+// `git` binary, which must be installed.
+func (f *Fetcher) fetchGit(ctx context.Context, lock cinc.CookbookLock, repoURL, dest string) error {
+	revision := stringOption(lock.SourceOptions, "revision")
+	if revision == "" {
+		revision = stringOption(lock.SourceOptions, "branch")
+	}
+	if revision == "" {
+		return fmt.Errorf("git source has no revision or branch to check out")
+	}
+
+	clone, err := os.MkdirTemp("", "cinc-git-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(clone)
+
+	if out, err := runGit(ctx, "", "clone", "--quiet", repoURL, clone); err != nil {
+		return fmt.Errorf("git clone %s: %w: %s", repoURL, err, out)
+	}
+	if out, err := runGit(ctx, clone, "checkout", "--quiet", revision); err != nil {
+		return fmt.Errorf("git checkout %s: %w: %s", revision, err, out)
+	}
+
+	root := clone
+	if sub := stringOption(lock.SourceOptions, "path"); sub != "" {
+		root = filepath.Join(clone, sub)
+	}
+	if !hasCookbookMetadata(root) {
+		return fmt.Errorf("no cookbook (metadata.rb or metadata.json) found at %q in the git repository", root)
+	}
+	return copyTree(root, dest)
+}
+
+// runGit runs `git args...` (optionally in dir) and returns its combined
+// output, so failures can be reported with git's own message.
+func runGit(ctx context.Context, dir string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	if dir != "" {
+		cmd.Dir = dir
+	}
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &out
+	err := cmd.Run()
+	return out.String(), err
+}
+
+func hasCookbookMetadata(dir string) bool {
+	for _, name := range []string{"metadata.rb", "metadata.json"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func stringOption(opts map[string]any, key string) string {
+	if v, ok := opts[key].(string); ok {
+		return v
+	}
+	return ""
 }
 
 const (

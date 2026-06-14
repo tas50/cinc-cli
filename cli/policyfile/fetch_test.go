@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -162,14 +163,80 @@ func TestEnsureCookbookArtifactserverNeedsCacheKey(t *testing.T) {
 	}
 }
 
-func TestEnsureCookbookGitUnsupported(t *testing.T) {
+// initGitCookbookRepo creates a local git repo containing a cookbook and
+// returns the repo path and the HEAD commit sha. It skips the test if git is
+// not installed.
+func initGitCookbookRepo(t *testing.T) (repo, sha string) {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	repo = t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "metadata.rb"), []byte("name 'gitcb'\nversion '2.0.0'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "recipes", "default.rb"), []byte("log 'git'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"init", "--quiet"},
+		{"config", "user.email", "t@example.test"},
+		{"config", "user.name", "Test"},
+		{"add", "-A"},
+		{"commit", "--quiet", "-m", "cookbook"},
+	} {
+		if out, err := runGit(context.Background(), repo, args...); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	out, err := runGit(context.Background(), repo, "rev-parse", "HEAD")
+	if err != nil {
+		t.Fatalf("git rev-parse: %v: %s", err, out)
+	}
+	return repo, strings.TrimSpace(out)
+}
+
+func TestEnsureCookbookGitClonesAndCaches(t *testing.T) {
+	repo, sha := initGitCookbookRepo(t)
+	cacheRoot := filepath.Join(t.TempDir(), "cache")
+	f := &Fetcher{CacheRoot: cacheRoot, LockDir: t.TempDir()}
+	lock := cinc.CookbookLock{
+		Version:       "2.0.0",
+		CacheKey:      "gitcb-2.0.0-git",
+		SourceOptions: map[string]any{"git": repo, "revision": sha},
+	}
+
+	dir, err := f.EnsureCookbook(context.Background(), "gitcb", lock)
+	if err != nil {
+		t.Fatalf("EnsureCookbook (git): %v", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(dir, "metadata.rb")); err != nil || !strings.Contains(string(got), "gitcb") {
+		t.Errorf("git cookbook metadata not cached: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "recipes", "default.rb")); err != nil {
+		t.Errorf("git cookbook recipe not cached: %v", err)
+	}
+	// The .git directory must not be copied into the cache.
+	if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+		t.Error("the .git directory was copied into the cache")
+	}
+	// Second call is a cache hit (no error even though we don't re-clone).
+	if _, err := f.EnsureCookbook(context.Background(), "gitcb", lock); err != nil {
+		t.Fatalf("EnsureCookbook (git, cached): %v", err)
+	}
+}
+
+func TestEnsureCookbookGitNeedsRevision(t *testing.T) {
 	f := &Fetcher{CacheRoot: t.TempDir(), LockDir: t.TempDir()}
 	_, err := f.EnsureCookbook(context.Background(), "gitcb", cinc.CookbookLock{
-		CacheKey:      "gitcb-1.0.0",
-		SourceOptions: map[string]any{"git": "https://example.test/cb.git", "revision": "abc"},
+		CacheKey:      "gitcb",
+		SourceOptions: map[string]any{"git": "https://example.test/cb.git"},
 	})
-	if err == nil || !contains(err.Error(), "git") {
-		t.Errorf("git source error = %v, want a clear 'git not supported' message", err)
+	if err == nil || !contains(err.Error(), "revision") {
+		t.Errorf("git-without-revision error = %v, want a clear message about a missing revision", err)
 	}
 }
 

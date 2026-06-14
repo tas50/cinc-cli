@@ -3,8 +3,10 @@
 package acceptance
 
 import (
+	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -69,6 +71,77 @@ func TestPolicyPushAgainstCincZero(t *testing.T) {
 	group := runCinc(t, env.binary, "policy-group", "show", "qa", "--config", env.cfgPath, "--format", "json")
 	if !strings.Contains(group, "deploytest") {
 		t.Errorf("policy-group show qa missing deploytest:\n%s", group)
+	}
+}
+
+// git runs a git subcommand in dir, failing the test on error.
+func git(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.CommandContext(context.Background(), "git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v\n%s", args, err, out)
+	}
+	return string(out)
+}
+
+// TestPolicyPushGitSourceAgainstCincZero builds a local git repo holding a
+// cookbook, writes a lock pinning it by git revision, and pushes it through the
+// real binary (which clones the repo and uploads the artifact) to cinc-zero.
+func TestPolicyPushGitSourceAgainstCincZero(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "metadata.rb"), []byte("name 'gitcb'\nversion '1.0.0'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "recipes", "default.rb"), []byte("log 'git'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, repo, "init", "--quiet")
+	git(t, repo, "config", "user.email", "t@example.test")
+	git(t, repo, "config", "user.name", "Test")
+	git(t, repo, "add", "-A")
+	git(t, repo, "commit", "--quiet", "-m", "cookbook")
+	sha := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
+
+	lockDir := t.TempDir()
+	const identifier = "1111111111111111111111111111111111111111"
+	lock := map[string]any{
+		"name":        "gitpolicy",
+		"revision_id": identifier,
+		"run_list":    []string{"recipe[gitcb]"},
+		"cookbook_locks": map[string]any{
+			"gitcb": map[string]any{
+				"version":                   "1.0.0",
+				"identifier":                identifier,
+				"dotted_decimal_identifier": "1.2.3",
+				"cache_key":                 "gitcb-1.0.0-git",
+				"source_options":            map[string]any{"git": repo, "revision": sha},
+			},
+		},
+	}
+	data, _ := json.MarshalIndent(lock, "", "  ")
+	lockPath := filepath.Join(lockDir, "Policyfile.lock.json")
+	if err := os.WriteFile(lockPath, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out := runCinc(t, env.binary, "policy", "push", "gitqa", lockPath, "--config", env.cfgPath)
+	if !strings.Contains(out, "Pushed policy \"gitpolicy\"") {
+		t.Fatalf("git-source push output = %q", out)
+	}
+	list := runCinc(t, env.binary, "policy", "list", "--config", env.cfgPath)
+	if !strings.Contains(list, "gitpolicy") {
+		t.Errorf("policy list after git push missing gitpolicy:\n%s", list)
 	}
 }
 

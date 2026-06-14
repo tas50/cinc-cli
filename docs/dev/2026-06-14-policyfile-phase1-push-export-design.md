@@ -76,7 +76,8 @@ what makes Phase 1 tractable without the solver.
   - `resolveGit` — clone the repo, checkout the locked revision, locate the
     cookbook subdirectory, copy into the cache.
   - `resolveChefServer` — download via cinc-api `Cookbooks.Download`.
-  The git resolver is the heaviest and may land as its own follow-up PR.
+  The git resolver shells out to the `git` binary (clone + checkout the
+  pinned revision, copy the cookbook minus `.git`).
 - **Export assembler** (`export.go`): `Export(lock, destDir, archive bool)` —
   writes `cookbooks/<name>-<dotted_decimal_identifier>/` (from the cache),
   `policies/<name>-<revision>.json`, the `Policyfile.lock.json`, and a generated
@@ -140,8 +141,8 @@ instead of calling the server.
 
 1. **cinc-api PR:** lock model + `PushRevision` (+ tests). Tag a release.
 2. **cinc-cli PR(s):** bump to that tag; add `cli/policyfile` (fetcher/cache +
-   export) and the `push`/`export` commands. The `git` resolver may be split
-   into its own follow-up PR if the first grows large.
+   export) and the `push`/`export` commands, including all four source
+   resolvers (path, artifactserver, chef_server, git).
 
 Each `cinc <noun> <verb>` addition carries both unit and acceptance tests, per
 the repository conventions, and `make docs` is regenerated.
