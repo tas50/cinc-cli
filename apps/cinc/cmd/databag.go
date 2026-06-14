@@ -154,8 +154,42 @@ func newDataBagItemCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newDataBagItemListCmd())
 	cmd.AddCommand(newDataBagItemShowCmd())
+	cmd.AddCommand(newDataBagItemCreateCmd())
 	cmd.AddCommand(newDataBagItemEditCmd())
 	cmd.AddCommand(newDataBagItemDeleteCmd())
+	return cmd
+}
+
+// newDataBagItemCreateCmd builds `cinc databag item create <bag> <id>`. The
+// bag must already exist (use `cinc databag create` to make one). Without
+// --file the built-in JSON editor opens on a stub carrying just the id; the
+// path arg's id always pins the item identifier. This is the item-scoped
+// equivalent of the two-arg `databag create <bag> <item>` form.
+func newDataBagItemCreateCmd() *cobra.Command {
+	var inputFile string
+	cmd := &cobra.Command{
+		Use:   "create <bag> <id>",
+		Short: "Create an item in a data bag",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			bag, id := args[0], args[1]
+			item, err := loadOrEditNewItem(id, inputFile)
+			if err != nil {
+				return err
+			}
+			item["id"] = id
+			if _, _, err := c.DataBags.Items(bag).Create(cmd.Context(), item); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Created item %q in data bag %q\n", id, bag)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&inputFile, "file", "", "read the new item JSON from this file instead of launching the editor")
 	return cmd
 }
 

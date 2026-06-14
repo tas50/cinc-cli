@@ -614,6 +614,84 @@ func TestDataBagItemDeleteCommandEndToEnd(t *testing.T) {
 	}
 }
 
+// databagItemCreateServer responds to POST /data/<bag> with 201, capturing
+// the item body for assertions.
+func databagItemCreateServer(t *testing.T, bag string, gotItem *cinc.DataBagItem) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/data/"+bag, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %q on /data/%s, want POST", r.Method, bag)
+		}
+		if err := json.NewDecoder(r.Body).Decode(gotItem); err != nil {
+			t.Fatalf("decode item body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(gotItem)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestDataBagItemCreateCommandUsesEditor(t *testing.T) {
+	var gotItem cinc.DataBagItem
+	srv := databagItemCreateServer(t, "secrets", &gotItem)
+
+	withStubDataBagItemEditor(t, func(in cinc.DataBagItem) (cinc.DataBagItem, error) {
+		if in["id"] != "db-password" {
+			t.Errorf("editor seed id = %v, want db-password", in["id"])
+		}
+		return cinc.DataBagItem{"id": "db-password", "password": "hunter2"}, nil
+	})
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"databag", "item", "create", "secrets", "db-password", "--config", writeDataBagConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc databag item create: %v", err)
+	}
+	if gotItem["id"] != "db-password" || gotItem["password"] != "hunter2" {
+		t.Errorf("server received item %+v, want id=db-password password=hunter2", gotItem)
+	}
+	if got := buf.String(); got != "Created item \"db-password\" in data bag \"secrets\"\n" {
+		t.Errorf("databag item create output = %q", got)
+	}
+}
+
+func TestDataBagItemCreateCommandReadsFromFile(t *testing.T) {
+	var gotItem cinc.DataBagItem
+	srv := databagItemCreateServer(t, "secrets", &gotItem)
+
+	withStubDataBagItemEditor(t, func(cinc.DataBagItem) (cinc.DataBagItem, error) {
+		t.Fatal("editor was invoked despite --file")
+		return nil, nil
+	})
+
+	filePath := filepath.Join(t.TempDir(), "item.json")
+	body, _ := json.Marshal(cinc.DataBagItem{"id": "ignored-in-file", "password": "from-file"})
+	if err := os.WriteFile(filePath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetArgs([]string{"databag", "item", "create", "secrets", "db-password", "--file", filePath, "--config", writeDataBagConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc databag item create --file: %v", err)
+	}
+	if gotItem["id"] != "db-password" {
+		t.Errorf("POST body id = %v, want db-password (path arg must win over file)", gotItem["id"])
+	}
+	if gotItem["password"] != "from-file" {
+		t.Errorf("POST body password = %v, want from-file", gotItem["password"])
+	}
+}
+
 func TestDataBagListCommandEndToEnd(t *testing.T) {
 	srv := databagServer(t, "users", "apps", "secrets")
 

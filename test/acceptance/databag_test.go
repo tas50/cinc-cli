@@ -196,3 +196,26 @@ func TestDataBagItemDeleteAgainstCincZero(t *testing.T) {
 		t.Errorf("databag item list after delete = %q, want only bob", after)
 	}
 }
+
+// TestDataBagItemCreateAgainstCincZero creates an item in the seeded "users"
+// bag through --file and confirms it appears in the item index.
+func TestDataBagItemCreateAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	itemPath := filepath.Join(t.TempDir(), "carol.json")
+	body, _ := json.Marshal(cinc.DataBagItem{"id": "carol", "role": "admin"})
+	if err := os.WriteFile(itemPath, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	out := runCinc(t, env.binary, "databag", "item", "create", "users", "carol", "--file", itemPath, "--config", env.cfgPath)
+	if out != "Created item \"carol\" in data bag \"users\"\n" {
+		t.Errorf("databag item create output = %q", out)
+	}
+
+	listed := runCinc(t, env.binary, "databag", "item", "list", "users", "--config", env.cfgPath)
+	if listed != "alice\nbob\ncarol\n" {
+		t.Errorf("databag item list after create = %q, want carol present", listed)
+	}
+}
