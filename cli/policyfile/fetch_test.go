@@ -250,6 +250,57 @@ func TestEnsureCookbookGitRejectsFlagInjection(t *testing.T) {
 	}
 }
 
+func TestValidateGitURL(t *testing.T) {
+	ok := []string{
+		"https://github.com/acme/cb.git",
+		"http://git.internal/cb.git",
+		"git://host/cb.git",
+		"ssh://git@host/cb.git",
+		"git@github.com:acme/cb.git",
+		"file:///srv/mirror/cb.git",
+		"/srv/mirror/cb.git",
+		"../local/cb",
+	}
+	for _, u := range ok {
+		if err := validateGitURL(u); err != nil {
+			t.Errorf("validateGitURL(%q) = %v, want nil", u, err)
+		}
+	}
+	bad := []string{
+		"ext::sh -c 'touch /tmp/pwn'",
+		"fd::17/foo",
+		"transport::whatever",
+		"unknownscheme://host/x",
+	}
+	for _, u := range bad {
+		if err := validateGitURL(u); err == nil {
+			t.Errorf("validateGitURL(%q) = nil, want refusal", u)
+		}
+	}
+}
+
+func TestEnsureCookbookGitRejectsTransportHelper(t *testing.T) {
+	f := &Fetcher{CacheRoot: t.TempDir(), LockDir: t.TempDir()}
+	_, err := f.EnsureCookbook(context.Background(), "cb", cinc.CookbookLock{
+		CacheKey:      "cb",
+		SourceOptions: map[string]any{"git": "ext::sh -c 'touch /tmp/pwn'", "revision": "abc"},
+	})
+	if err == nil || !contains(err.Error(), "transport helper") {
+		t.Errorf("error = %v, want refusal of the ext:: transport helper", err)
+	}
+}
+
+func TestEnsureCookbookRejectsCacheKeyTraversal(t *testing.T) {
+	f := &Fetcher{CacheRoot: t.TempDir(), LockDir: t.TempDir()}
+	_, err := f.EnsureCookbook(context.Background(), "cb", cinc.CookbookLock{
+		CacheKey:      "../../../../tmp/evil",
+		SourceOptions: map[string]any{"artifactserver": "https://x/d", "version": "1.0.0"},
+	})
+	if err == nil || !contains(err.Error(), "unsafe path component") {
+		t.Errorf("error = %v, want rejection of a traversal cache_key", err)
+	}
+}
+
 func TestEnsureCookbookGitNeedsRevision(t *testing.T) {
 	f := &Fetcher{CacheRoot: t.TempDir(), LockDir: t.TempDir()}
 	_, err := f.EnsureCookbook(context.Background(), "gitcb", cinc.CookbookLock{

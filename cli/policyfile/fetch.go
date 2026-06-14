@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	cinc "github.com/tas50/cinc-api"
@@ -74,7 +75,11 @@ func (f *Fetcher) EnsureCookbook(ctx context.Context, name string, lock cinc.Coo
 	if lock.CacheKey == "" {
 		return "", fmt.Errorf("cookbook %q: %s source has no cache_key to cache under", name, kind)
 	}
-	dest := filepath.Join(f.CacheRoot, lock.CacheKey)
+	// cache_key comes from the (untrusted) lock; keep it from escaping the cache.
+	dest, err := safeJoin(f.CacheRoot, lock.CacheKey)
+	if err != nil {
+		return "", fmt.Errorf("cookbook %q: %w", name, err)
+	}
 	if isDir(dest) {
 		return dest, nil // cache hit
 	}
@@ -164,6 +169,9 @@ func (f *Fetcher) fetchGit(ctx context.Context, lock cinc.CookbookLock, repoURL,
 	if strings.HasPrefix(revision, "-") {
 		return fmt.Errorf("refusing git revision beginning with '-': %q", revision)
 	}
+	if err := validateGitURL(repoURL); err != nil {
+		return err
+	}
 
 	clone, err := os.MkdirTemp("", "cinc-git-")
 	if err != nil {
@@ -189,17 +197,62 @@ func (f *Fetcher) fetchGit(ctx context.Context, lock cinc.CookbookLock, repoURL,
 }
 
 // runGit runs `git args...` (optionally in dir) and returns its combined
-// output, so failures can be reported with git's own message.
+// output, so failures can be reported with git's own message. It restricts the
+// protocols git may use to a safe set, so a lock cannot drive git into a
+// command-executing transport helper (ext::, fd::, …) even if validateGitURL is
+// somehow bypassed.
 func runGit(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	if dir != "" {
 		cmd.Dir = dir
 	}
+	cmd.Env = append(os.Environ(), "GIT_ALLOW_PROTOCOL=file:git:http:https:ssh")
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	err := cmd.Run()
 	return out.String(), err
+}
+
+// transportHelperRe matches git's "<helper>::<address>" transport-helper
+// syntax (e.g. ext::, fd::), which can execute arbitrary commands.
+var transportHelperRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*::`)
+
+// validateGitURL rejects git source URLs that could run code or reach unsafe
+// transports. It allows the standard remote schemes (https/http/git/ssh/file),
+// scp-style addresses (user@host:path), and local paths, but refuses
+// transport-helper forms (ext::/fd::/…) and any other scheme.
+func validateGitURL(repoURL string) error {
+	if i := strings.Index(repoURL, "://"); i >= 0 {
+		switch strings.ToLower(repoURL[:i]) {
+		case "https", "http", "git", "ssh", "file":
+			return nil
+		default:
+			return fmt.Errorf("refusing git source URL with unsupported scheme: %q", repoURL)
+		}
+	}
+	if m := transportHelperRe.FindString(repoURL); m != "" {
+		return fmt.Errorf("refusing git source URL using transport helper %q: %q", strings.TrimSuffix(m, "::"), repoURL)
+	}
+	return nil
+}
+
+// safeJoin joins a trusted base directory with one or more untrusted path
+// components, rejecting any component that is empty, "." / "..", or contains a
+// path separator — so the result can never escape base. It is the guard for
+// lock-derived names (cache keys, cookbook names, identifiers) used to build
+// filesystem paths.
+func safeJoin(base string, components ...string) (string, error) {
+	for _, c := range components {
+		if c == "" || c == "." || c == ".." || strings.ContainsAny(c, `/\`) {
+			return "", fmt.Errorf("unsafe path component %q", c)
+		}
+	}
+	joined := filepath.Join(append([]string{base}, components...)...)
+	if !withinDir(base, joined) {
+		return "", fmt.Errorf("path %q escapes %q", joined, base)
+	}
+	return joined, nil
 }
 
 func hasCookbookMetadata(dir string) bool {
