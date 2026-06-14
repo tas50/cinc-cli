@@ -1,11 +1,7 @@
 package remote
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"strings"
 )
@@ -24,29 +20,6 @@ type BootstrapOptions struct {
 	Sudo             bool
 	BootstrapURL     string
 	BootstrapVersion string
-}
-
-// GenerateClientKeyPair returns a PEM private/public RSA key pair for a
-// bootstrapped node client. The public key is registered with the server; the
-// private key is installed onto the target host.
-func GenerateClientKeyPair() (privatePEM, publicPEM string, err error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return "", "", err
-	}
-	privateBytes := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(key),
-	})
-	publicBytes, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
-	if err != nil {
-		return "", "", err
-	}
-	publicPEMBytes := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: publicBytes,
-	})
-	return string(privateBytes), string(publicPEMBytes), nil
 }
 
 // BootstrapCommand builds the shell command executed on the target.

@@ -24,7 +24,7 @@ func TestNodeTagAddStoresTagsUnderNormal(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("node tag add: %v", err)
 	}
-	got := nodeTags(&gotPut)
+	got := gotPut.Tags()
 	want := []string{"prod", "web", "canary"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("PUT normal.tags = %v, want %v", got, want)
@@ -43,7 +43,7 @@ func TestNodeTagAddInitializesNormalWhenAbsent(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("node tag add (no normal): %v", err)
 	}
-	if got := nodeTags(&gotPut); len(got) != 1 || got[0] != "first" {
+	if got := gotPut.Tags(); len(got) != 1 || got[0] != "first" {
 		t.Errorf("PUT normal.tags = %v, want [first]", got)
 	}
 }
@@ -60,7 +60,7 @@ func TestNodeTagRemoveDropsTags(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("node tag remove: %v", err)
 	}
-	got := nodeTags(&gotPut)
+	got := gotPut.Tags()
 	want := []string{"prod", "canary"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("PUT normal.tags = %v, want %v", got, want)
@@ -79,7 +79,7 @@ func TestNodeTagSetReplacesAllTags(t *testing.T) {
 	if err := root.Execute(); err != nil {
 		t.Fatalf("node tag set: %v", err)
 	}
-	got := nodeTags(&gotPut)
+	got := gotPut.Tags()
 	want := []string{"fresh", "only"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("PUT normal.tags = %v, want %v (set must replace, not merge)", got, want)

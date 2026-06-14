@@ -34,16 +34,3 @@ func TestBootstrapCommandBuildsCincClientScript(t *testing.T) {
 		}
 	}
 }
-
-func TestGenerateClientKeyPairReturnsMatchingPEMBlocks(t *testing.T) {
-	privatePEM, publicPEM, err := GenerateClientKeyPair()
-	if err != nil {
-		t.Fatalf("GenerateClientKeyPair: %v", err)
-	}
-	if !strings.Contains(privatePEM, "-----BEGIN RSA PRIVATE KEY-----") {
-		t.Fatalf("private PEM = %q", privatePEM)
-	}
-	if !strings.Contains(publicPEM, "-----BEGIN PUBLIC KEY-----") {
-		t.Fatalf("public PEM = %q", publicPEM)
-	}
-}
