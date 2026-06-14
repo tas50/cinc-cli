@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	cinc "github.com/tas50/cinc-api"
 )
 
 // Profile describes how to connect to a single Cinc Server. It is the
@@ -205,7 +206,7 @@ func tomlProfiles(raw map[string]rawProfile) map[string]map[string]string {
 func NewProfile(serverURL, clientName, clientKey, sslVerifyMode, supermarketSite string) (Profile, error) {
 	var server, org string
 	if serverURL != "" {
-		parsedServer, parsedOrg, err := splitServerURL(serverURL)
+		parsedServer, parsedOrg, err := cinc.ParseServerURL(serverURL)
 		if err == nil {
 			server = parsedServer
 			org = parsedOrg
@@ -250,7 +251,7 @@ func resolveProfile(rp rawProfile) (Profile, error) {
 		SSLVerifyMode:   rp.SSLVerifyMode,
 	}
 	if raw := rp.serverURL(); raw != "" {
-		server, org, err := splitServerURL(raw)
+		server, org, err := cinc.ParseServerURL(raw)
 		if err != nil {
 			return Profile{}, err
 		}
@@ -266,21 +267,6 @@ func validateSiteURL(raw string) error {
 		return fmt.Errorf("invalid site URL %q", raw)
 	}
 	return nil
-}
-
-// splitServerURL parses a server URL of the form
-// `https://host[:port]/organizations/<org>` into its base server URL
-// (`https://host[:port]`) and the organization name.
-func splitServerURL(raw string) (server, org string, err error) {
-	u, parseErr := url.Parse(raw)
-	if parseErr != nil || u.Scheme == "" || u.Host == "" {
-		return "", "", fmt.Errorf("invalid server URL %q", raw)
-	}
-	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
-	if len(parts) != 2 || parts[0] != "organizations" || parts[1] == "" {
-		return "", "", fmt.Errorf("server URL %q must end with /organizations/<org>", raw)
-	}
-	return u.Scheme + "://" + u.Host, parts[1], nil
 }
 
 // Profile resolves a connection profile by name. An empty name selects

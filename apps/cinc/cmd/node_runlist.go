@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -86,9 +85,9 @@ func newNodeRunListChangeCmd(verb string) *cobra.Command {
 			}
 			switch verb {
 			case "add":
-				node.RunList = appendNew(node.RunList, items)
+				node.AddRunListItems(items...)
 			case "remove":
-				node.RunList = removeItems(node.RunList, items)
+				node.RemoveRunListItems(items...)
 			case "set":
 				node.RunList = items
 			}
@@ -116,29 +115,6 @@ func emitRunList(cmd *cobra.Command, format printer.Format, name string, runList
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Run list for node %q is now: %s\n", name, strings.Join(runList, ", "))
 	return nil
-}
-
-// appendNew returns base with every item that is not already present appended
-// in order, leaving existing entries (and their positions) untouched.
-func appendNew(base, items []string) []string {
-	out := slices.Clone(base)
-	for _, item := range items {
-		if !slices.Contains(out, item) {
-			out = append(out, item)
-		}
-	}
-	return out
-}
-
-// removeItems returns base with every entry equal to one of items dropped.
-func removeItems(base, items []string) []string {
-	out := make([]string, 0, len(base))
-	for _, entry := range base {
-		if !slices.Contains(items, entry) {
-			out = append(out, entry)
-		}
-	}
-	return out
 }
 
 // gatherCSVArgs flattens args that may each be a single entry or a

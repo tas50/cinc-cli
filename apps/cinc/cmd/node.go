@@ -252,7 +252,7 @@ func newNodeBootstrapCmd() *cobra.Command {
 					return err
 				}
 				publicKey := ""
-				privateKey, publicKey, err = remote.GenerateClientKeyPair()
+				privateKey, publicKey, err = cinc.GenerateKeyPair()
 				if err != nil {
 					return fmt.Errorf("bootstrap: generate client key: %w", err)
 				}

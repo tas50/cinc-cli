@@ -2,20 +2,19 @@ package cmd
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
-	cinc "github.com/tas50/cinc-api"
 
 	"github.com/tas50/cinc-cli/cli/printer"
 )
 
-// newNodeTagCmd builds the `cinc node tag` sub-group. Chef stores a node's
-// tags as a string array under its normal attributes (`normal.tags`); add,
-// remove, and set mutate that array and PUT the node back, while list reads it
-// without modifying the server. knife exposes add/remove/list; set rounds out
-// the sub-noun with a wholesale replace.
+// newNodeTagCmd builds the `cinc node tag` sub-group. Node tags live under the
+// node's normal attributes; the cinc-api Node accessors (Tags/AddTags/
+// RemoveTags/SetTags) own that storage detail. add, remove, and set mutate the
+// tags and PUT the node back, while list reads them without modifying the
+// server. knife exposes add/remove/list; set rounds out the sub-noun with a
+// wholesale replace.
 func newNodeTagCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tag",
@@ -56,11 +55,11 @@ func newNodeTagChangeCmd(verb string) *cobra.Command {
 			}
 			switch verb {
 			case "add":
-				setNodeTags(node, appendNew(nodeTags(node), tags))
+				node.AddTags(tags...)
 			case "remove":
-				setNodeTags(node, removeItems(nodeTags(node), tags))
+				node.RemoveTags(tags...)
 			case "set":
-				setNodeTags(node, tags)
+				node.SetTags(tags)
 			}
 			node.Name = name
 			if node.RunList == nil {
@@ -69,7 +68,7 @@ func newNodeTagChangeCmd(verb string) *cobra.Command {
 			if _, _, err := c.Nodes.Update(cmd.Context(), node); err != nil {
 				return err
 			}
-			return emitNodeTags(cmd, format, name, nodeTags(node))
+			return emitNodeTags(cmd, format, name, node.Tags())
 		},
 	}
 }
@@ -92,7 +91,7 @@ func newNodeTagListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			tags := nodeTags(node)
+			tags := node.Tags()
 			if format == printer.FormatJSON {
 				return printer.New(cmd.OutOrStdout(), format).Value(tags)
 			}
@@ -113,37 +112,4 @@ func emitNodeTags(cmd *cobra.Command, format printer.Format, name string, tags [
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "Node %q tags are now: %s\n", name, strings.Join(tags, ", "))
 	return nil
-}
-
-// nodeTags reads a node's tags from its normal attributes, tolerating the
-// JSON-decoded shapes the value can take ([]string or []any of strings) and
-// returning them as a sorted-by-original-order string slice.
-func nodeTags(node *cinc.Node) []string {
-	raw, ok := node.Normal["tags"]
-	if !ok || raw == nil {
-		return nil
-	}
-	switch v := raw.(type) {
-	case []string:
-		return slices.Clone(v)
-	case []any:
-		out := make([]string, 0, len(v))
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				out = append(out, s)
-			}
-		}
-		return out
-	default:
-		return nil
-	}
-}
-
-// setNodeTags writes tags back to a node's normal attributes, allocating the
-// normal map if the node had no normal attributes yet.
-func setNodeTags(node *cinc.Node, tags []string) {
-	if node.Normal == nil {
-		node.Normal = cinc.Attributes{}
-	}
-	node.Normal["tags"] = tags
 }
