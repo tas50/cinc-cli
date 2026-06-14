@@ -20,6 +20,7 @@ Manage cookbooks on the Cinc Server
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
 * [cinc cookbook delete](cinc_cookbook_delete.md)	 - Delete a cookbook version from the server
+* [cinc cookbook download](cinc_cookbook_download.md)	 - Download a cookbook version from the server
 * [cinc cookbook list](cinc_cookbook_list.md)	 - List cookbooks on the server
 * [cinc cookbook show](cinc_cookbook_show.md)	 - Show a cookbook version manifest
 * [cinc cookbook upload](cinc_cookbook_upload.md)	 - Upload cookbook versions to the Cinc Server
