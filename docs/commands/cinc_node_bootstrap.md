@@ -8,10 +8,16 @@ cinc node bootstrap [target] [flags]
 
 ### Examples
 
-Install Cinc Client on a host over SSH and register it as a node.
+Bootstrap a host with a first-run run-list.
 
 ```
 cinc node bootstrap web01.example.com --ssh-user ubuntu --run-list 'recipe[base]'
+```
+
+Bootstrap a host managed by a Policyfile policy group.
+
+```
+cinc node bootstrap web01.example.com --ssh-user ubuntu --policy-name base --policy-group prod
 ```
 
 ### Options

@@ -40,8 +40,8 @@ func newRoleCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a role on the server",
-		Example: "Create a role; your editor opens to define its run-list and attributes.\n" +
-			"cinc role create webserver",
+		Example: `Create a role; your editor opens to define its run-list and attributes.
+cinc role create webserver`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -86,8 +86,8 @@ func newRoleEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <name>",
 		Short: "Edit a role on the server",
-		Example: "Edit a role's run-list and attributes in your editor.\n" +
-			"cinc role edit webserver",
+		Example: `Edit a role's run-list and attributes in your editor.
+cinc role edit webserver`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -141,8 +141,8 @@ func newRoleShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Show a role",
-		Example: "Show a role.\n" +
-			"cinc role show webserver",
+		Example: `Show a role.
+cinc role show webserver`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -167,8 +167,8 @@ func newRoleDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a role from the server",
-		Example: "Delete a role from the server.\n" +
-			"cinc role delete webserver",
+		Example: `Delete a role from the server.
+cinc role delete webserver`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -190,8 +190,8 @@ func newRoleListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List roles on the server",
-		Example: "List every role on the server.\n" +
-			"cinc role list",
+		Example: `List every role on the server.
+cinc role list`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)

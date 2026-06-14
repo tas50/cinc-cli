@@ -35,8 +35,8 @@ func newPolicyDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a policy and all its revisions from the server",
-		Example: "Delete a policy and all of its revisions.\n" +
-			"cinc policy delete appserver",
+		Example: `Delete a policy and all of its revisions.
+cinc policy delete appserver`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -59,8 +59,8 @@ func newPolicyShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Show a policy's revisions",
-		Example: "Show a policy's revisions.\n" +
-			"cinc policy show appserver",
+		Example: `Show a policy's revisions.
+cinc policy show appserver`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -85,8 +85,8 @@ func newPolicyListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List policies on the server",
-		Example: "List every policy on the server.\n" +
-			"cinc policy list",
+		Example: `List every policy on the server.
+cinc policy list`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)

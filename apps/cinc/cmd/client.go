@@ -40,8 +40,8 @@ func newClientReregisterCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "reregister <name>",
 		Short: "Regenerate a client's default key, invalidating the old one",
-		Example: "Regenerate a client's key and write the new private key to disk.\n" +
-			"cinc client reregister worker-01 --key-file worker-01.pem",
+		Example: `Regenerate a client's key and write the new private key to disk.
+cinc client reregister worker-01 --key-file worker-01.pem`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -69,8 +69,8 @@ func newClientShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Show an API client",
-		Example: "Show an API client, including whether it is a validator.\n" +
-			"cinc client show worker-01",
+		Example: `Show an API client, including whether it is a validator.
+cinc client show worker-01`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -102,8 +102,8 @@ func newClientEditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "edit <name>",
 		Short: "Edit an API client on the server",
-		Example: "Open an API client's JSON in your editor and save it back.\n" +
-			"cinc client edit worker-01",
+		Example: `Open an API client's JSON in your editor and save it back.
+cinc client edit worker-01`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -166,8 +166,14 @@ func newClientCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create an API client on the server",
-		Example: "Create a client and write its generated private key to a file.\n" +
-			"cinc client create worker-01 --key-file worker-01.pem",
+		Example: `Create a client; the server generates the key, written to a file.
+cinc client create worker-01 --key-file worker-01.pem
+
+Create a validator client, used to bootstrap new nodes.
+cinc client create bootstrap-validator --validator --key-file validator.pem
+
+Register a public key you already have; the server generates no key.
+cinc client create worker-01 --public-key worker-01.pub`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -217,8 +223,8 @@ func newClientDeleteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete an API client from the server",
-		Example: "Delete an API client from the server.\n" +
-			"cinc client delete worker-01",
+		Example: `Delete an API client from the server.
+cinc client delete worker-01`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
@@ -240,8 +246,8 @@ func newClientListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List API clients on the server",
-		Example: "List every API client on the server.\n" +
-			"cinc client list",
+		Example: `List every API client on the server.
+cinc client list`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			format, err := resolveFormat(cmd)

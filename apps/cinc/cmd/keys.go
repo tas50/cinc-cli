@@ -57,10 +57,11 @@ func newKeyCmd(owner keyOwner) *cobra.Command {
 // material; use `key show` for a single key's details.
 func newKeyListCmd(owner keyOwner) *cobra.Command {
 	return &cobra.Command{
-		Use:     "list <" + owner.noun + ">",
-		Short:   "List a " + owner.noun + "'s keys",
-		Example: "List a " + owner.noun + "'s keys.\ncinc " + owner.noun + " key list " + owner.sample,
-		Args:    cobra.ExactArgs(1),
+		Use:   "list <" + owner.noun + ">",
+		Short: "List a " + owner.noun + "'s keys",
+		Example: fmt.Sprintf(`List a %[1]s's keys.
+cinc %[1]s key list %[2]s`, owner.noun, owner.sample),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -87,10 +88,11 @@ func newKeyListCmd(owner keyOwner) *cobra.Command {
 // newKeyShowCmd builds `cinc <owner> key show <name> <key-name>`.
 func newKeyShowCmd(owner keyOwner) *cobra.Command {
 	return &cobra.Command{
-		Use:     "show <" + owner.noun + "> <key-name>",
-		Short:   "Show one of a " + owner.noun + "'s keys",
-		Example: "Show one of a " + owner.noun + "'s keys.\ncinc " + owner.noun + " key show " + owner.sample + " default",
-		Args:    cobra.ExactArgs(2),
+		Use:   "show <" + owner.noun + "> <key-name>",
+		Short: "Show one of a " + owner.noun + "'s keys",
+		Example: fmt.Sprintf(`Show one of a %[1]s's keys.
+cinc %[1]s key show %[2]s default`, owner.noun, owner.sample),
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
 			if err != nil {
@@ -123,10 +125,17 @@ func newKeyCreateCmd(owner keyOwner) *cobra.Command {
 		expires       string
 	)
 	cmd := &cobra.Command{
-		Use:     "create <" + owner.noun + "> <key-name>",
-		Short:   "Add a key to a " + owner.noun,
-		Example: "Add a key to a " + owner.noun + ", writing the generated private key to a file.\ncinc " + owner.noun + " key create " + owner.sample + " rotation --key-file rotation.pem",
-		Args:    cobra.ExactArgs(2),
+		Use:   "create <" + owner.noun + "> <key-name>",
+		Short: "Add a key to a " + owner.noun,
+		Example: fmt.Sprintf(`Have the server generate the key pair and write the private key to a file.
+cinc %[1]s key create %[2]s rotation --key-file rotation.pem
+
+Register a public key you already have; the server generates nothing.
+cinc %[1]s key create %[2]s laptop --public-key ~/.ssh/id_rsa.pub
+
+Add a key that expires on a given date.
+cinc %[1]s key create %[2]s temp --expires 2030-01-01T00:00:00Z`, owner.noun, owner.sample),
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -169,10 +178,11 @@ func newKeyCreateCmd(owner keyOwner) *cobra.Command {
 func newKeyEditCmd(owner keyOwner) *cobra.Command {
 	var inputFile string
 	cmd := &cobra.Command{
-		Use:     "edit <" + owner.noun + "> <key-name>",
-		Short:   "Edit one of a " + owner.noun + "'s keys",
-		Example: "Edit one of a " + owner.noun + "'s keys, for example its expiration.\ncinc " + owner.noun + " key edit " + owner.sample + " default",
-		Args:    cobra.ExactArgs(2),
+		Use:   "edit <" + owner.noun + "> <key-name>",
+		Short: "Edit one of a " + owner.noun + "'s keys",
+		Example: fmt.Sprintf(`Edit one of a %[1]s's keys, for example its expiration.
+cinc %[1]s key edit %[2]s default`, owner.noun, owner.sample),
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {
@@ -227,10 +237,11 @@ func newKeyEditCmd(owner keyOwner) *cobra.Command {
 // newKeyDeleteCmd builds `cinc <owner> key delete <name> <key-name>`.
 func newKeyDeleteCmd(owner keyOwner) *cobra.Command {
 	return &cobra.Command{
-		Use:     "delete <" + owner.noun + "> <key-name>",
-		Short:   "Delete one of a " + owner.noun + "'s keys",
-		Example: "Delete one of a " + owner.noun + "'s keys.\ncinc " + owner.noun + " key delete " + owner.sample + " rotation",
-		Args:    cobra.ExactArgs(2),
+		Use:   "delete <" + owner.noun + "> <key-name>",
+		Short: "Delete one of a " + owner.noun + "'s keys",
+		Example: fmt.Sprintf(`Delete one of a %[1]s's keys.
+cinc %[1]s key delete %[2]s rotation`, owner.noun, owner.sample),
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := resolveClient(cmd)
 			if err != nil {

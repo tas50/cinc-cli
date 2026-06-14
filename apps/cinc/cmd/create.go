@@ -31,8 +31,8 @@ func newConfigCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create or update a local credentials profile",
-		Example: "Create or update the default credentials profile interactively.\n" +
-			"cinc config create",
+		Example: `Create or update the default credentials profile interactively.
+cinc config create`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			cfgPath, err := configPathForCommand(cmd)

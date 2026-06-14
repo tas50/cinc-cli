@@ -8,10 +8,22 @@ cinc client create <name> [flags]
 
 ### Examples
 
-Create a client and write its generated private key to a file.
+Create a client; the server generates the key, written to a file.
 
 ```
 cinc client create worker-01 --key-file worker-01.pem
+```
+
+Create a validator client, used to bootstrap new nodes.
+
+```
+cinc client create bootstrap-validator --validator --key-file validator.pem
+```
+
+Register a public key you already have; the server generates no key.
+
+```
+cinc client create worker-01 --public-key worker-01.pub
 ```
 
 ### Options
