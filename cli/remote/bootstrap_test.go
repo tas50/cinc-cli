@@ -22,6 +22,7 @@ func TestBootstrapCommandBuildsCincClientScript(t *testing.T) {
 	for _, want := range []string{
 		"curl -L 'https://omnitruck.cinc.sh/install.sh' | sudo bash -s -- -v '18'",
 		"sudo mkdir -p /etc/cinc",
+		"sudo install -m 0600 /dev/null /etc/cinc/client.pem",
 		"chef_server_url \"https://cinc.example.test/organizations/acme\"",
 		"node_name \"web01\"",
 		"PRIVATE KEY",

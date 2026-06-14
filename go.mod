@@ -16,6 +16,7 @@ require (
 	github.com/tas50/cinc-api v0.5.0
 	github.com/tas50/cinc-supermarket v0.1.1
 	golang.org/x/crypto v0.53.0
+	golang.org/x/term v0.44.0
 )
 
 require (

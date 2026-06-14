@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -217,8 +216,7 @@ cinc user password alice`,
 			}
 			name := args[0]
 			if password == "" {
-				reader := bufio.NewReader(cmd.InOrStdin())
-				password, err = components.PromptWithDefault(reader, cmd.OutOrStdout(), "New password", "")
+				password, err = components.PromptPassword(cmd.InOrStdin(), cmd.OutOrStdout(), "New password")
 				if err != nil {
 					return err
 				}

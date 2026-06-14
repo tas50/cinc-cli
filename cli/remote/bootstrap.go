@@ -56,6 +56,10 @@ func BootstrapCommand(opts BootstrapOptions) (string, error) {
 		"set -e",
 		"curl -L " + shellQuote(opts.BootstrapURL) + " | " + prefix + "bash -s --" + installArgs,
 		prefix + "mkdir -p /etc/cinc",
+		// Create the private key 0600 *before* writing, so it is never
+		// world-readable on the target (tee would otherwise create it with the
+		// remote umask, typically 0644, until the chmod ran).
+		prefix + "install -m 0600 /dev/null /etc/cinc/client.pem",
 		writeFileCommand(prefix, "/etc/cinc/client.pem", opts.ClientKeyPEM),
 		prefix + "chmod 0600 /etc/cinc/client.pem",
 		writeFileCommand(prefix, "/etc/cinc/client.rb", clientRB),
