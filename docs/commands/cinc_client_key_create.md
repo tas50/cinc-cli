@@ -16,13 +16,13 @@ cinc client key create worker-01 rotation --key-file rotation.pem
 
 Register a public key you already have; the server generates nothing.
 
-```
+```bash
 cinc client key create worker-01 laptop --public-key ~/.ssh/id_rsa.pub
 ```
 
 Add a key that expires on a given date.
 
-```
+```bash
 cinc client key create worker-01 temp --expires 2030-01-01T00:00:00Z
 ```
 

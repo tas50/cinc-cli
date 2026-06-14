@@ -16,7 +16,7 @@ cinc user create alice --email alice@example.com --first-name Alice --last-name 
 
 Register a public key you already have; the server generates no key.
 
-```
+```bash
 cinc user create alice --email alice@example.com --public-key alice.pub
 ```
 

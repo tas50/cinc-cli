@@ -16,7 +16,7 @@ cinc node bootstrap web01.example.com --ssh-user ubuntu --run-list 'recipe[base]
 
 Bootstrap a host managed by a Policyfile policy group.
 
-```
+```bash
 cinc node bootstrap web01.example.com --ssh-user ubuntu --policy-name base --policy-group prod
 ```
 

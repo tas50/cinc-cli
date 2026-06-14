@@ -16,7 +16,7 @@ cinc node ssh 'role:web' 'sudo systemctl restart nginx' --ssh-user ubuntu
 
 Run a command on an explicit list of hosts, skipping search.
 
-```
+```bash
 cinc node ssh 'web01 web02' uptime --ssh-user ubuntu --skip-search
 ```
 

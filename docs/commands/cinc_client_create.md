@@ -16,13 +16,13 @@ cinc client create worker-01 --key-file worker-01.pem
 
 Create a validator client, used to bootstrap new nodes.
 
-```
+```bash
 cinc client create bootstrap-validator --validator --key-file validator.pem
 ```
 
 Register a public key you already have; the server generates no key.
 
-```
+```bash
 cinc client create worker-01 --public-key worker-01.pub
 ```
 

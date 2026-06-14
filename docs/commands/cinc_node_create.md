@@ -16,7 +16,7 @@ cinc node create web01 --environment prod --run-list 'recipe[base],role[web]'
 
 Create a node from a JSON file.
 
-```
+```bash
 cinc node create web01 --file web01.json
 ```
 
