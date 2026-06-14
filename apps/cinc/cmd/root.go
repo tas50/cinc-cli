@@ -47,6 +47,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(newPolicyCmd())
 	root.AddCommand(newPolicyGroupCmd())
 	root.AddCommand(newSupermarketCmd())
+	root.AddCommand(newSearchCmd())
 	root.AddCommand(newExploreCmd())
 
 	return root
