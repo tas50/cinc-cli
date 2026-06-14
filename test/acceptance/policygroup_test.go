@@ -52,3 +52,20 @@ func TestPolicyGroupShowAgainstCincZero(t *testing.T) {
 		t.Errorf("appserver revision = %q, want 1.0.0", rev.RevisionID)
 	}
 }
+
+// TestPolicyGroupDeleteAgainstCincZero deletes the seeded policy group
+// and asserts it disappears from the index.
+func TestPolicyGroupDeleteAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	out := runCinc(t, env.binary, "policy-group", "delete", "prod", "--config", env.cfgPath)
+	if out != "Deleted policy group \"prod\"\n" {
+		t.Errorf("policy-group delete output = %q", out)
+	}
+
+	after := runCinc(t, env.binary, "policy-group", "list", "--config", env.cfgPath)
+	if after != "" {
+		t.Errorf("policy-group list after delete = %q, want empty", after)
+	}
+}

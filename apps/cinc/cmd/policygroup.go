@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -18,7 +19,31 @@ func newPolicyGroupCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newPolicyGroupListCmd())
 	cmd.AddCommand(newPolicyGroupShowCmd())
+	cmd.AddCommand(newPolicyGroupDeleteCmd())
 	return cmd
+}
+
+// newPolicyGroupDeleteCmd builds the `cinc policy-group delete <name>`
+// command. It removes the named policy group from the server; the
+// policies it referenced are left in place.
+func newPolicyGroupDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete a policy group from the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+			if _, err := c.PolicyGroups.Delete(cmd.Context(), name); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted policy group %q\n", name)
+			return nil
+		},
+	}
 }
 
 // newPolicyGroupShowCmd builds the `cinc policy-group show <name>`

@@ -19,6 +19,7 @@ Manage policy groups on the Cinc Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc policy-group delete](cinc_policy-group_delete.md)	 - Delete a policy group from the server
 * [cinc policy-group list](cinc_policy-group_list.md)	 - List policy groups on the server
 * [cinc policy-group show](cinc_policy-group_show.md)	 - Show a policy group's active policy revisions
 

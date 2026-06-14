@@ -113,6 +113,46 @@ client_key      = %q
 	}
 }
 
+func TestPolicyGroupDeleteCommandEndToEnd(t *testing.T) {
+	var deleted string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/policy_groups/prod", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %q, want DELETE", r.Method)
+		}
+		deleted = "prod"
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"uri": "https://example.test/policy_groups/prod"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"policy-group", "delete", "prod", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc policy-group delete: %v", err)
+	}
+	if deleted != "prod" {
+		t.Errorf("server saw delete of %q, want %q", deleted, "prod")
+	}
+	if got := buf.String(); got != "Deleted policy group \"prod\"\n" {
+		t.Errorf("policy-group delete output = %q", got)
+	}
+}
+
 func TestPolicyGroupListCommandEndToEnd(t *testing.T) {
 	srv := policyGroupServer(t, "prod", "dev", "stage")
 

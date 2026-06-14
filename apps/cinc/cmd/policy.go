@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	"github.com/spf13/cobra"
@@ -18,7 +19,31 @@ func newPolicyCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newPolicyListCmd())
 	cmd.AddCommand(newPolicyShowCmd())
+	cmd.AddCommand(newPolicyDeleteCmd())
 	return cmd
+}
+
+// newPolicyDeleteCmd builds the `cinc policy delete <name>` command. It
+// removes the named policy and every one of its revisions from the
+// server.
+func newPolicyDeleteCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete <name>",
+		Short: "Delete a policy and all its revisions from the server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			name := args[0]
+			if _, err := c.Policies.Delete(cmd.Context(), name); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted policy %q\n", name)
+			return nil
+		},
+	}
 }
 
 // newPolicyShowCmd builds the `cinc policy show <name>` command. It

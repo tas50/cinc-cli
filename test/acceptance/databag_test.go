@@ -141,3 +141,58 @@ func TestDataBagDeleteAgainstCincZero(t *testing.T) {
 		t.Errorf("databag list after delete = %q, want apps absent", after)
 	}
 }
+
+// TestDataBagShowAgainstCincZero asserts that showing a bag enumerates
+// its item IDs (the seeded "users" bag holds alice and bob).
+func TestDataBagShowAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	human := runCinc(t, env.binary, "databag", "show", "users", "--config", env.cfgPath)
+	if human != "alice\nbob\n" {
+		t.Errorf("databag show users (human) = %q", human)
+	}
+
+	jsonOut := strings.TrimSpace(runCinc(t, env.binary, "databag", "show", "apps", "--config", env.cfgPath, "--format", "json"))
+	if jsonOut != "[]" {
+		t.Errorf("databag show apps (json) = %q, want \"[]\"", jsonOut)
+	}
+}
+
+// TestDataBagItemShowAgainstCincZero fetches a single seeded item and
+// asserts its document is returned in both formats.
+func TestDataBagItemShowAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	human := runCinc(t, env.binary, "databag", "item", "show", "users", "alice", "--config", env.cfgPath)
+	if !strings.Contains(human, "alice") || !strings.Contains(human, "admin") {
+		t.Errorf("databag item show (human) missing id/role:\n%s", human)
+	}
+
+	jsonOut := runCinc(t, env.binary, "databag", "item", "show", "users", "alice", "--config", env.cfgPath, "--format", "json")
+	var got cinc.DataBagItem
+	if err := json.Unmarshal([]byte(jsonOut), &got); err != nil {
+		t.Fatalf("databag item show (json) not valid JSON: %v\n%s", err, jsonOut)
+	}
+	if got["id"] != "alice" || got["role"] != "admin" {
+		t.Errorf("databag item show item = %+v, want id=alice role=admin", got)
+	}
+}
+
+// TestDataBagItemDeleteAgainstCincZero deletes a single item and
+// asserts it disappears while the bag and its sibling item remain.
+func TestDataBagItemDeleteAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	out := runCinc(t, env.binary, "databag", "item", "delete", "users", "alice", "--config", env.cfgPath)
+	if out != "Deleted item \"alice\" from data bag \"users\"\n" {
+		t.Errorf("databag item delete output = %q", out)
+	}
+
+	after := runCinc(t, env.binary, "databag", "item", "list", "users", "--config", env.cfgPath)
+	if after != "bob\n" {
+		t.Errorf("databag item list after delete = %q, want only bob", after)
+	}
+}
