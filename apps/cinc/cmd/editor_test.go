@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -34,5 +35,65 @@ func TestStrictJSONAcceptsKnownFieldsAndFreeFormAttributes(t *testing.T) {
 func TestStrictJSONRejectsMalformed(t *testing.T) {
 	if err := strictJSON[cinc.Node]()([]byte(`{`)); err == nil {
 		t.Error("expected an error for malformed JSON")
+	}
+}
+
+// A bare node must edit with the full knife-style skeleton visible, not
+// just the fields the struct happens to keep after omitempty.
+func TestNodeEditableViewShowsFullSkeleton(t *testing.T) {
+	view := nodeEditableView(&cinc.Node{Name: "db01"})
+	out, err := json.Marshal(view)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, want := range []string{
+		`"name":"db01"`,
+		`"chef_environment":"_default"`,
+		`"normal":{}`,
+		`"run_list":[]`,
+		`"policy_name":null`,
+		`"policy_group":null`,
+	} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("editable view missing %s, got %s", want, out)
+		}
+	}
+}
+
+func TestApplyNodeEditPreservesComputedAttributes(t *testing.T) {
+	orig := &cinc.Node{
+		Name:      "db01",
+		Automatic: cinc.Attributes{"platform": "ubuntu"},
+		Default:   cinc.Attributes{"role_attr": 1},
+	}
+	edited := &cinc.Node{Name: "db01", Normal: cinc.Attributes{"role": "db"}}
+	merged := applyNodeEdit(orig, edited)
+
+	if merged.Normal["role"] != "db" {
+		t.Errorf("edited normal not applied: %+v", merged.Normal)
+	}
+	if merged.Automatic["platform"] != "ubuntu" {
+		t.Errorf("automatic attributes not preserved: %+v", merged.Automatic)
+	}
+	if merged.Default["role_attr"] != 1 {
+		t.Errorf("default attributes not preserved: %+v", merged.Default)
+	}
+}
+
+func TestNodeEditUnchangedTreatsNilAndEmptyAlike(t *testing.T) {
+	bare := &cinc.Node{Name: "db01"}
+	skeleton := &cinc.Node{
+		Name:        "db01",
+		Environment: "_default",
+		Normal:      cinc.Attributes{},
+		RunList:     []string{},
+	}
+	if !nodeEditUnchanged(bare, skeleton) {
+		t.Error("a re-saved untouched node should read as unchanged")
+	}
+
+	changed := &cinc.Node{Name: "db01", Normal: cinc.Attributes{"x": 1}}
+	if nodeEditUnchanged(bare, changed) {
+		t.Error("an added attribute should read as changed")
 	}
 }
