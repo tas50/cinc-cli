@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
 	"slices"
 	"strings"
 	"text/tabwriter"
@@ -157,7 +156,7 @@ cinc node edit web01`,
 				if err != nil {
 					return err
 				}
-				if reflect.DeepEqual(*current, *edited) {
+				if nodeEditUnchanged(current, edited) {
 					fmt.Fprintf(cmd.OutOrStdout(), "Node %q unchanged\n", name)
 					return nil
 				}
