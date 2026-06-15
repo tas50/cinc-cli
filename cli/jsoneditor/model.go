@@ -495,6 +495,13 @@ func (m Model) Finished() bool { return m.finished }
 // Aborted reports whether the user abandoned the edit.
 func (m Model) Aborted() bool { return m.aborted }
 
+// Editing reports whether the editor is in a transient sub-edit (editing a
+// key/scalar inline or a whole block). Embedding code uses this to decide
+// whether Esc should cancel that sub-edit or back out of the editor.
+func (m Model) Editing() bool {
+	return m.state == stInlineEdit || m.state == stBlockEdit
+}
+
 // Committed returns the canonical JSON the user confirmed, or nil if the
 // edit was aborted or is still in progress.
 func (m Model) Committed() []byte { return m.committed }

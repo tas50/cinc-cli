@@ -50,6 +50,7 @@ type Model struct {
 	attrs       jsoneditor.Model
 
 	focus focus
+	dived bool // editing inside the focused run-list / attributes section
 
 	errMsg   string
 	result   *cinc.Node
@@ -105,28 +106,69 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if sz, ok := msg.(tea.WindowSizeMsg); ok {
 		m.setSize(sz.Width, sz.Height)
 	}
-	if k, ok := msg.(tea.KeyMsg); ok {
-		switch k.Type {
-		case tea.KeyCtrlC:
-			m.aborted = true
-			m.finished = true
-			return m, nil
-		case tea.KeyCtrlD:
-			return m.save(), nil
-		case tea.KeyTab:
-			m.setFocus(m.focus + 1)
-			return m, nil
-		case tea.KeyShiftTab:
-			m.setFocus(m.focus - 1)
-			return m, nil
-		}
+	k, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return m.forward(msg)
 	}
-	return m.forward(msg)
+	switch k.Type {
+	case tea.KeyCtrlC:
+		m.aborted = true
+		m.finished = true
+		return m, nil
+	case tea.KeyCtrlD:
+		return m.save(), nil
+	}
+	if m.dived {
+		return m.updateDived(k)
+	}
+	return m.updateNavigating(k)
 }
 
-// forward hands the message to the focused field. Tab, Ctrl-D, and Ctrl-C
-// are consumed in Update before this, so the embedded JSON editor never sees
-// them and cannot toggle its raw mode or finish on its own.
+// updateNavigating handles the top-level field cursor: up/down move between
+// fields, Enter dives into the run-list or attributes editor, Esc cancels
+// the whole edit. Text fields are edited inline while focused; the run-list
+// and attributes sections ignore typing until dived into.
+func (m Model) updateNavigating(k tea.KeyMsg) (Model, tea.Cmd) {
+	switch k.Type {
+	case tea.KeyUp:
+		m.setFocus(m.focus - 1)
+		return m, nil
+	case tea.KeyDown:
+		m.setFocus(m.focus + 1)
+		return m, nil
+	case tea.KeyEsc:
+		m.aborted = true
+		m.finished = true
+		return m, nil
+	case tea.KeyEnter:
+		if m.focus == focusRunList || m.focus == focusAttrs {
+			m.enterDive()
+		}
+		return m, nil
+	}
+	if m.focus == focusRunList || m.focus == focusAttrs {
+		return m, nil // not dived: nothing to type into
+	}
+	return m.forward(k)
+}
+
+// updateDived forwards keys to the dived-into section. Esc cancels an open
+// attribute sub-edit if there is one, otherwise it backs out to the field
+// cursor.
+func (m Model) updateDived(k tea.KeyMsg) (Model, tea.Cmd) {
+	if k.Type == tea.KeyEsc {
+		if m.focus == focusAttrs && m.attrs.Editing() {
+			return m.forward(k)
+		}
+		m.exitDive()
+		return m, nil
+	}
+	return m.forward(k)
+}
+
+// forward hands the message to the focused field. Ctrl-D and Ctrl-C are
+// consumed in Update before this, so the embedded JSON editor never finishes
+// on its own.
 func (m Model) forward(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch m.focus {
@@ -169,7 +211,14 @@ func (m Model) save() Model {
 }
 
 func (m *Model) setFocus(f focus) {
-	m.focus = (f%focusCount + focusCount) % focusCount
+	switch {
+	case f < 0:
+		f = 0
+	case f >= focusCount:
+		f = focusCount - 1
+	}
+	m.focus = f
+	m.dived = false
 	m.env.Blur()
 	m.policyGroup.Blur()
 	m.policyName.Blur()
@@ -181,9 +230,22 @@ func (m *Model) setFocus(f focus) {
 		m.policyGroup.Focus()
 	case focusPolicyName:
 		m.policyName.Focus()
-	case focusRunList:
+	}
+}
+
+// enterDive activates editing inside the focused run-list or attributes
+// section.
+func (m *Model) enterDive() {
+	m.dived = true
+	if m.focus == focusRunList {
 		m.runList.Focus()
 	}
+}
+
+// exitDive returns to the field cursor.
+func (m *Model) exitDive() {
+	m.dived = false
+	m.runList.Blur()
 }
 
 func (m *Model) setSize(w, h int) {
@@ -242,9 +304,16 @@ func (m Model) fieldLabel(label string, f focus) string {
 }
 
 func (m Model) footer() string {
-	hint := "Tab/⇧Tab move · Ctrl-D save · Ctrl-C cancel"
-	if m.focus == focusAttrs {
-		hint = "↑/↓ move · Enter edit · a add · d delete · " + hint
+	var hint string
+	switch {
+	case m.dived && m.focus == focusAttrs:
+		hint = "↑/↓ move · Enter edit · a add · d delete · Esc back · Ctrl-D save"
+	case m.dived && m.focus == focusRunList:
+		hint = "one entry per line · Esc back · Ctrl-D save"
+	case m.focus == focusRunList || m.focus == focusAttrs:
+		hint = "↑/↓ move · Enter edit · Ctrl-D save · Esc cancel"
+	default:
+		hint = "↑/↓ move · type to edit · Ctrl-D save · Esc cancel"
 	}
 	if m.errMsg != "" {
 		return errStyle.Render("Error: "+m.errMsg) + "\n" + hintStyle.Render(hint)
