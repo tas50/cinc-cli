@@ -85,6 +85,22 @@ client_key      = %q
 	if got := buf.String(); got != "admin\nworker-01\nworker-02\n" {
 		t.Errorf("client list output = %q, want sorted client names", got)
 	}
+
+	// The same list under --format json renders a JSON array of the names.
+	root = newRootCmd()
+	buf.Reset()
+	root.SetOut(&buf)
+	root.SetArgs([]string{"client", "list", "--config", cfgPath, "--format", "json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc client list --format json: %v", err)
+	}
+	var names []string
+	if err := json.Unmarshal(buf.Bytes(), &names); err != nil {
+		t.Fatalf("json list output is not a JSON array: %v\noutput: %s", err, buf.String())
+	}
+	if !slices.Equal(names, []string{"admin", "worker-01", "worker-02"}) {
+		t.Errorf("json list output = %v, want [admin worker-01 worker-02]", names)
+	}
 }
 
 // clientCreateServer returns an httptest server whose POST handler

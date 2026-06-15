@@ -318,4 +318,20 @@ client_key      = %q
 	if got := buf.String(); got != "apache\nmysql\nnginx\n" {
 		t.Errorf("cookbook list output = %q, want sorted cookbook names", got)
 	}
+
+	// The same list under --format json renders a JSON array of the names.
+	root = newRootCmd()
+	buf.Reset()
+	root.SetOut(&buf)
+	root.SetArgs([]string{"cookbook", "list", "--config", cfgPath, "--format", "json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc cookbook list --format json: %v", err)
+	}
+	var names []string
+	if err := json.Unmarshal(buf.Bytes(), &names); err != nil {
+		t.Fatalf("json list output is not a JSON array: %v\noutput: %s", err, buf.String())
+	}
+	if !slices.Equal(names, []string{"apache", "mysql", "nginx"}) {
+		t.Errorf("json list output = %v, want [apache mysql nginx]", names)
+	}
 }

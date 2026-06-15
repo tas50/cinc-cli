@@ -85,6 +85,22 @@ client_key      = %q
 	if got := buf.String(); got != "alice\nbob\ncarol\n" {
 		t.Errorf("user list output = %q, want sorted user names", got)
 	}
+
+	// The same list under --format json renders a JSON array of the names.
+	root = newRootCmd()
+	buf.Reset()
+	root.SetOut(&buf)
+	root.SetArgs([]string{"user", "list", "--config", cfgPath, "--format", "json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc user list --format json: %v", err)
+	}
+	var names []string
+	if err := json.Unmarshal(buf.Bytes(), &names); err != nil {
+		t.Fatalf("json list output is not a JSON array: %v\noutput: %s", err, buf.String())
+	}
+	if !slices.Equal(names, []string{"alice", "bob", "carol"}) {
+		t.Errorf("json list output = %v, want [alice bob carol]", names)
+	}
 }
 
 func TestUserCreateCommandStreamsGeneratedKey(t *testing.T) {

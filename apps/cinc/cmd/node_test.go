@@ -109,6 +109,22 @@ client_key      = %q
 	if got := buf.String(); got != "db01\nweb01\nweb02\n" {
 		t.Errorf("node list output = %q, want sorted node names", got)
 	}
+
+	// The same list under --format json renders a JSON array of the names.
+	root = newRootCmd()
+	buf.Reset()
+	root.SetOut(&buf)
+	root.SetArgs([]string{"node", "list", "--config", cfgPath, "--format", "json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc node list --format json: %v", err)
+	}
+	var names []string
+	if err := json.Unmarshal(buf.Bytes(), &names); err != nil {
+		t.Fatalf("json list output is not a JSON array: %v\noutput: %s", err, buf.String())
+	}
+	if !slices.Equal(names, []string{"db01", "web01", "web02"}) {
+		t.Errorf("json list output = %v, want [db01 web01 web02]", names)
+	}
 }
 
 func TestNodeDeleteCommandEndToEnd(t *testing.T) {

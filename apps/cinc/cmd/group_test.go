@@ -83,6 +83,22 @@ client_key      = %q
 	if got := buf.String(); got != "admins\nclients\nusers\n" {
 		t.Errorf("group list output = %q, want sorted group names", got)
 	}
+
+	// The same list under --format json renders a JSON array of the names.
+	root = newRootCmd()
+	buf.Reset()
+	root.SetOut(&buf)
+	root.SetArgs([]string{"group", "list", "--config", cfgPath, "--format", "json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc group list --format json: %v", err)
+	}
+	var names []string
+	if err := json.Unmarshal(buf.Bytes(), &names); err != nil {
+		t.Fatalf("json list output is not a JSON array: %v\noutput: %s", err, buf.String())
+	}
+	if !slices.Equal(names, []string{"admins", "clients", "users"}) {
+		t.Errorf("json list output = %v, want [admins clients users]", names)
+	}
 }
 
 func TestGroupCreateCommandEndToEnd(t *testing.T) {
