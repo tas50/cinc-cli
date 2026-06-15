@@ -1,12 +1,27 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 
 	cinc "github.com/tas50/cinc-api"
 
 	"github.com/tas50/cinc-cli/cli/jsoneditor"
 )
+
+// strictJSON returns a save-validation func for the typed editors. It
+// rejects malformed JSON and any key the model T does not recognize, so a
+// key added in the editor surfaces as an "unknown field" error rather than
+// being silently dropped on unmarshal — which would make a real edit look
+// like no change at all and report the object "unchanged".
+func strictJSON[T any]() func([]byte) error {
+	return func(b []byte) error {
+		dec := json.NewDecoder(bytes.NewReader(b))
+		dec.DisallowUnknownFields()
+		var v T
+		return dec.Decode(&v)
+	}
+}
 
 // editClient presents the supplied client as pretty-printed JSON in the
 // shared JSON editor and returns the parsed result. It is a package
@@ -18,10 +33,7 @@ func openClientJSONEditor(in *cinc.APIClient) (*cinc.APIClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	edited, err := jsoneditor.Run(initial, func(b []byte) error {
-		var c cinc.APIClient
-		return json.Unmarshal(b, &c)
-	})
+	edited, err := jsoneditor.Run(initial, strictJSON[cinc.APIClient]())
 	if err != nil {
 		return nil, err
 	}
@@ -53,10 +65,7 @@ func openObjectJSONEditor[T any](in *T) (*T, error) {
 	if err != nil {
 		return nil, err
 	}
-	edited, err := jsoneditor.Run(initial, func(b []byte) error {
-		var v T
-		return json.Unmarshal(b, &v)
-	})
+	edited, err := jsoneditor.Run(initial, strictJSON[T]())
 	if err != nil {
 		return nil, err
 	}

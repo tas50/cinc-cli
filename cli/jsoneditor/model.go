@@ -224,12 +224,41 @@ func (m Model) beginEdit() Model {
 		m.editKey = false
 		m.state = stInlineEdit
 	case uBlock:
-		m.textarea.SetValue(string(m.root.at(u.path).bytes()))
+		n := m.root.at(u.path)
+		if n.kind == kindArray {
+			// An array is a list: drill into its entries rather than
+			// editing the whole [ … ] as one raw blob.
+			return m.enterArray(u.path)
+		}
+		m.textarea.SetValue(string(n.bytes()))
 		m.textarea.Focus()
 		m.blockPath = u.path
 		m.state = stBlockEdit
 	}
 	return m
+}
+
+// enterArray moves the cursor to the array's first entry so the user
+// navigates and edits entries as a list. An empty array gains a first
+// (null) entry, so "open" always lands on a real, editable entry.
+func (m Model) enterArray(path []int) Model {
+	if arr := m.root.at(path); len(arr.elems) == 0 {
+		m.root.addElem(path, nullNode())
+		m.rebuild()
+	}
+	m.cursor = m.findValueUnit(childPath(path, 0))
+	return m
+}
+
+// findValueUnit returns the index of the value unit (scalar or block, not
+// a key) at path, or 0 if none matches.
+func (m Model) findValueUnit(path []int) int {
+	for i, u := range m.units {
+		if u.typ != uKey && pathEq(u.path, path) {
+			return i
+		}
+	}
+	return 0
 }
 
 func (m Model) addNode() Model {

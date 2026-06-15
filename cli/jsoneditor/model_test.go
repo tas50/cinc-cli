@@ -80,19 +80,49 @@ func TestStructuralDeleteMember(t *testing.T) {
 	}
 }
 
-func TestStructuralEditWholeBlock(t *testing.T) {
-	m := New([]byte(`{"l":[1]}`), func([]byte) error { return nil })
-	m = down(m)  // key[0] -> block[0] (the array)
-	m = enter(m) // begin block edit
+func TestStructuralEditWholeObjectBlock(t *testing.T) {
+	m := New([]byte(`{"o":{"x":1}}`), func([]byte) error { return nil })
+	m = down(m)  // key[0] -> block[0] (the object)
+	m = enter(m) // objects still open as a whole-block edit
 	if m.state != stBlockEdit {
 		t.Fatalf("expected block edit, state=%v", m.state)
 	}
-	m.textarea.SetValue(`[2,3,4]`)
+	m.textarea.SetValue(`{"y":2,"z":3}`)
 	m = ctrlD(m) // apply the block
 	m = commit(m)
 	got := string(m.Committed())
-	if !strings.Contains(got, "2") || !strings.Contains(got, "3") || !strings.Contains(got, "4") {
-		t.Errorf("block edit not committed, got %q", got)
+	if !strings.Contains(got, `"y": 2`) || !strings.Contains(got, `"z": 3`) {
+		t.Errorf("object block edit not committed, got %q", got)
+	}
+}
+
+func TestStructuralEnterArrayDrillsIntoEntries(t *testing.T) {
+	m := New([]byte(`{"l":["a","b"]}`), func([]byte) error { return nil })
+	m = down(m)  // key[0] -> block[0] (the array)
+	m = enter(m) // arrays drill into their entries, not a raw block edit
+	if m.state == stBlockEdit {
+		t.Fatal("entering an array should not open a raw block edit")
+	}
+	u := m.selected()
+	if u.typ != uScalar || !pathEq(u.path, []int{0, 0}) {
+		t.Errorf("expected the first array entry selected, got %+v", u)
+	}
+}
+
+func TestStructuralEnterEmptyArrayAddsEntry(t *testing.T) {
+	m := New([]byte(`{"l":[]}`), func([]byte) error { return nil })
+	m = down(m)  // key[0] -> block[0] (empty array)
+	m = enter(m) // opening an empty array gives it a first entry to edit
+	if m.state == stBlockEdit {
+		t.Fatal("entering an array should not open a raw block edit")
+	}
+	u := m.selected()
+	if u.typ != uScalar || !pathEq(u.path, []int{0, 0}) {
+		t.Errorf("expected a new first entry selected, got %+v", u)
+	}
+	m = commit(m)
+	if !strings.Contains(string(m.Committed()), "null") {
+		t.Errorf("new entry not committed, got %q", m.Committed())
 	}
 }
 
