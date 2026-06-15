@@ -166,15 +166,31 @@ cinc_server_url = "https://cinc.example.com/organizations/cinc-org"
 	}
 }
 
-func TestLoadRejectsServerURLWithoutOrganizationSegment(t *testing.T) {
+func TestLoadKeepsServerURLWithoutOrganizationSegmentForValidation(t *testing.T) {
+	// A malformed server URL no longer fails the whole load: the raw value is
+	// preserved (with ServerURL/Org left empty) so `cinc config validate` can
+	// report the precise problem per profile. Validate still surfaces it for
+	// callers that need a usable connection.
 	bad := `
 [default]
 client_name     = "tim"
 client_key      = "/keys/tim.pem"
 cinc_server_url = "https://cinc.example.com"
 `
-	if _, err := Load(writeConfig(t, bad)); err == nil {
-		t.Error("expected an error for a server URL missing /organizations/<org>")
+	cfg, err := Load(writeConfig(t, bad))
+	if err != nil {
+		t.Fatalf("Load should tolerate a malformed server URL, got %v", err)
+	}
+	p := cfg.Profiles["default"]
+	if p.RawServerURL != "https://cinc.example.com" {
+		t.Errorf("RawServerURL = %q, want the raw URL preserved", p.RawServerURL)
+	}
+	if p.ServerURL != "" || p.Org != "" {
+		t.Errorf("ServerURL/Org = %q/%q, want both empty for a malformed URL", p.ServerURL, p.Org)
+	}
+	if err := p.Validate(); err == nil ||
+		!strings.Contains(err.Error(), "organizations") {
+		t.Errorf("Validate() = %v, want an /organizations/<org> error", err)
 	}
 }
 

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,16 +31,77 @@ cinc_server_url = "%s/organizations/acme"
 	if err := root.Execute(); err != nil {
 		t.Fatalf("cinc config validate: %v", err)
 	}
-	if got := out.String(); !strings.Contains(got, "is valid (1 profile(s))") {
-		t.Fatalf("stdout = %q", got)
+	got := out.String()
+	for _, want := range []string{"is valid", "default profile [VALID]", "✓ Server URL is valid", "✓ Server is reachable"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("stdout = %q, want %q", got, want)
+		}
+	}
+}
+
+func TestParseServerHost(t *testing.T) {
+	ok := map[string]string{
+		"https://chef.example.com":     "chef.example.com",
+		"http://chef.example.com:8443": "chef.example.com",
+		"https://127.0.0.1:8889":       "127.0.0.1",
+	}
+	for in, want := range ok {
+		if got, err := parseServerHost(in); err != nil || got != want {
+			t.Errorf("parseServerHost(%q) = (%q, %v), want (%q, nil)", in, got, err, want)
+		}
+	}
+	for _, in := range []string{"", "chef.example.com", "ftp://host", "https://", "://nope"} {
+		if _, err := parseServerHost(in); err == nil {
+			t.Errorf("parseServerHost(%q) = nil error, want a format error", in)
+		}
+	}
+}
+
+func withStubResolver(t *testing.T, fn func(context.Context, string) ([]string, error)) {
+	t.Helper()
+	orig := resolveHost
+	resolveHost = fn
+	t.Cleanup(func() { resolveHost = orig })
+}
+
+func TestConfigValidateServerReachableFailsOnDNS(t *testing.T) {
+	// The reachable check resolves DNS before connecting; a resolution failure
+	// is reported there (and the server is never dialed).
+	srv := configValidateServer(t, http.StatusOK)
+	contacted := false
+	srv.Config.Handler = http.HandlerFunc(func(http.ResponseWriter, *http.Request) { contacted = true })
+	withStubResolver(t, func(context.Context, string) ([]string, error) {
+		return nil, fmt.Errorf("no such host")
+	})
+
+	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
+[default]
+client_name = "tim"
+client_key = %q
+cinc_server_url = "%s/organizations/acme"
+`, writeTestKey(t), srv.URL))
+
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"config", "validate", cfgPath})
+
+	if err := root.Execute(); err == nil {
+		t.Fatal("expected validation error when DNS fails")
+	}
+	if got := out.String(); !strings.Contains(got, "✗ Server is reachable: cannot resolve host") {
+		t.Errorf("stdout = %q, want a DNS resolution failure on the reachable check", got)
+	}
+	if contacted {
+		t.Error("the server should not be dialed when DNS resolution fails")
 	}
 }
 
 func TestConfigValidateCommandPreflightsSupermarketSite(t *testing.T) {
 	hit := false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// The preflight now reaches the Supermarket via the cinc-supermarket
-		// client's health check rather than a hand-rolled cookbooks GET.
+		// The reachable check hits the Supermarket health endpoint via the
+		// cinc-supermarket client.
 		if r.URL.Path != "/api/v1/health" {
 			t.Errorf("path = %q, want /api/v1/health", r.URL.Path)
 		}
@@ -64,11 +126,98 @@ supermarket_site = "%s"
 		t.Fatalf("cinc config validate: %v", err)
 	}
 	if !hit {
-		t.Fatal("supermarket preflight endpoint was not contacted")
+		t.Fatal("supermarket reachable check did not contact the site")
+	}
+	if got := out.String(); !strings.Contains(got, "✓ Supermarket is reachable") {
+		t.Errorf("stdout = %q, want the supermarket check to pass", got)
 	}
 }
 
-func TestConfigValidateCommandReportsPreflightFailure(t *testing.T) {
+func TestConfigValidateCommandRejectsServerURLMissingOrg(t *testing.T) {
+	// A server URL that omits /organizations/<org> fails the single combined
+	// "Server URL is valid" check; the load itself still succeeds.
+	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
+[default]
+client_name = "tim"
+client_key = %q
+cinc_server_url = "https://cinc.example.com"
+`, writeTestKey(t)))
+
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"config", "validate", cfgPath})
+
+	if err := root.Execute(); err == nil {
+		t.Fatal("expected validation error for a server URL missing /organizations/<org>")
+	}
+	got := out.String()
+	if !strings.Contains(got, "default profile [INVALID]") ||
+		!strings.Contains(got, "✗ Server URL is valid") ||
+		!strings.Contains(got, "organizations") {
+		t.Fatalf("stdout = %q, want the combined server URL check to fail citing /organizations", got)
+	}
+	// The reachable check shouldn't run when the URL never parsed.
+	if strings.Contains(got, "Server is reachable") {
+		t.Errorf("reachable check should be skipped for an unparseable URL:\n%s", got)
+	}
+}
+
+func TestConfigValidateCommandNotesDefaultSupermarketSite(t *testing.T) {
+	// With no supermarket_site set, the site-URL check passes (green) with a
+	// note naming the default public Supermarket it falls back to.
+	srv := configValidateServer(t, http.StatusOK)
+	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
+[default]
+client_name = "tim"
+client_key = %q
+cinc_server_url = "%s/organizations/acme"
+`, writeTestKey(t), srv.URL))
+
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"config", "validate", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc config validate: %v", err)
+	}
+	want := "✓ Supermarket site URL is valid: using the default https://supermarket.chef.io"
+	if got := out.String(); !strings.Contains(got, want) {
+		t.Errorf("stdout = %q, want %q", got, want)
+	}
+}
+
+func TestConfigValidateCommandWarnsOnInsecureSSLVerifyMode(t *testing.T) {
+	// :verify_none is a warning, not a failure: a yellow check with a note, and
+	// the profile stays VALID.
+	srv := configValidateServer(t, http.StatusOK)
+	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
+[default]
+client_name = "tim"
+client_key = %q
+cinc_server_url = "%s/organizations/acme"
+ssl_verify_mode = ":verify_none"
+`, writeTestKey(t), srv.URL))
+
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"config", "validate", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc config validate should pass with a warning: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "default profile [VALID]") {
+		t.Errorf("a :verify_none warning should not invalidate the profile:\n%s", got)
+	}
+	if !strings.Contains(got, "ssl_verify_mode is valid: Insecure :verify_none mode configured") {
+		t.Errorf("stdout = %q, want the insecure-mode warning note", got)
+	}
+}
+
+func TestConfigValidateCommandReportsUnreachableServer(t *testing.T) {
 	srv := configValidateServer(t, http.StatusInternalServerError)
 	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
 [default]
@@ -82,15 +231,11 @@ cinc_server_url = "%s/organizations/acme"
 	root.SetOut(&out)
 	root.SetArgs([]string{"config", "validate", cfgPath})
 
-	err := root.Execute()
-	if err == nil {
-		t.Fatal("expected preflight validation error")
+	if err := root.Execute(); err == nil {
+		t.Fatal("expected validation error for an unreachable server")
 	}
 	got := out.String()
-	for _, want := range []string{
-		"is invalid",
-		"default\tcinc_server_url\tpreflight failed:",
-	} {
+	for _, want := range []string{"is invalid", "default profile [INVALID]", "✗ Server is reachable"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("stdout = %q, want %q", got, want)
 		}
@@ -112,14 +257,14 @@ client_name = "tim"
 	if err == nil {
 		t.Fatal("expected validation error")
 	}
-	if !strings.Contains(err.Error(), "config validation failed with") {
+	if !strings.Contains(err.Error(), "config validation failed") {
 		t.Fatalf("error = %v", err)
 	}
 	got := out.String()
 	for _, want := range []string{
-		"is invalid",
-		"broken\tclient_key\tclient_key is required",
-		"broken\tendpoint\tconfigure cinc_server_url, chef_server_url, or supermarket_site",
+		"broken profile [INVALID]",
+		"✗ Client key is configured: client_key is required",
+		"✗ An endpoint is configured: configure cinc_server_url, chef_server_url, or supermarket_site",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("stdout = %q, want %q", got, want)
@@ -127,7 +272,7 @@ client_name = "tim"
 	}
 }
 
-func TestConfigValidateCommandFormatsIssues(t *testing.T) {
+func TestConfigValidateCommandFormatsChecks(t *testing.T) {
 	cfgPath := writeValidateConfig(t, `
 [broken]
 client_name = "tim"
@@ -143,18 +288,31 @@ client_name = "tim"
 		t.Fatal("expected validation error")
 	}
 	got := out.String()
-	// Header ends in a colon, not the old "(N issue(s))".
-	if !strings.Contains(got, "is invalid:\n") || strings.Contains(got, "issue(s)") {
-		t.Errorf("header not reformatted:\n%s", got)
+
+	// Overall line, then the top-level checks.
+	if !strings.HasPrefix(got, "Config ") || !strings.Contains(got, " is invalid!\n") {
+		t.Errorf("missing overall line:\n%s", got)
 	}
-	// Issues are indented and numbered.
-	if !strings.Contains(got, "  1. ") || !strings.Contains(got, "  2. ") {
-		t.Errorf("issues not numbered/indented:\n%s", got)
+	if !strings.Contains(got, "✓ Credentials file is valid TOML") ||
+		!strings.Contains(got, "✓ At least one profile is defined") {
+		t.Errorf("missing top-level checks:\n%s", got)
 	}
-	// The error wraps errAlreadyReported, which is how Execute suppresses the
-	// second generic "Error: ..." line while still exiting non-zero.
+	// A blank line separates the top-level checks from the profile block, which
+	// is tagged and has indented per-profile checks.
+	if !strings.Contains(got, "\n\nbroken profile [INVALID]\n") {
+		t.Errorf("profile block not separated/tagged:\n%s", got)
+	}
+	if !strings.Contains(got, "  ✓ Client name is configured\n") {
+		t.Errorf("per-profile checks not indented:\n%s", got)
+	}
+	// No leftover wording from the old issue-count format.
+	if strings.Contains(got, "issue(s)") {
+		t.Errorf("output still mentions issue counts:\n%s", got)
+	}
+	// The error wraps errAlreadyReported so Execute exits non-zero without
+	// re-printing a generic "Error: ..." line.
 	if !errors.Is(err, errAlreadyReported) {
-		t.Errorf("error should wrap errAlreadyReported so Execute does not re-print it; got %v", err)
+		t.Errorf("error should wrap errAlreadyReported; got %v", err)
 	}
 }
 
@@ -169,15 +327,34 @@ client_key = "/keys/tim.pem"
 	root.SetOut(&out)
 	root.SetArgs([]string{"config", "validate", cfgPath, "--format", "json"})
 
-	err := root.Execute()
-	if err == nil {
+	if err := root.Execute(); err == nil {
 		t.Fatal("expected validation error")
 	}
-	got := out.String()
-	for _, want := range []string{`"valid": false`, `"profile": "broken"`, `"field": "client_name"`} {
-		if !strings.Contains(got, want) {
-			t.Fatalf("stdout = %q, want %q", got, want)
+
+	var result configValidationResult
+	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+		t.Fatalf("output is not valid JSON: %v\n%s", err, out.String())
+	}
+	if result.Valid {
+		t.Error("result.valid should be false")
+	}
+	if len(result.TopLevel) == 0 {
+		t.Error("expected top-level checks in JSON")
+	}
+	if len(result.Profiles) != 1 || result.Profiles[0].Name != "broken" || result.Profiles[0].Valid {
+		t.Fatalf("profiles = %+v", result.Profiles)
+	}
+	var found bool
+	for _, c := range result.Profiles[0].Checks {
+		if c.Name == "Client name is configured" {
+			found = true
+			if c.Passed {
+				t.Error("'Client name is configured' should have failed for the broken profile")
+			}
 		}
+	}
+	if !found {
+		t.Error("expected a 'Client name is configured' check in the JSON output")
 	}
 }
 
