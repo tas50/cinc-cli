@@ -540,11 +540,11 @@ func nodeItemServer(t *testing.T, name string, current cinc.Node, gotPut *cinc.N
 	return srv
 }
 
-func withStubNodeEditor(t *testing.T, stub func(*cinc.Node) (*cinc.Node, error)) {
+func withStubNodeEditor(t *testing.T, stub func(*cinc.Node) (*cinc.Node, bool, error)) {
 	t.Helper()
-	orig := editNode
-	editNode = stub
-	t.Cleanup(func() { editNode = orig })
+	orig := editNodeForm
+	editNodeForm = stub
+	t.Cleanup(func() { editNodeForm = orig })
 }
 
 func writeNodeConfig(t *testing.T, serverURL string) string {
@@ -661,10 +661,10 @@ func TestNodeEditCommandPutsEditorResult(t *testing.T) {
 	current := cinc.Node{Name: "web01", Environment: "prod", RunList: []string{"recipe[base]"}}
 	srv := nodeItemServer(t, "web01", current, &gotPut)
 
-	withStubNodeEditor(t, func(in *cinc.Node) (*cinc.Node, error) {
+	withStubNodeEditor(t, func(in *cinc.Node) (*cinc.Node, bool, error) {
 		out := *in
 		out.Environment = "staging"
-		return &out, nil
+		return &out, true, nil
 	})
 
 	root := newRootCmd()
@@ -683,14 +683,43 @@ func TestNodeEditCommandPutsEditorResult(t *testing.T) {
 	}
 }
 
+func TestNodeEditCommandReportsUnchanged(t *testing.T) {
+	current := cinc.Node{Name: "web01", Environment: "prod"}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/nodes/web01", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("unexpected %s on an unchanged edit", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(current)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	withStubNodeEditor(t, func(in *cinc.Node) (*cinc.Node, bool, error) {
+		return in, false, nil // no change
+	})
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"node", "edit", "web01", "--config", writeNodeConfig(t, srv.URL)})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc node edit: %v", err)
+	}
+	if got := buf.String(); got != "Node \"web01\" unchanged\n" {
+		t.Errorf("output = %q, want unchanged message", got)
+	}
+}
+
 func TestNodeEditCommandReadsFromFile(t *testing.T) {
 	var gotPut cinc.Node
 	current := cinc.Node{Name: "web01", RunList: []string{"recipe[base]"}}
 	srv := nodeItemServer(t, "web01", current, &gotPut)
 
-	withStubNodeEditor(t, func(*cinc.Node) (*cinc.Node, error) {
+	withStubNodeEditor(t, func(*cinc.Node) (*cinc.Node, bool, error) {
 		t.Fatal("editor was invoked despite --file")
-		return nil, nil
+		return nil, false, nil
 	})
 
 	filePath := filepath.Join(t.TempDir(), "node.json")

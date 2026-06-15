@@ -499,6 +499,21 @@ func (m Model) Aborted() bool { return m.aborted }
 // edit was aborted or is still in progress.
 func (m Model) Committed() []byte { return m.committed }
 
+// Value returns the document's current canonical JSON, reflecting in-progress
+// edits without requiring a commit. It lets embedding code (e.g. a larger
+// form) read the live document at any time. In raw mode it canonicalizes the
+// textarea contents, falling back to the raw bytes if they are not yet valid
+// JSON.
+func (m Model) Value() []byte {
+	if m.mode == modeRaw {
+		if t, err := parseTree([]byte(m.textarea.Value())); err == nil {
+			return t.bytes()
+		}
+		return []byte(m.textarea.Value())
+	}
+	return m.root.bytes()
+}
+
 // ----- view ------------------------------------------------------------
 
 func (m Model) View() string {
@@ -506,20 +521,33 @@ func (m Model) View() string {
 		return "Preview — Enter or Ctrl-D to confirm, Esc to keep editing\n\n" + m.preview
 	}
 	if m.mode == modeRaw {
-		return m.header("cinc edit (raw) — Ctrl-D validate & preview · Tab structural · Esc abort") + m.textarea.View()
+		return m.header("cinc edit (raw) — Ctrl-D validate & preview · Tab structural · Esc abort") + m.ContentView()
 	}
 	if m.state == stBlockEdit {
-		return m.header("cinc edit (block) — Ctrl-D apply · Esc cancel") + m.textarea.View()
+		return m.header("cinc edit (block) — Ctrl-D apply · Esc cancel") + m.ContentView()
 	}
-	body := m.structuralView()
 	if m.state == stInlineEdit {
 		label := "value"
 		if m.editKey {
 			label = "key"
 		}
-		return m.header("cinc edit ("+label+") — Enter apply · Esc cancel") + body + "\n\n› " + m.input.View()
+		return m.header("cinc edit ("+label+") — Enter apply · Esc cancel") + m.ContentView()
 	}
-	return m.header("cinc edit — ↑/↓ move · Enter edit · a add · d delete · Tab raw · Ctrl-D save · Esc abort") + body
+	return m.header("cinc edit — ↑/↓ move · Enter edit · a add · d delete · Tab raw · Ctrl-D save · Esc abort") + m.ContentView()
+}
+
+// ContentView renders just the editor body for the current state, without
+// the header line. Embedding code (e.g. the node-edit form) uses it to place
+// the editor under its own label instead of the standalone header.
+func (m Model) ContentView() string {
+	switch {
+	case m.mode == modeRaw || m.state == stBlockEdit:
+		return m.textarea.View()
+	case m.state == stInlineEdit:
+		return m.structuralView() + "\n\n› " + m.input.View()
+	default:
+		return m.structuralView()
+	}
 }
 
 func (m Model) header(line string) string {

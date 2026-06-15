@@ -143,6 +143,23 @@ func TestRawModeToggleRoundTrips(t *testing.T) {
 	}
 }
 
+func TestValueReflectsLiveEditsWithoutCommit(t *testing.T) {
+	m := New([]byte(`{"a":1}`), func([]byte) error { return nil })
+	if got := string(m.Value()); got != "{\n  \"a\": 1\n}" {
+		t.Errorf("initial Value = %q", got)
+	}
+	m = down(m)  // key[0] -> scalar[0]
+	m = enter(m) // inline edit
+	m.input.SetValue("2")
+	m = enter(m) // apply (no commit)
+	if m.Finished() {
+		t.Fatal("editing a value must not finish the editor")
+	}
+	if got := string(m.Value()); !strings.Contains(got, `"a": 2`) {
+		t.Errorf("Value after edit = %q, want it to reflect the change", got)
+	}
+}
+
 func TestStructuralSaveIsImmediate(t *testing.T) {
 	m := New([]byte(`{"a":1}`), func([]byte) error { return nil })
 	m = ctrlD(m) // structural: commits without a preview step
