@@ -14,13 +14,11 @@ func esc(m Model) Model   { m, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc}); retur
 
 func TestEditorCommitsCanonicalJSON(t *testing.T) {
 	m := New([]byte(`{"b":2,"a":1}`), func([]byte) error { return nil })
-	m = ctrlD(m) // validate + preview
-	if m.Finished() {
-		t.Fatal("preview should not finish the edit")
-	}
-	m = enter(m) // confirm
+	// Structural mode is always valid JSON, so Ctrl-D commits immediately
+	// — no preview/confirm round-trip.
+	m = ctrlD(m)
 	if !m.Finished() || m.Aborted() {
-		t.Fatalf("expected a committed edit, finished=%v aborted=%v", m.Finished(), m.Aborted())
+		t.Fatalf("expected an immediate committed edit, finished=%v aborted=%v", m.Finished(), m.Aborted())
 	}
 	got := string(m.Committed())
 	if !strings.Contains(got, `"a": 1`) || !strings.Contains(got, `"b": 2`) {
