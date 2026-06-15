@@ -169,7 +169,7 @@ func loadCredentials(cmd *cobra.Command) (*config.Config, error) {
 // migration, or a write error — it returns an error pointing the
 // caller (a server-touching command) at `cinc config create`.
 func maybeFirstRun(cmd *cobra.Command, cincPath string) error {
-	succeeded, err := offerFirstRun(cmd, cincPath)
+	succeeded, _, err := offerFirstRun(cmd, cincPath)
 	if err != nil {
 		return err
 	}
@@ -181,16 +181,19 @@ func maybeFirstRun(cmd *cobra.Command, cincPath string) error {
 
 // offerFirstRun welcomes a first-time user and either migrates an
 // existing ~/.chef/credentials file or walks them through the
-// configure prompts inline. Returns (true, nil) when credentials
-// were written, (false, nil) for benign no-ops (non-TTY, declined
-// migration), and (false, err) on failure.
-func offerFirstRun(cmd *cobra.Command, cincPath string) (bool, error) {
+// configure prompts inline. Returns (true, false, nil) when
+// credentials were written, (false, false, nil) for benign no-ops
+// (non-TTY), (false, true, nil) when the user explicitly declined a
+// setup prompt, and (false, _, err) on failure. The declined flag
+// lets the bare-`cinc` caller exit cleanly instead of falling through
+// to help.
+func offerFirstRun(cmd *cobra.Command, cincPath string) (succeeded, declined bool, err error) {
 	if !stdinIsTTY() {
-		return false, nil
+		return false, false, nil
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return false, nil
+		return false, false, nil
 	}
 
 	out := cmd.ErrOrStderr()
@@ -199,12 +202,13 @@ func offerFirstRun(cmd *cobra.Command, cincPath string) (bool, error) {
 
 	// Gate the whole setup on a single yes/no so a user who just wants help, or
 	// who'll configure later, isn't dropped into the prompts. Default is yes.
-	fmt.Fprint(out, "It looks like this is your first time using Cinc. Would you like to run the interactive setup? (Y/n) ")
+	fmt.Fprintln(out, "It looks like this is your first time using Cinc.")
+	fmt.Fprint(out, "Would you like to run the interactive setup? (Y/n) ")
 	switch strings.ToLower(readPromptLine(cmd.InOrStdin())) {
 	case "n", "no":
 		fmt.Fprintln(out, "No problem — run `cinc config create` whenever you're ready to set up a profile.")
 		fmt.Fprintln(out)
-		return false, nil
+		return false, true, nil
 	}
 
 	chefPath := filepath.Join(home, ".chef", "credentials")
@@ -237,24 +241,25 @@ func readPromptLine(r io.Reader) string {
 }
 
 // runMigrationPrompt asks the user whether to migrate ~/.chef/credentials
-// and either runs the migration or returns a friendly decline.
-func runMigrationPrompt(cmd *cobra.Command, chefPath, cincPath string, out io.Writer) (bool, error) {
+// and either runs the migration or returns a friendly decline. The
+// declined flag matches offerFirstRun's contract.
+func runMigrationPrompt(cmd *cobra.Command, chefPath, cincPath string, out io.Writer) (succeeded, declined bool, err error) {
 	fmt.Fprintf(out, "We found an existing Chef config at %s. Want us to migrate it to %s for you? [Y/n] ", chefPath, cincPath)
 	line, _ := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
 	switch strings.ToLower(strings.TrimSpace(line)) {
 	case "n", "no":
 		fmt.Fprintln(out, "No problem — run `cinc config create` whenever you're ready to set up a profile.")
 		fmt.Fprintln(out)
-		return false, nil
+		return false, true, nil
 	}
 
 	n, err := migrateChef(chefPath, cincPath)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 	fmt.Fprintf(out, "Done! Wrote %d profile(s) to %s.\n", n, cincPath)
 	fmt.Fprintln(out)
-	return true, nil
+	return true, false, nil
 }
 
 // runConfigurePrompt drives the interactive configure flow when no
@@ -262,12 +267,12 @@ func runMigrationPrompt(cmd *cobra.Command, chefPath, cincPath string, out io.Wr
 // enough context to explain why the prompts are appearing; the
 // configure flow prints its own opener so we don't repeat ourselves
 // here.
-func runConfigurePrompt(cmd *cobra.Command, cincPath string, out io.Writer) (bool, error) {
+func runConfigurePrompt(cmd *cobra.Command, cincPath string, out io.Writer) (succeeded, declined bool, err error) {
 	if err := runFirstRunConfigure(cmd, cincPath); err != nil {
-		return false, err
+		return false, false, err
 	}
 	fmt.Fprintln(out)
-	return true, nil
+	return true, false, nil
 }
 
 // realRunFirstRunConfigure delegates to the same prompt + write

@@ -22,9 +22,10 @@ import (
 
 // TestSetupMigratesChefCredentialsOnFirstRun seeds ~/.chef/credentials
 // in a tempdir HOME, runs `cinc node list` with a pseudo-tty on stdin
-// so the migration prompt actually fires, answers "y", and expects
-// the first invocation to write the cinc credentials file and exit
-// cleanly without running the node list. A second invocation then
+// so the first-run prompts actually fire, answers "y" to both the
+// "run interactive setup?" gate and the "migrate it?" prompt, and
+// expects the first invocation to write the cinc credentials file and
+// exit cleanly without running the node list. A second invocation then
 // proves the migrated profile actually works.
 func TestSetupMigratesChefCredentialsOnFirstRun(t *testing.T) {
 	port := freePort(t)
@@ -52,12 +53,16 @@ client_key      = %q
 	cmd := exec.Command(binary, "node", "list")
 	cmd.Env = append(os.Environ(), "HOME="+home)
 
-	stdout, stderr, err := runWithTTYStdin(t, cmd, "y\n")
+	// Two answers: the "run interactive setup?" gate, then "migrate it?".
+	stdout, stderr, err := runWithTTYStdin(t, cmd, "y\ny\n")
 	if err != nil {
 		t.Fatalf("cinc node list after migration prompt: %v\nstdout: %s\nstderr: %s", err, stdout, stderr)
 	}
-	if !strings.Contains(stderr, "Welcome to the Cinc CLI!") {
+	if !strings.Contains(stderr, "Welcome to") {
 		t.Errorf("expected welcome on stderr, got:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "first time using Cinc") {
+		t.Errorf("expected the interactive-setup gate on stderr, got:\n%s", stderr)
 	}
 	if !strings.Contains(stderr, "migrate it") {
 		t.Errorf("expected migration prompt on stderr, got:\n%s", stderr)

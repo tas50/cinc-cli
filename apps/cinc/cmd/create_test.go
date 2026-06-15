@@ -153,7 +153,7 @@ func TestConfigureCommandOnboardsWithDefaults(t *testing.T) {
 	t.Setenv("HOME", home)
 	t.Setenv("USER", "damacus")
 
-	keyPath := filepath.Join(home, ".ssh", "damacus.pem")
+	keyPath := filepath.Join(home, ".cinc", "damacus.pem")
 	if err := os.MkdirAll(filepath.Dir(keyPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -250,7 +250,7 @@ func TestConfigureInteractiveAddsNewProfileWhenFileExists(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	keyPath := filepath.Join(home, ".ssh", "damacus.pem")
+	keyPath := filepath.Join(home, ".cinc", "damacus.pem")
 	if err := os.MkdirAll(filepath.Dir(keyPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -312,8 +312,8 @@ func TestConfigureInteractiveUpdatesExistingProfile(t *testing.T) {
 	t.Setenv("USER", "damacus")
 
 	cfgPath := filepath.Join(home, ".cinc", "credentials")
-	stagingKey := filepath.Join(home, ".ssh", "staging.pem")
-	defaultKey := filepath.Join(home, ".ssh", "default.pem")
+	stagingKey := filepath.Join(home, ".cinc", "staging.pem")
+	defaultKey := filepath.Join(home, ".cinc", "default.pem")
 	if err := os.MkdirAll(filepath.Dir(stagingKey), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -397,7 +397,7 @@ func TestConfigureInteractiveReplacesCredentialsFile(t *testing.T) {
 	t.Setenv("USER", "damacus")
 
 	cfgPath := filepath.Join(home, ".cinc", "credentials")
-	keyPath := filepath.Join(home, ".ssh", "damacus.pem")
+	keyPath := filepath.Join(home, ".cinc", "damacus.pem")
 	if err := os.MkdirAll(filepath.Dir(keyPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -469,7 +469,7 @@ func TestConfigureInteractiveAddNewWithCollisionOffersUpdate(t *testing.T) {
 	t.Setenv("USER", "damacus")
 
 	cfgPath := filepath.Join(home, ".cinc", "credentials")
-	defaultKey := filepath.Join(home, ".ssh", "default.pem")
+	defaultKey := filepath.Join(home, ".cinc", "default.pem")
 	if err := os.MkdirAll(filepath.Dir(defaultKey), 0o700); err != nil {
 		t.Fatal(err)
 	}
