@@ -45,7 +45,16 @@ func TestConfigValidateAgainstCincZero(t *testing.T) {
 	defer stop()
 
 	out := runCinc(t, env.binary, "config", "validate", env.cfgPath, "--config", env.cfgPath)
-	if !strings.Contains(out, "valid") {
-		t.Errorf("config validate output = %q, want it to report the config valid", out)
+	for _, want := range []string{
+		"default profile [VALID]",
+		"✓ Server URL is valid",
+		"✓ Server is reachable",
+		// No supermarket_site is configured, so the check passes with a note
+		// naming the public Supermarket the CLI falls back to.
+		"✓ Supermarket site URL is valid: using the default https://supermarket.chef.io",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("config validate output = %q, want %q", out, want)
+		}
 	}
 }

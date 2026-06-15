@@ -24,6 +24,12 @@ type Profile struct {
 	ClientName      string
 	KeyPath         string
 	SSLVerifyMode   string
+
+	// RawServerURL is the server URL exactly as written in the config, before
+	// it is split into ServerURL + Org. It is preserved even when the URL is
+	// malformed (ServerURL/Org are then empty) so validation can report the
+	// precise problem instead of the whole load failing.
+	RawServerURL string
 }
 
 // rawProfile is the on-disk shape of one credentials section. Both the
@@ -55,6 +61,12 @@ func (p Profile) Validate() error {
 		return err
 	}
 	switch {
+	case p.ServerURL == "" && p.RawServerURL != "":
+		// A server URL was written but didn't parse; report exactly why.
+		if _, _, err := cinc.ParseServerURL(p.RawServerURL); err != nil {
+			return fmt.Errorf("config: %w", err)
+		}
+		return fmt.Errorf("config: profile is missing cinc_server_url (or chef_server_url)")
 	case p.ServerURL == "":
 		return fmt.Errorf("config: profile is missing cinc_server_url (or chef_server_url)")
 	case p.Org == "":
@@ -251,12 +263,15 @@ func resolveProfile(rp rawProfile) (Profile, error) {
 		SSLVerifyMode:   rp.SSLVerifyMode,
 	}
 	if raw := rp.serverURL(); raw != "" {
-		server, org, err := cinc.ParseServerURL(raw)
-		if err != nil {
-			return Profile{}, err
+		// Preserve the raw URL even when it doesn't parse, so validation can
+		// report the precise problem instead of the whole load failing. A
+		// malformed URL leaves ServerURL/Org empty; Profile.Validate surfaces
+		// the parse error for callers that need a usable connection.
+		p.RawServerURL = raw
+		if server, org, err := cinc.ParseServerURL(raw); err == nil {
+			p.ServerURL = server
+			p.Org = org
 		}
-		p.ServerURL = server
-		p.Org = org
 	}
 	return p, nil
 }

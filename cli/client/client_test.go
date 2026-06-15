@@ -96,6 +96,34 @@ func TestNewWarnsWhenTLSVerificationDisabled(t *testing.T) {
 	}
 }
 
+func TestSilenceTLSWarningSuppressesAndRestores(t *testing.T) {
+	buf := withCapturedTLSWarn(t)
+	p := config.Profile{
+		ServerURL:     "https://chef.example.com",
+		Org:           "acme",
+		ClientName:    "tim",
+		KeyPath:       writeKeyFile(t),
+		SSLVerifyMode: ":verify_none",
+	}
+
+	restore := SilenceTLSWarning()
+	if _, err := New(p); err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("warning should be silenced, got %q", buf.String())
+	}
+
+	// After restore the warning is written again — silencing is scoped, not permanent.
+	restore()
+	if _, err := New(p); err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if !strings.Contains(buf.String(), "verification is disabled") {
+		t.Errorf("warning should resume after restore, got %q", buf.String())
+	}
+}
+
 func TestNewDoesNotWarnWhenTLSVerified(t *testing.T) {
 	buf := withCapturedTLSWarn(t)
 	p := config.Profile{

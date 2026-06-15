@@ -14,8 +14,17 @@ import (
 )
 
 // tlsWarnWriter is where the "TLS verification disabled" warning is written. It
-// is a package variable so tests can capture it.
+// is a package variable so tests can capture it and callers can silence it.
 var tlsWarnWriter io.Writer = os.Stderr
+
+// SilenceTLSWarning suppresses the "TLS verification disabled" warning until the
+// returned restore func is called. `cinc config validate` uses it: it reports
+// TLS posture as its own check, so the warning would be redundant in the report.
+func SilenceTLSWarning() (restore func()) {
+	prev := tlsWarnWriter
+	tlsWarnWriter = io.Discard
+	return func() { tlsWarnWriter = prev }
+}
 
 // New builds a cinc-api client from a resolved configuration profile. All
 // server authentication and transport is handled by the cinc-api library;
@@ -31,9 +40,9 @@ func New(p config.Profile) (*cinc.Client, error) {
 		return nil, fmt.Errorf("client: %w", err)
 	}
 
-	var opts []cinc.Option
+	var cincOpts []cinc.Option
 	if p.SSLVerifyMode == ":verify_none" {
-		opts = append(opts, cinc.WithSkipTLSVerify(true))
+		cincOpts = append(cincOpts, cinc.WithSkipTLSVerify(true))
 		fmt.Fprintf(tlsWarnWriter,
 			"Warning: TLS certificate verification is disabled (ssl_verify_mode = :verify_none); the connection to %s is not authenticated and is vulnerable to interception.\n",
 			p.ServerURL)
@@ -44,7 +53,7 @@ func New(p config.Profile) (*cinc.Client, error) {
 		Org:        p.Org,
 		ClientName: p.ClientName,
 		Key:        key,
-	}, opts...)
+	}, cincOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("client: %w", err)
 	}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	cliclient "github.com/tas50/cinc-cli/cli/client"
 	"github.com/tas50/cinc-cli/cli/config"
 	"github.com/tas50/cinc-cli/cli/printer"
 )
@@ -49,6 +50,10 @@ cinc config validate`,
 					},
 				}
 			} else {
+				// The reachable check connects through cliclient.New, which warns
+				// when a profile disables TLS verification. Validate reports TLS
+				// posture as its own check, so silence the redundant warning here.
+				defer cliclient.SilenceTLSWarning()()
 				result = runConfigChecks(cmd.Context(), path, cfg)
 			}
 

@@ -133,6 +133,90 @@ supermarket_site = "%s"
 	}
 }
 
+func TestConfigValidateCommandRejectsServerURLMissingOrg(t *testing.T) {
+	// A server URL that omits /organizations/<org> fails the single combined
+	// "Server URL is valid" check; the load itself still succeeds.
+	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
+[default]
+client_name = "tim"
+client_key = %q
+cinc_server_url = "https://cinc.example.com"
+`, writeTestKey(t)))
+
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"config", "validate", cfgPath})
+
+	if err := root.Execute(); err == nil {
+		t.Fatal("expected validation error for a server URL missing /organizations/<org>")
+	}
+	got := out.String()
+	if !strings.Contains(got, "default profile [INVALID]") ||
+		!strings.Contains(got, "✗ Server URL is valid") ||
+		!strings.Contains(got, "organizations") {
+		t.Fatalf("stdout = %q, want the combined server URL check to fail citing /organizations", got)
+	}
+	// The reachable check shouldn't run when the URL never parsed.
+	if strings.Contains(got, "Server is reachable") {
+		t.Errorf("reachable check should be skipped for an unparseable URL:\n%s", got)
+	}
+}
+
+func TestConfigValidateCommandNotesDefaultSupermarketSite(t *testing.T) {
+	// With no supermarket_site set, the site-URL check passes (green) with a
+	// note naming the default public Supermarket it falls back to.
+	srv := configValidateServer(t, http.StatusOK)
+	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
+[default]
+client_name = "tim"
+client_key = %q
+cinc_server_url = "%s/organizations/acme"
+`, writeTestKey(t), srv.URL))
+
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"config", "validate", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc config validate: %v", err)
+	}
+	want := "✓ Supermarket site URL is valid: using the default https://supermarket.chef.io"
+	if got := out.String(); !strings.Contains(got, want) {
+		t.Errorf("stdout = %q, want %q", got, want)
+	}
+}
+
+func TestConfigValidateCommandWarnsOnInsecureSSLVerifyMode(t *testing.T) {
+	// :verify_none is a warning, not a failure: a yellow check with a note, and
+	// the profile stays VALID.
+	srv := configValidateServer(t, http.StatusOK)
+	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
+[default]
+client_name = "tim"
+client_key = %q
+cinc_server_url = "%s/organizations/acme"
+ssl_verify_mode = ":verify_none"
+`, writeTestKey(t), srv.URL))
+
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"config", "validate", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc config validate should pass with a warning: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "default profile [VALID]") {
+		t.Errorf("a :verify_none warning should not invalidate the profile:\n%s", got)
+	}
+	if !strings.Contains(got, "ssl_verify_mode is valid: Insecure :verify_none mode configured") {
+		t.Errorf("stdout = %q, want the insecure-mode warning note", got)
+	}
+}
+
 func TestConfigValidateCommandReportsUnreachableServer(t *testing.T) {
 	srv := configValidateServer(t, http.StatusInternalServerError)
 	cfgPath := writeValidateConfig(t, fmt.Sprintf(`
@@ -206,7 +290,7 @@ client_name = "tim"
 	got := out.String()
 
 	// Overall line, then the top-level checks.
-	if !strings.HasPrefix(got, "Config ") || !strings.Contains(got, " is invalid\n") {
+	if !strings.HasPrefix(got, "Config ") || !strings.Contains(got, " is invalid!\n") {
 		t.Errorf("missing overall line:\n%s", got)
 	}
 	if !strings.Contains(got, "✓ Credentials file is valid TOML") ||
