@@ -202,9 +202,15 @@ func (m model) viewKinds() string {
 	return m.frame("cinc explore", b.String(), hints)
 }
 
+// selectedMarker is the cursor glyph drawn against the highlighted row.
+// It is a filled triangle (heavier than a thin chevron) so the selection
+// reads clearly as you move between lines; it is one cell wide so the
+// blank prefix on unselected rows keeps every row aligned.
+const selectedMarker = "▶ "
+
 func (m model) renderChoice(label string, selected bool) string {
 	if selected {
-		return m.styles.ListCursor.Render("❯ " + label)
+		return m.styles.ListCursor.Render(selectedMarker + label)
 	}
 	return m.styles.ListItem.Render("  " + label)
 }
@@ -367,7 +373,7 @@ func (m model) renderTable(rows []Row) string {
 	for i := start; i < end; i++ {
 		line := padCells(rows[i].Cells, widths)
 		if i == m.cursor {
-			b.WriteString(m.styles.ListCursor.Render("❯ "+line) + "\n")
+			b.WriteString(m.styles.ListCursor.Render(selectedMarker+line) + "\n")
 		} else {
 			b.WriteString(m.styles.ListItem.Render("  "+line) + "\n")
 		}
