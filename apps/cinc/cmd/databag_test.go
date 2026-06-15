@@ -128,6 +128,22 @@ client_key      = %q
 	if got := buf.String(); got != "alice\nbob\ncarol\n" {
 		t.Errorf("databag item list output = %q, want sorted item ids", got)
 	}
+
+	// The same list under --format json renders a JSON array of the ids.
+	root = newRootCmd()
+	buf.Reset()
+	root.SetOut(&buf)
+	root.SetArgs([]string{"databag", "item", "list", "users", "--config", cfgPath, "--format", "json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc databag item list --format json: %v", err)
+	}
+	var ids []string
+	if err := json.Unmarshal(buf.Bytes(), &ids); err != nil {
+		t.Fatalf("json list output is not a JSON array: %v\noutput: %s", err, buf.String())
+	}
+	if !slices.Equal(ids, []string{"alice", "bob", "carol"}) {
+		t.Errorf("json list output = %v, want [alice bob carol]", ids)
+	}
 }
 
 func TestDataBagCreateCommandEndToEnd(t *testing.T) {
@@ -715,5 +731,21 @@ client_key      = %q
 	}
 	if got := buf.String(); got != "apps\nsecrets\nusers\n" {
 		t.Errorf("databag list output = %q, want sorted databag names", got)
+	}
+
+	// The same list under --format json renders a JSON array of the names.
+	root = newRootCmd()
+	buf.Reset()
+	root.SetOut(&buf)
+	root.SetArgs([]string{"databag", "list", "--config", cfgPath, "--format", "json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc databag list --format json: %v", err)
+	}
+	var names []string
+	if err := json.Unmarshal(buf.Bytes(), &names); err != nil {
+		t.Fatalf("json list output is not a JSON array: %v\noutput: %s", err, buf.String())
+	}
+	if !slices.Equal(names, []string{"apps", "secrets", "users"}) {
+		t.Errorf("json list output = %v, want [apps secrets users]", names)
 	}
 }

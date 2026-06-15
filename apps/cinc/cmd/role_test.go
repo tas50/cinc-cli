@@ -368,4 +368,20 @@ client_key      = %q
 	if got := buf.String(); got != "base\ndb\nweb\n" {
 		t.Errorf("role list output = %q, want sorted role names", got)
 	}
+
+	// The same list under --format json renders a JSON array of the names.
+	root = newRootCmd()
+	buf.Reset()
+	root.SetOut(&buf)
+	root.SetArgs([]string{"role", "list", "--config", cfgPath, "--format", "json"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc role list --format json: %v", err)
+	}
+	var names []string
+	if err := json.Unmarshal(buf.Bytes(), &names); err != nil {
+		t.Fatalf("json list output is not a JSON array: %v\noutput: %s", err, buf.String())
+	}
+	if !slices.Equal(names, []string{"base", "db", "web"}) {
+		t.Errorf("json list output = %v, want [base db web]", names)
+	}
 }
