@@ -139,6 +139,7 @@ type configureDefaults struct {
 func promptConfigure(cmd *cobra.Command, defaults configureDefaults) (configureDefaults, error) {
 	reader := bufio.NewReader(cmd.InOrStdin())
 	out := cmd.OutOrStdout()
+	fmt.Fprintln(out)
 	fmt.Fprintln(out, "Let's set up your Cinc credentials — press Enter on any prompt to accept the default.")
 	fmt.Fprintln(out)
 
@@ -464,7 +465,7 @@ func defaultClientKey(clientName string) string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".ssh", clientName+".pem")
+	return filepath.Join(home, ".cinc", clientName+".pem")
 }
 
 func expandHome(path string) (string, error) {

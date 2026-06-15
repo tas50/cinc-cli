@@ -170,7 +170,7 @@ func TestBareCincSkipsMigrationWhenCincCredentialsExist(t *testing.T) {
 	}
 }
 
-func TestBareCincContinuesToHelpAfterDeclinedMigration(t *testing.T) {
+func TestBareCincExitsWithoutHelpWhenSetupDeclined(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	_ = os.MkdirAll(filepath.Join(home, ".chef"), 0o700)
@@ -191,7 +191,21 @@ func TestBareCincContinuesToHelpAfterDeclinedMigration(t *testing.T) {
 	if !strings.Contains(stderr, "No problem") {
 		t.Errorf("expected a friendly decline message on stderr, got:\n%s", stderr)
 	}
-	if !strings.Contains(stdout, "Cinc is a unified") {
-		t.Errorf("expected help text on stdout after decline, got:\n%s", stdout)
+	if strings.Contains(stdout, "Cinc is a unified") {
+		t.Errorf("expected no help text on stdout after declining setup; the app should just exit, got:\n%s", stdout)
+	}
+}
+
+func TestBareCincSetupPromptIsOnItsOwnLine(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	swapTTY(t, true)
+
+	_, stderr, err := runBareCinc(t, "n\n")
+	if err != nil {
+		t.Fatalf("bare cinc returned error: %v", err)
+	}
+	if !strings.Contains(stderr, "\nWould you like to run the interactive setup? (Y/n) ") {
+		t.Errorf("expected the setup question on its own line, got:\n%s", stderr)
 	}
 }

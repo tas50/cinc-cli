@@ -85,14 +85,20 @@ func NewRootCmd() *cobra.Command {
 // credentials file is missing it runs the first-run flow (chef
 // migration when a knife config is present, otherwise an inline
 // configure walk-through), then prints the usage help so the user
-// still sees what commands are available. First-run failures are
-// surfaced but do not block help.
+// still sees what commands are available. If the user explicitly
+// declines a setup prompt we exit cleanly instead — they asked not to
+// be set up, so dumping help on them would be noise. First-run
+// failures are surfaced but do not block help.
 func rootRunE(cmd *cobra.Command, _ []string) error {
 	cincPath, err := config.DefaultPath()
 	if err == nil {
 		if _, err := os.Stat(cincPath); errors.Is(err, fs.ErrNotExist) {
-			if _, runErr := offerFirstRun(cmd, cincPath); runErr != nil {
+			_, declined, runErr := offerFirstRun(cmd, cincPath)
+			if runErr != nil {
 				fmt.Fprintln(cmd.ErrOrStderr(), runErr)
+			}
+			if declined {
+				return nil
 			}
 		}
 	}
