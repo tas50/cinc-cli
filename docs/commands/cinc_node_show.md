@@ -8,10 +8,16 @@ cinc node show <name> [flags]
 
 ### Examples
 
-Show a node's full object, including its attributes and run-list.
+Show a node's headline details: name, platform, run-list, environment, and policy.
 
 ```bash
 cinc node show web01
+```
+
+Show the full node object, including all attributes, as JSON.
+
+```bash
+cinc node show web01 --format json
 ```
 
 ### Options

@@ -215,6 +215,92 @@ client_key      = %q
 	}
 }
 
+// nodeShowHuman runs `cinc node show <name>` in the default (human) format
+// against an httptest server returning the given node, and returns stdout.
+func nodeShowHuman(t *testing.T, node cinc.Node) string {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/nodes/"+node.Name, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(node)
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"node", "show", node.Name, "--config", cfgPath})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc node show: %v", err)
+	}
+	return buf.String()
+}
+
+func TestNodeShowCommandHumanFormat(t *testing.T) {
+	out := nodeShowHuman(t, cinc.Node{
+		Name:        "web01",
+		Environment: "prod",
+		RunList:     []string{"recipe[apache]", "role[base]"},
+		Automatic: cinc.Attributes{
+			"platform":         "ubuntu",
+			"platform_version": "22.04",
+		},
+	})
+
+	// The node name is the first line; in a non-TTY buffer it is unstyled.
+	if first, _, _ := strings.Cut(out, "\n"); first != "web01" {
+		t.Errorf("first line = %q, want the node name %q", first, "web01")
+	}
+	for _, want := range []string{
+		"Platform", "ubuntu",
+		"Platform Version", "22.04",
+		"Run List", "recipe[apache], role[base]",
+		"Environment", "prod",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("human output missing %q:\n%s", want, out)
+		}
+	}
+	// Human format is a summary, not the raw object dump.
+	if strings.Contains(out, "\"run_list\"") {
+		t.Errorf("human output should not be JSON:\n%s", out)
+	}
+}
+
+func TestNodeShowCommandHumanFormatPolicyNode(t *testing.T) {
+	out := nodeShowHuman(t, cinc.Node{
+		Name:        "app01",
+		RunList:     []string{},
+		PolicyName:  "base",
+		PolicyGroup: "prod",
+	})
+
+	for _, want := range []string{"Policy Name", "base", "Policy Group", "prod"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("human output missing %q:\n%s", want, out)
+		}
+	}
+	// A node that never converged has no platform facts; don't show empty rows.
+	if strings.Contains(out, "Platform") {
+		t.Errorf("empty platform should be omitted:\n%s", out)
+	}
+	// Environment always shows, defaulting to the server's _default.
+	if !strings.Contains(out, "_default") {
+		t.Errorf("empty environment should render as _default:\n%s", out)
+	}
+}
+
 func TestNodeListCommandReportsConfigError(t *testing.T) {
 	root := newRootCmd()
 	root.SetOut(&bytes.Buffer{})

@@ -39,14 +39,20 @@ func TestNodeListAgainstCincZero(t *testing.T) {
 }
 
 // TestNodeShowAgainstCincZero fetches a seeded node and asserts on
-// both the default (pretty JSON) and `--format json` outputs.
+// both the default (human summary) and `--format json` outputs.
 func TestNodeShowAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
 	human := runCinc(t, env.binary, "node", "show", "web01", "--config", env.cfgPath)
-	if !strings.Contains(human, "\"name\": \"web01\"") {
-		t.Errorf("node show (human) missing name field:\n%s", human)
+	// Piped (non-TTY) output is unstyled, so the name is the bare first line.
+	if first, _, _ := strings.Cut(human, "\n"); first != "web01" {
+		t.Errorf("node show (human) first line = %q, want the node name:\n%s", first, human)
+	}
+	for _, want := range []string{"Run List", "Environment", "_default"} {
+		if !strings.Contains(human, want) {
+			t.Errorf("node show (human) missing %q:\n%s", want, human)
+		}
 	}
 
 	jsonOut := runCinc(t, env.binary, "node", "show", "web01", "--config", env.cfgPath, "--format", "json")

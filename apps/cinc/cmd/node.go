@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -381,8 +382,11 @@ func newNodeShowCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "show <name>",
 		Short: "Show a node",
-		Example: `Show a node's full object, including its attributes and run-list.
-cinc node show web01`,
+		Example: `Show a node's headline details: name, platform, run-list, environment, and policy.
+cinc node show web01
+
+Show the full node object, including all attributes, as JSON.
+cinc node show web01 --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -397,9 +401,51 @@ cinc node show web01`,
 			if err != nil {
 				return err
 			}
-			return printer.New(cmd.OutOrStdout(), format).Value(node)
+			if format == printer.FormatJSON {
+				return printer.New(cmd.OutOrStdout(), format).Value(node)
+			}
+			return writeNodeShowHuman(cmd, node)
 		},
 	}
+}
+
+// writeNodeShowHuman renders a node as a teammate-friendly summary: the node
+// name (bold on a terminal) followed by its headline key/value pairs. The full
+// object — including the large automatic attribute tree — is available via
+// --format json; here we surface only what someone scanning a node cares about.
+func writeNodeShowHuman(cmd *cobra.Command, node *cinc.Node) error {
+	out := cmd.OutOrStdout()
+	name := node.Name
+	if boldEnabled(out) {
+		name = "\x1b[1m" + name + "\x1b[0m"
+	}
+	fmt.Fprintln(out, name)
+
+	tw := tabwriter.NewWriter(out, 0, 2, 2, ' ', 0)
+	// Optional rows only appear when the node actually carries the value.
+	optional := func(label, value string) {
+		if value != "" {
+			fmt.Fprintf(tw, "%s\t%s\n", label, value)
+		}
+	}
+	optional("Platform", node.AttributeString("platform"))
+	optional("Platform Version", node.AttributeString("platform_version"))
+
+	runList := "(none)"
+	if len(node.RunList) > 0 {
+		runList = strings.Join(node.RunList, ", ")
+	}
+	fmt.Fprintf(tw, "Run List\t%s\n", runList)
+
+	environment := node.Environment
+	if environment == "" {
+		environment = "_default"
+	}
+	fmt.Fprintf(tw, "Environment\t%s\n", environment)
+
+	optional("Policy Name", node.PolicyName)
+	optional("Policy Group", node.PolicyGroup)
+	return tw.Flush()
 }
 
 // newNodeDeleteCmd builds the `cinc node delete <name>` command.
