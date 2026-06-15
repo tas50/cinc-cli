@@ -11,11 +11,11 @@ import (
 )
 
 // commitEditor drives the embedded JSON editor to commit its current
-// buffer: Ctrl-D validates and previews, Enter confirms.
+// buffer. The editor opens in structural mode, which commits immediately
+// on Ctrl-D (no preview/confirm round-trip).
 func commitEditor(t *testing.T, m model) (model, tea.Cmd) {
 	t.Helper()
-	m, _ = pressKey(t, m, tea.KeyCtrlD)
-	return pressKey(t, m, tea.KeyEnter)
+	return pressKey(t, m, tea.KeyCtrlD)
 }
 
 func TestEditFlowSavesEditedObject(t *testing.T) {

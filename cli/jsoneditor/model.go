@@ -28,9 +28,32 @@ const (
 	stPreview                     // confirming the highlighted save preview
 )
 
-// selStyle highlights the selected unit. Reverse video reads clearly on
-// any theme and needs no palette choice.
-var selStyle = lipgloss.NewStyle().Reverse(true)
+// Syntax-highlight palette for the always-on structural view, roughly
+// matching the chroma "monokai" preview: keys cyan, strings green,
+// numbers purple, bool/null pink, punctuation dim. selStyle marks the
+// selected unit with reverse video so it reads on any theme.
+var (
+	styKey   = lipgloss.NewStyle().Foreground(lipgloss.Color("81"))
+	styStr   = lipgloss.NewStyle().Foreground(lipgloss.Color("114"))
+	styNum   = lipgloss.NewStyle().Foreground(lipgloss.Color("141"))
+	styLit   = lipgloss.NewStyle().Foreground(lipgloss.Color("213"))
+	styPunct = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+	selStyle = lipgloss.NewStyle().Reverse(true)
+)
+
+// styler adapts a lipgloss.Style to the renderTheme's func(string) string.
+func styler(s lipgloss.Style) func(string) string {
+	return func(t string) string { return s.Render(t) }
+}
+
+// syntaxTheme is the production renderTheme: every token is colored by its
+// JSON type and the selected unit is reverse-video.
+func syntaxTheme() renderTheme {
+	return renderTheme{
+		key: styler(styKey), str: styler(styStr), num: styler(styNum),
+		lit: styler(styLit), punct: styler(styPunct), sel: styler(selStyle),
+	}
+}
 
 // Model is the editor state. It is an embeddable bubbletea component:
 // call New, then forward Update/View to it, and check Finished after each
@@ -174,7 +197,7 @@ func (m Model) updateNavigating(k tea.KeyMsg) (Model, tea.Cmd) {
 		m.textarea.Focus()
 		return m, textarea.Blink
 	case k.Type == tea.KeyCtrlD:
-		return m.save(m.root.bytes()), nil
+		return m.saveStructural(), nil
 	case k.Type == tea.KeyEsc:
 		m.aborted = true
 		m.finished = true
@@ -345,9 +368,27 @@ func (m Model) updateRaw(k tea.KeyMsg) (Model, tea.Cmd) {
 
 // ----- save / preview --------------------------------------------------
 
+// saveStructural commits the structurally-edited tree immediately. The
+// tree is always syntactically valid JSON and the colored view already
+// shows exactly what will be written, so there is nothing for a preview to
+// confirm — only the caller's validate hook can still reject the document,
+// in which case the message is shown inline and the user keeps editing.
+func (m Model) saveStructural() Model {
+	canonical := m.root.bytes()
+	if err := m.validate(canonical); err != nil {
+		m.errMsg = err.Error()
+		return m
+	}
+	m.errMsg = ""
+	m.committed = canonical
+	m.finished = true
+	return m
+}
+
 // save validates candidate JSON and, on success, shows the canonical
-// preview for confirmation. On failure the message is shown inline and the
-// user keeps editing.
+// preview for confirmation. It backs raw mode, where the free-text buffer
+// can be malformed and a preview is a useful last check. On failure the
+// message is shown inline and the user keeps editing.
 func (m Model) save(candidate []byte) Model {
 	parsed, err := parseTree(candidate)
 	if err != nil {
@@ -463,7 +504,7 @@ func (m Model) header(line string) string {
 // windowed so the selection stays on screen.
 func (m Model) structuralView() string {
 	u := m.selected()
-	full := render(m.root, u, func(s string) string { return selStyle.Render(s) })
+	full := render(m.root, u, syntaxTheme())
 	focus := selectedLine(m.root, u)
 	return windowLines(full, focus, m.viewHeight())
 }
@@ -479,16 +520,24 @@ func (m Model) viewHeight() int {
 }
 
 // selectedLine returns the 0-based line on which the selected unit's
-// highlight begins, computed by re-rendering with a sentinel marker.
+// highlight begins, computed by re-rendering with a sentinel theme that
+// marks only the selected unit and leaves every other token untouched.
 func selectedLine(root *node, u unit) int {
 	const sentinel = "\x00"
-	s := render(root, u, func(x string) string { return sentinel + x })
+	th := renderTheme{
+		key: identityStr, str: identityStr, num: identityStr,
+		lit: identityStr, punct: identityStr,
+		sel: func(x string) string { return sentinel + x },
+	}
+	s := render(root, u, th)
 	before, _, found := strings.Cut(s, sentinel)
 	if !found {
 		return 0
 	}
 	return strings.Count(before, "\n")
 }
+
+func identityStr(s string) string { return s }
 
 // windowLines returns at most height lines of text, scrolled so focus is
 // visible.

@@ -16,9 +16,9 @@ func runeKey(m Model, r rune) Model {
 	return m
 }
 
-// commit drives the save flow to completion: Ctrl-D shows the preview,
-// Enter confirms it.
-func commit(m Model) Model { return enter(ctrlD(m)) }
+// commit saves a structural edit. Structural mode commits immediately on
+// Ctrl-D — no preview to confirm.
+func commit(m Model) Model { return ctrlD(m) }
 
 func TestStructuralEditScalarValue(t *testing.T) {
 	m := New([]byte(`{"name":"web01"}`), func([]byte) error { return nil })
@@ -113,6 +113,33 @@ func TestRawModeToggleRoundTrips(t *testing.T) {
 	}
 }
 
+func TestStructuralSaveIsImmediate(t *testing.T) {
+	m := New([]byte(`{"a":1}`), func([]byte) error { return nil })
+	m = ctrlD(m) // structural: commits without a preview step
+	if !m.Finished() {
+		t.Fatal("structural Ctrl-D should commit immediately")
+	}
+	if !strings.Contains(string(m.Committed()), `"a": 1`) {
+		t.Errorf("unexpected committed content %q", m.Committed())
+	}
+}
+
+func TestRawModeSaveStillPreviews(t *testing.T) {
+	m := New([]byte(`{"a":1}`), func([]byte) error { return nil })
+	m = tab(m)   // structural -> raw
+	m = ctrlD(m) // raw save shows a preview to confirm
+	if m.Finished() {
+		t.Fatal("raw-mode save should preview before committing")
+	}
+	if m.state != stPreview {
+		t.Fatalf("expected preview state, got %v", m.state)
+	}
+	m = enter(m) // confirm the preview
+	if !m.Finished() {
+		t.Fatal("Enter should confirm the raw-mode preview")
+	}
+}
+
 func TestRawModeInvalidJSONBlocksToggle(t *testing.T) {
 	m := New([]byte(`{"a":1}`), func([]byte) error { return nil })
 	m = tab(m)
@@ -143,7 +170,7 @@ func TestStructuralViewWindowsToSelection(t *testing.T) {
 	// placement is covered by render_test.go.)
 	var b strings.Builder
 	b.WriteString("{")
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		if i > 0 {
 			b.WriteByte(',')
 		}
@@ -154,7 +181,7 @@ func TestStructuralViewWindowsToSelection(t *testing.T) {
 	m := New([]byte(b.String()), func([]byte) error { return nil })
 	m.SetSize(80, 12) // viewHeight == 8 lines
 
-	for i := 0; i < 80; i++ { // walk down to key40's key unit
+	for range 80 { // walk down to key40's key unit
 		m = down(m)
 	}
 	view := m.View()
