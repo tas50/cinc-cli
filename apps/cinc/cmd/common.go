@@ -194,14 +194,46 @@ func offerFirstRun(cmd *cobra.Command, cincPath string) (bool, error) {
 	}
 
 	out := cmd.ErrOrStderr()
-	fmt.Fprintln(out, "Welcome to the Cinc CLI!")
+	writeWelcomeBanner(out)
 	fmt.Fprintln(out)
+
+	// Gate the whole setup on a single yes/no so a user who just wants help, or
+	// who'll configure later, isn't dropped into the prompts. Default is yes.
+	fmt.Fprint(out, "It looks like this is your first time using Cinc. Would you like to run the interactive setup? (Y/n) ")
+	switch strings.ToLower(readPromptLine(cmd.InOrStdin())) {
+	case "n", "no":
+		fmt.Fprintln(out, "No problem — run `cinc config create` whenever you're ready to set up a profile.")
+		fmt.Fprintln(out)
+		return false, nil
+	}
 
 	chefPath := filepath.Join(home, ".chef", "credentials")
 	if _, err := os.Stat(chefPath); err == nil {
 		return runMigrationPrompt(cmd, chefPath, cincPath, out)
 	}
 	return runConfigurePrompt(cmd, cincPath, out)
+}
+
+// readPromptLine reads a single line from r, returning it trimmed of
+// surrounding whitespace. It reads one byte at a time and stops at the first
+// newline, so it never buffers past the line — a later reader (e.g. the
+// configure prompts) still sees the rest of stdin intact.
+func readPromptLine(r io.Reader) string {
+	var b strings.Builder
+	buf := make([]byte, 1)
+	for {
+		n, err := r.Read(buf)
+		if n > 0 {
+			if buf[0] == '\n' {
+				break
+			}
+			b.WriteByte(buf[0])
+		}
+		if err != nil {
+			break
+		}
+	}
+	return strings.TrimSpace(b.String())
 }
 
 // runMigrationPrompt asks the user whether to migrate ~/.chef/credentials

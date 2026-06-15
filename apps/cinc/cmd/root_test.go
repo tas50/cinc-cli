@@ -26,7 +26,7 @@ func TestFirstRunExitsCleanlyBeforeServerCommandRuns(t *testing.T) {
 	if err := root.Execute(); err == nil || !strings.Contains(err.Error(), "first-run setup completed") {
 		t.Fatalf("expected first-run sentinel from cinc node list, got: %v", err)
 	}
-	if !strings.Contains(stderr.String(), "Welcome to the Cinc CLI!") {
+	if !strings.Contains(stderr.String(), "Welcome to") {
 		t.Errorf("expected welcome on stderr, got:\n%s", stderr.String())
 	}
 	if strings.Contains(stdout.String(), "name") || strings.Contains(stdout.String(), "node") {
@@ -88,15 +88,19 @@ client_key      = "/k/t.pem"
 `), 0o600)
 	})
 
-	stdout, stderr, err := runBareCinc(t, "y\n")
+	// First line answers the "run interactive setup?" gate, second the migration prompt.
+	stdout, stderr, err := runBareCinc(t, "y\ny\n")
 	if err != nil {
 		t.Fatalf("bare cinc returned error: %v", err)
 	}
 	if !called {
 		t.Error("expected migrateChef to be invoked on bare cinc")
 	}
-	if !strings.Contains(stderr, "Welcome to the Cinc CLI!") {
+	if !strings.Contains(stderr, "Welcome to") {
 		t.Errorf("expected welcome on stderr, got:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "first time using Cinc") {
+		t.Errorf("expected the interactive-setup prompt on stderr, got:\n%s", stderr)
 	}
 	if !strings.Contains(stderr, "migrate it") {
 		t.Errorf("expected migration prompt on stderr, got:\n%s", stderr)
@@ -130,7 +134,7 @@ func TestBareCincRunsConfigureWhenChefAbsent(t *testing.T) {
 	if strings.Contains(stderr, "migrate it") {
 		t.Errorf("did not expect a migration prompt, got stderr:\n%s", stderr)
 	}
-	if !strings.Contains(stderr, "Welcome to the Cinc CLI!") {
+	if !strings.Contains(stderr, "Welcome to") {
 		t.Errorf("expected a welcome line on stderr, got:\n%s", stderr)
 	}
 	if !strings.Contains(stdout, "Cinc is a unified") {
@@ -158,7 +162,7 @@ func TestBareCincSkipsMigrationWhenCincCredentialsExist(t *testing.T) {
 	if strings.Contains(stderr, "migrate it") {
 		t.Errorf("did not expect a migration prompt, got stderr:\n%s", stderr)
 	}
-	if strings.Contains(stderr, "Welcome to the Cinc CLI!") {
+	if strings.Contains(stderr, "Welcome to") {
 		t.Errorf("did not expect a welcome line when cinc creds already exist, got:\n%s", stderr)
 	}
 	if !strings.Contains(stdout, "Cinc is a unified") {
@@ -177,9 +181,15 @@ func TestBareCincContinuesToHelpAfterDeclinedMigration(t *testing.T) {
 		return 0, nil
 	})
 
-	stdout, _, err := runBareCinc(t, "n\n")
+	stdout, stderr, err := runBareCinc(t, "n\n")
 	if err != nil {
 		t.Fatalf("bare cinc returned error: %v", err)
+	}
+	if !strings.Contains(stderr, "first time using Cinc") {
+		t.Errorf("expected the interactive-setup prompt on stderr, got:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "No problem") {
+		t.Errorf("expected a friendly decline message on stderr, got:\n%s", stderr)
 	}
 	if !strings.Contains(stdout, "Cinc is a unified") {
 		t.Errorf("expected help text on stdout after decline, got:\n%s", stdout)
