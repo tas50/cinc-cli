@@ -26,7 +26,7 @@ func newStyles() styles {
 		Title:      lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("213")),
 		Crumb:      lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
 		ListItem:   lipgloss.NewStyle().Foreground(lipgloss.Color("252")),
-		ListCursor: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212")),
+		ListCursor: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("213")),
 		Header:     lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("244")),
 		Body:       lipgloss.NewStyle().Foreground(lipgloss.Color("252")),
 		Footer:     lipgloss.NewStyle().Foreground(lipgloss.Color("244")),
