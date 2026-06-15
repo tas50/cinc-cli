@@ -55,6 +55,20 @@ var stdinIsTTY = func() bool {
 	return isatty.IsTerminal(fd) || isatty.IsCygwinTerminal(fd)
 }
 
+// boldEnabled reports whether ANSI bold styling should be written to w.
+// It honors the NO_COLOR convention and only styles real terminals, so
+// piped output and test buffers stay plain.
+func boldEnabled(w io.Writer) bool {
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	return isatty.IsTerminal(f.Fd()) || isatty.IsCygwinTerminal(f.Fd())
+}
+
 // resolveFormat reads and validates the --format flag.
 func resolveFormat(cmd *cobra.Command) (printer.Format, error) {
 	name, _ := cmd.Flags().GetString("format")
