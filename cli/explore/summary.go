@@ -68,9 +68,9 @@ func nodeSummaryFields(n *cinc.Node, now time.Time) []summaryField {
 	return []summaryField{
 		{"Environment", orDash(n.Environment)},
 		{"Policy Group", orDash(n.PolicyGroup)},
+		{"Run List", orDash(strings.Join(n.RunList, ", "))},
 		{"Client Version", orDash(n.Automatic.GetString("chef_packages", "chef", "version"))},
 		{"Last Scan", relativeTime(ohai, now)},
-		{"Run List", orDash(strings.Join(n.RunList, ", "))},
 	}
 }
 
