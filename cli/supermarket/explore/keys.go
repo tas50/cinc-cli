@@ -18,6 +18,7 @@ type keyMap struct {
 	SortUpdate key.Binding
 	SortAlpha  key.Binding
 	Open       key.Binding
+	Install    key.Binding
 	Help       key.Binding
 	Quit       key.Binding
 }
@@ -37,6 +38,7 @@ func newKeyMap() keyMap {
 		SortUpdate: key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "updated")),
 		SortAlpha:  key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "alpha")),
 		Open:       key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open in browser")),
+		Install:    key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install to server")),
 		Help:       key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
 		Quit:       key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 	}

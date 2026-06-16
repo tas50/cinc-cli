@@ -94,7 +94,7 @@ func drainBatch(t *testing.T, cmd tea.Cmd) []tea.Msg {
 
 func newTestModel(t *testing.T, c apiClient) model {
 	t.Helper()
-	return initialModel(context.Background(), c, "https://supermarket.example.test", func(string) error { return nil })
+	return initialModel(context.Background(), c, "https://supermarket.example.test", func(string) error { return nil }, nil)
 }
 
 func cookbookSummary(name, maintainer string) sm.CookbookSummary {

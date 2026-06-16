@@ -36,6 +36,12 @@ type model struct {
 	openInBrowser func(string) error // injected so tests don't shell out
 	openErr       string             // last "open in browser" error, shown in footer
 
+	// install downloads a cookbook from Supermarket and uploads it to the
+	// configured Cinc Server. It's injected (and may be nil) so the TUI
+	// stays credential-free until the user actually asks to install — and
+	// so tests can drive the flow without touching a server.
+	install func(ctx context.Context, name, version string) error
+
 	// reqID is a monotonic counter stamped onto every in-flight
 	// command. Responses with a stale ID are dropped. Bubbletea
 	// dispatches Update serially, so a plain uint64 is sufficient —
@@ -74,6 +80,15 @@ type browseState struct {
 	preview      *sm.Cookbook
 	previewName  string
 	previewCache map[string]*sm.Cookbook
+
+	// install flow state. confirmInstall gates the y/n prompt;
+	// installing marks an upload in flight; installMsg / installErr hold
+	// the last result for the footer.
+	confirmInstall bool
+	installName    string
+	installing     bool
+	installMsg     string
+	installErr     string
 }
 
 // detailState owns the full-screen cookbook view.
@@ -89,7 +104,7 @@ type detailState struct {
 // initialModel wires a fresh model with sensible defaults. ctx, client
 // and the openURL hook are all injected so the unit tests can run the
 // model end-to-end without launching a real bubbletea program.
-func initialModel(ctx context.Context, client apiClient, site string, openURL func(string) error) model {
+func initialModel(ctx context.Context, client apiClient, site string, openURL func(string) error, install func(context.Context, string, string) error) model {
 	ti := textinput.New()
 	ti.Prompt = ""
 	ti.Placeholder = "type to search…"
@@ -107,6 +122,7 @@ func initialModel(ctx context.Context, client apiClient, site string, openURL fu
 			previewCache: map[string]*sm.Cookbook{},
 		},
 		openInBrowser: openURL,
+		install:       install,
 		styles:        newStyles(),
 		keys:          newKeyMap(),
 	}
@@ -155,6 +171,13 @@ type debounceTickMsg struct {
 type previewTickMsg struct {
 	reqID uint64
 	name  string
+}
+
+// installDoneMsg reports the outcome of an install the user confirmed.
+type installDoneMsg struct {
+	name    string
+	version string
+	err     error
 }
 
 // ----- commands ---------------------------------------------------------
@@ -212,6 +235,15 @@ func previewDebounce(d time.Duration, reqID uint64, name string) tea.Cmd {
 	})
 }
 
+// installCookbook runs the injected install function off the UI thread and
+// reports the result as an installDoneMsg.
+func installCookbook(ctx context.Context, fn func(context.Context, string, string) error, name, version string) tea.Cmd {
+	return func() tea.Msg {
+		err := fn(ctx, name, version)
+		return installDoneMsg{name: name, version: version, err: err}
+	}
+}
+
 // ----- tea.Model --------------------------------------------------------
 
 func (m model) Init() tea.Cmd {
@@ -231,6 +263,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.detail.viewport.Height = max(1, msg.Height-4)
 		}
 		return m, nil
+	case installDoneMsg:
+		// Handled here, not per-view, so the outcome is still recorded if
+		// the user drilled into a detail screen while the upload ran. It
+		// surfaces in the browse footer, where installs are started.
+		return applyInstallDone(m, msg)
 	}
 
 	switch m.view {

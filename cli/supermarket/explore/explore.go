@@ -20,6 +20,11 @@ type Options struct {
 	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
+	// Install downloads a cookbook from Supermarket and uploads it to the
+	// configured Cinc Server. It may be nil (install disabled). The
+	// closure resolves credentials lazily, so launching explore stays
+	// credential-free until the user actually installs something.
+	Install func(ctx context.Context, name, version string) error
 }
 
 // Run launches the explore TUI against the configured Supermarket
@@ -44,7 +49,7 @@ func Run(ctx context.Context, opts Options) error {
 	if err != nil {
 		return fmt.Errorf("supermarket explore: %w", err)
 	}
-	m := initialModel(ctx, client, opts.Site, openBrowser)
+	m := initialModel(ctx, client, opts.Site, openBrowser, opts.Install)
 	p := tea.NewProgram(
 		m,
 		tea.WithContext(ctx),
