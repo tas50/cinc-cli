@@ -33,3 +33,4 @@ server's real capabilities should say so.
 | # | Improvement | Status |
 |---|-------------|--------|
 | [0001](0001-user-admin-status-without-double-call.md) | Resolve a user's admin status without a second `groups/admins` call | Proposed |
+| [0002](0002-node-summary-attributes-in-list.md) | Expose node summary attributes (platform/version) in the node list | Proposed |
