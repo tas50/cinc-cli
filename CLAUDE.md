@@ -35,6 +35,20 @@ Design documents live in `docs/dev/`:
 User-facing usage docs live in `docs/`. The current command surface and
 all flags are documented in `docs/commands.md`.
 
+## Git workflow
+
+- **All work happens in a git worktree, never on `main`.** Before starting any
+  task, create an isolated worktree off the latest `origin/main` (use the
+  `using-git-worktrees` skill, or `git worktree add`). Never edit, commit, or
+  push from a plain `main` checkout.
+- **Never commit or push directly to `main`.** Every change lands through a
+  pull request opened from the worktree's branch. A bare `git push` that
+  reports `main -> main` means something has gone wrong — stop and move the
+  work to a branch.
+- **Branch from the very latest `origin/main`.** Run `git fetch origin` first;
+  work lands fast here, and a stale base produces redundant or un-rebaseable
+  PRs. Confirm with `git branch --show-current` before every commit and push.
+
 ## Repository layout
 
 - `apps/cinc/` — the binary.
