@@ -103,7 +103,8 @@ func resolveStartup(opts Options) (startup, error) {
 	return s, nil
 }
 
-func sortedKeys(m map[string]config.Profile) []string {
+// sortedKeys returns the keys of m in stable, sorted order.
+func sortedKeys[V any](m map[string]V) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

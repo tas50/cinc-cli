@@ -39,6 +39,20 @@ func (policyGroupKind) Delete(ctx context.Context, c *cinc.Client, name string) 
 
 func (policyGroupKind) Child(parent string) Kind { return pgPoliciesKind{group: parent} }
 
+// Summary shows how many policies a group pins — the membership you're about
+// to drill into.
+func (policyGroupKind) Summary(ctx context.Context, c *cinc.Client, name string) (summaryView, error) {
+	return summarize(ctx, c, name,
+		func(ctx context.Context, c *cinc.Client, n string) (*cinc.PolicyGroup, error) {
+			pg, _, err := c.PolicyGroups.Get(ctx, n)
+			return pg, err
+		},
+		nil,
+		func(_ context.Context, _ *cinc.Client, pg *cinc.PolicyGroup) []summaryField {
+			return []summaryField{{"Policies", count(len(pg.Policies))}}
+		})
+}
+
 // pgPoliciesKind lists the policies bound into one policy group, each
 // with the revision active in that group. A binding can be viewed (the
 // pinned revision) or deleted (removing it from the group).
@@ -66,6 +80,23 @@ func (k pgPoliciesKind) Describe(ctx context.Context, c *cinc.Client, policy str
 		return "", err
 	}
 	return prettyJSON(rev)
+}
+
+// Summary shows the revision this group pins the policy to and what that
+// revision runs.
+func (k pgPoliciesKind) Summary(ctx context.Context, c *cinc.Client, policy string) (summaryView, error) {
+	return summarize(ctx, c, policy,
+		func(ctx context.Context, c *cinc.Client, p string) (*cinc.PolicyRevision, error) {
+			rev, _, err := c.PolicyGroups.GetPolicy(ctx, k.group, p)
+			return rev, err
+		},
+		nil,
+		func(_ context.Context, _ *cinc.Client, rev *cinc.PolicyRevision) []summaryField {
+			return []summaryField{
+				{"Revision", orDash(rev.RevisionID)},
+				{"Run List", list(rev.RunList, 0)},
+			}
+		})
 }
 
 func (k pgPoliciesKind) Delete(ctx context.Context, c *cinc.Client, policy string) error {

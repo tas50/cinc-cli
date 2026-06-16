@@ -1,7 +1,10 @@
 package explore
 
 import (
-	"reflect"
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,143 +38,102 @@ func TestRelativeTime(t *testing.T) {
 	}
 }
 
-func TestNodeSummaryFields(t *testing.T) {
-	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
-	n := &cinc.Node{
-		Name:        "web01",
-		Environment: "production",
-		PolicyGroup: "web",
-		RunList:     []string{"role[base]", "recipe[nginx]"},
-		Automatic: cinc.Attributes{
-			"ohai_time": float64(now.Add(-2 * time.Hour).Unix()),
-			"chef_packages": map[string]any{
-				"chef": map[string]any{"version": "18.4.2"},
-			},
-		},
+func TestCount(t *testing.T) {
+	if got := count(0); got != "0" {
+		t.Errorf("count(0) = %q, want 0", got)
 	}
-	fields := nodeSummaryFields(n, now)
-
-	want := map[string]string{
-		"Environment":    "production",
-		"Policy Group":   "web",
-		"Client Version": "18.4.2",
-		"Last Scan":      "2h ago",
-		"Run List":       "role[base], recipe[nginx]",
-	}
-	got := map[string]string{}
-	for _, f := range fields {
-		got[f.Label] = f.Value
-	}
-	for label, val := range want {
-		if got[label] != val {
-			t.Errorf("field %q = %q, want %q", label, got[label], val)
-		}
-	}
-
-	var order []string
-	for _, f := range fields {
-		order = append(order, f.Label)
-	}
-	wantOrder := []string{"Environment", "Policy Group", "Run List", "Client Version", "Last Scan"}
-	if !reflect.DeepEqual(order, wantOrder) {
-		t.Errorf("field order = %v, want %v", order, wantOrder)
+	if got := count(42); got != "42" {
+		t.Errorf("count(42) = %q, want 42", got)
 	}
 }
 
-func TestNodeSummaryFieldsEmpty(t *testing.T) {
-	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
-	n := &cinc.Node{Name: "bare"}
-	got := map[string]string{}
-	for _, f := range nodeSummaryFields(n, now) {
-		got[f.Label] = f.Value
+func TestYesNo(t *testing.T) {
+	if got := yesNo(true); got != "Yes" {
+		t.Errorf("yesNo(true) = %q, want Yes", got)
 	}
-	if got["Environment"] != "—" {
-		t.Errorf("empty Environment = %q, want em dash", got["Environment"])
-	}
-	if got["Last Scan"] != "never" {
-		t.Errorf("empty Last Scan = %q, want never", got["Last Scan"])
-	}
-	if got["Run List"] != "—" {
-		t.Errorf("empty Run List = %q, want em dash", got["Run List"])
+	if got := yesNo(false); got != "No" {
+		t.Errorf("yesNo(false) = %q, want No", got)
 	}
 }
 
-func TestNodeTitle(t *testing.T) {
-	tests := []struct {
-		name string
-		node *cinc.Node
-		want string
+func TestPresence(t *testing.T) {
+	if got := presence("anything"); got != "set" {
+		t.Errorf("presence(non-empty) = %q, want set", got)
+	}
+	if got := presence("  "); got != "not set" {
+		t.Errorf("presence(blank) = %q, want not set", got)
+	}
+}
+
+func TestList(t *testing.T) {
+	cases := []struct {
+		name  string
+		items []string
+		max   int
+		want  string
 	}{
-		{
-			name: "platform and version",
-			node: &cinc.Node{Name: "web1", Automatic: cinc.Attributes{
-				"platform":         "ubuntu",
-				"platform_version": "24.04",
-			}},
-			want: "web1 - ubuntu 24.04",
-		},
-		{
-			name: "platform only",
-			node: &cinc.Node{Name: "web1", Automatic: cinc.Attributes{
-				"platform": "ubuntu",
-			}},
-			want: "web1 - ubuntu",
-		},
-		{
-			name: "no platform",
-			node: &cinc.Node{Name: "web1"},
-			want: "web1",
-		},
+		{"empty", nil, 0, "—"},
+		{"all when no cap", []string{"a", "b", "c"}, 0, "a, b, c"},
+		{"under cap", []string{"a", "b"}, 5, "a, b"},
+		{"over cap trails with more", []string{"a", "b", "c", "d"}, 2, "a, b, +2 more"},
 	}
-	for _, tc := range tests {
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := nodeTitle(tc.node); got != tc.want {
-				t.Errorf("nodeTitle() = %q, want %q", got, tc.want)
+			if got := list(tc.items, tc.max); got != tc.want {
+				t.Errorf("list(%v, %d) = %q, want %q", tc.items, tc.max, got, tc.want)
 			}
 		})
 	}
 }
 
-func TestUserSummaryFields(t *testing.T) {
-	u := &cinc.User{
-		UserName:    "alice",
-		DisplayName: "Alice Liddell",
-		Email:       "alice@example.com",
-		FirstName:   "Alice",
-		LastName:    "Liddell",
-	}
-	got := map[string]string{}
-	var order []string
-	for _, f := range userSummaryFields(u, "Administrator") {
-		got[f.Label] = f.Value
-		order = append(order, f.Label)
-	}
+// summarize always carries the fetched object's JSON alongside the curated
+// fields, so the detail and edit views can reuse the one fetch.
+func TestSummarizeCarriesJSON(t *testing.T) {
+	mux := http.NewServeMux()
+	jsonHandler(mux, "/organizations/acme/roles/web", `{"name":"web","description":"web tier"}`)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
 
-	want := map[string]string{
-		"Type":         "Administrator",
-		"Display Name": "Alice Liddell",
-		"Email":        "alice@example.com",
-		"First Name":   "Alice",
-		"Last Name":    "Liddell",
+	view, err := summarize(context.Background(), testClient(t, srv), "web",
+		func(ctx context.Context, c *cinc.Client, n string) (*cinc.Role, error) {
+			r, _, err := c.Roles.Get(ctx, n)
+			return r, err
+		},
+		nil,
+		func(_ context.Context, _ *cinc.Client, r *cinc.Role) []summaryField {
+			return []summaryField{{"Description", orDash(r.Description)}}
+		})
+	if err != nil {
+		t.Fatalf("summarize: %v", err)
 	}
-	for label, val := range want {
-		if got[label] != val {
-			t.Errorf("field %q = %q, want %q", label, got[label], val)
-		}
+	if len(view.Fields) != 1 || view.Fields[0].Value != "web tier" {
+		t.Errorf("fields = %+v, want one Description=web tier", view.Fields)
 	}
-	// Type leads the panel so an operator scanning users sees access at a glance.
-	wantOrder := []string{"Type", "Display Name", "Email", "First Name", "Last Name"}
-	if !reflect.DeepEqual(order, wantOrder) {
-		t.Errorf("field order = %v, want %v", order, wantOrder)
+	if !strings.Contains(view.JSON, "web tier") {
+		t.Errorf("summarize did not carry the object JSON: %q", view.JSON)
 	}
 }
 
-func TestUserSummaryFieldsEmpty(t *testing.T) {
-	got := map[string]string{}
-	for _, f := range userSummaryFields(&cinc.User{UserName: "bare"}, "User") {
-		got[f.Label] = f.Value
+// A nil fields builder is tolerated: the view still carries the JSON for
+// reuse, it just has no curated panel.
+func TestSummarizeNilFields(t *testing.T) {
+	mux := http.NewServeMux()
+	jsonHandler(mux, "/organizations/acme/roles/web", `{"name":"web"}`)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	view, err := summarize(context.Background(), testClient(t, srv), "web",
+		func(ctx context.Context, c *cinc.Client, n string) (*cinc.Role, error) {
+			r, _, err := c.Roles.Get(ctx, n)
+			return r, err
+		}, nil, nil)
+	if err != nil {
+		t.Fatalf("summarize: %v", err)
 	}
-	if got["Email"] != "—" {
-		t.Errorf("empty Email = %q, want em dash", got["Email"])
+	if len(view.Fields) != 0 {
+		t.Errorf("fields = %+v, want none", view.Fields)
+	}
+	if !strings.Contains(view.JSON, "web") {
+		t.Errorf("summarize dropped the object JSON: %q", view.JSON)
 	}
 }

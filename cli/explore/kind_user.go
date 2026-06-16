@@ -20,7 +20,7 @@ const (
 func newUserKind() Kind {
 	return editorKind[cinc.User]{
 		title: "Users",
-		summaryClientFn: func(ctx context.Context, c *cinc.Client, u *cinc.User) []summaryField {
+		summaryFn: func(ctx context.Context, c *cinc.Client, u *cinc.User) []summaryField {
 			return userSummaryFields(u, userType(ctx, c, u.UserName))
 		},
 		listFn: func(ctx context.Context, c *cinc.Client) (map[string]string, error) {
@@ -79,4 +79,18 @@ func userType(ctx context.Context, c *cinc.Client, username string) string {
 		return "Administrator"
 	}
 	return "User"
+}
+
+// userSummaryFields builds the curated facts panel for a user. The username
+// is already the panel heading, so it leads with the user's Type — the access
+// classification resolved by userType — followed by the human details an
+// operator scans for.
+func userSummaryFields(u *cinc.User, userType string) []summaryField {
+	return []summaryField{
+		{"Type", userType},
+		{"Display Name", orDash(u.DisplayName)},
+		{"Email", orDash(u.Email)},
+		{"First Name", orDash(u.FirstName)},
+		{"Last Name", orDash(u.LastName)},
+	}
 }

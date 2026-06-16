@@ -11,7 +11,9 @@ func newRoleKind() Kind {
 	return editorKind[cinc.Role]{
 		title:       "Roles",
 		searchIndex: "role",
-		summaryFn:   roleSummaryFields,
+		summaryFn: func(_ context.Context, _ *cinc.Client, r *cinc.Role) []summaryField {
+			return roleSummaryFields(r)
+		},
 		listFn: func(ctx context.Context, c *cinc.Client) (map[string]string, error) {
 			index, _, err := c.Roles.List(ctx)
 			return index, err
@@ -43,5 +45,14 @@ func newRoleKind() Kind {
   "run_list": []
 }`)
 		},
+	}
+}
+
+// roleSummaryFields builds the curated facts panel for a role.
+func roleSummaryFields(r *cinc.Role) []summaryField {
+	return []summaryField{
+		{"Description", orDash(r.Description)},
+		{"Run List", list(r.RunList, 0)},
+		{"Env Run Lists", count(len(r.EnvRunLists))},
 	}
 }

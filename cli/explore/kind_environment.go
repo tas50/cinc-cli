@@ -12,7 +12,9 @@ func newEnvironmentKind() Kind {
 	return editorKind[cinc.Environment]{
 		title:       "Environments",
 		searchIndex: "environment",
-		summaryFn:   environmentSummaryFields,
+		summaryFn: func(_ context.Context, _ *cinc.Client, e *cinc.Environment) []summaryField {
+			return environmentSummaryFields(e)
+		},
 		listFn: func(ctx context.Context, c *cinc.Client) (map[string]string, error) {
 			index, _, err := c.Environments.List(ctx)
 			return index, err
@@ -43,5 +45,13 @@ func newEnvironmentKind() Kind {
   "description": ""
 }`)
 		},
+	}
+}
+
+// environmentSummaryFields builds the curated facts panel for an environment.
+func environmentSummaryFields(e *cinc.Environment) []summaryField {
+	return []summaryField{
+		{"Description", orDash(e.Description)},
+		{"Cookbook Constraints", count(len(e.CookbookVersions))},
 	}
 }
