@@ -16,8 +16,10 @@ type summaryField struct {
 
 // summaryView is what the panel renders for the selected object: either a
 // curated set of Fields, or — when a kind has no custom summary — the
-// pretty-printed JSON in JSON.
+// pretty-printed JSON in JSON. Title, when set, overrides the bare object
+// name in the panel heading (a node adds its platform, for example).
 type summaryView struct {
+	Title  string
 	Fields []summaryField
 	JSON   string
 }
@@ -54,6 +56,21 @@ func relativeTime(epoch float64, now time.Time) string {
 	default:
 		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
 	}
+}
+
+// nodeTitle is the heading for a node's summary panel: its name, plus the
+// platform and version when ohai has reported them — e.g. "web1 - ubuntu
+// 24.04". A node we've never scanned has no platform, so it shows the bare
+// name.
+func nodeTitle(n *cinc.Node) string {
+	platform := n.Automatic.GetString("platform")
+	if platform == "" {
+		return n.Name
+	}
+	if version := n.Automatic.GetString("platform_version"); version != "" {
+		return fmt.Sprintf("%s - %s %s", n.Name, platform, version)
+	}
+	return fmt.Sprintf("%s - %s", n.Name, platform)
 }
 
 // nodeSummaryFields builds the curated facts panel for a node: the bits an

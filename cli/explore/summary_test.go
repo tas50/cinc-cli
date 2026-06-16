@@ -95,3 +95,39 @@ func TestNodeSummaryFieldsEmpty(t *testing.T) {
 		t.Errorf("empty Run List = %q, want em dash", got["Run List"])
 	}
 }
+
+func TestNodeTitle(t *testing.T) {
+	tests := []struct {
+		name string
+		node *cinc.Node
+		want string
+	}{
+		{
+			name: "platform and version",
+			node: &cinc.Node{Name: "web1", Automatic: cinc.Attributes{
+				"platform":         "ubuntu",
+				"platform_version": "24.04",
+			}},
+			want: "web1 - ubuntu 24.04",
+		},
+		{
+			name: "platform only",
+			node: &cinc.Node{Name: "web1", Automatic: cinc.Attributes{
+				"platform": "ubuntu",
+			}},
+			want: "web1 - ubuntu",
+		},
+		{
+			name: "no platform",
+			node: &cinc.Node{Name: "web1"},
+			want: "web1",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := nodeTitle(tc.node); got != tc.want {
+				t.Errorf("nodeTitle() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}

@@ -15,6 +15,7 @@ func newNodeKind() Kind {
 		summaryFn: func(n *cinc.Node) []summaryField {
 			return nodeSummaryFields(n, time.Now())
 		},
+		titleFn: nodeTitle,
 		listFn: func(ctx context.Context, c *cinc.Client) (map[string]string, error) {
 			index, _, err := c.Nodes.List(ctx)
 			return index, err
