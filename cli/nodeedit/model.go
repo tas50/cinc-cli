@@ -163,6 +163,12 @@ func (m Model) updateDived(k tea.KeyMsg) (Model, tea.Cmd) {
 		m.exitDive()
 		return m, nil
 	}
+	// In the run list, Enter starts a new bulleted line rather than a bare
+	// newline, so every entry stays prefixed with "- ".
+	if m.focus == focusRunList && k.Type == tea.KeyEnter {
+		m.runList.InsertString("\n- ")
+		return m, nil
+	}
 	return m.forward(k)
 }
 
@@ -234,11 +240,16 @@ func (m *Model) setFocus(f focus) {
 }
 
 // enterDive activates editing inside the focused run-list or attributes
-// section.
+// section. Diving into an empty run list seeds the first bullet so the user
+// can type an entry straight away.
 func (m *Model) enterDive() {
 	m.dived = true
 	if m.focus == focusRunList {
 		m.runList.Focus()
+		if strings.TrimSpace(m.runList.Value()) == "" {
+			m.runList.SetValue("- ")
+			m.runList.CursorEnd()
+		}
 	}
 }
 

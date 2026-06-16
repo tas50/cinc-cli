@@ -9,13 +9,23 @@ import (
 
 func TestRunListRoundTrip(t *testing.T) {
 	n := &cinc.Node{RunList: []string{"recipe[nginx]", "role[base]"}}
-	if got := runListText(n); got != "recipe[nginx]\nrole[base]" {
-		t.Errorf("runListText = %q", got)
+	if got := runListText(n); got != "- recipe[nginx]\n- role[base]" {
+		t.Errorf("runListText = %q, want each item bulleted with '- '", got)
 	}
-	got := parseRunList("recipe[nginx]\n  role[base]  \n\n")
-	want := []string{"recipe[nginx]", "role[base]"}
-	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
-		t.Errorf("parseRunList = %v, want %v", got, want)
+	if got := runListText(&cinc.Node{}); got != "" {
+		t.Errorf("runListText of an empty run list = %q, want empty", got)
+	}
+	// Parsing tolerates the bullet prefix, stray indentation, a bare bullet,
+	// and undashed lines alike.
+	got := parseRunList("- recipe[nginx]\n  - role[base]  \n- \n\nrecipe[bare]\n")
+	want := []string{"recipe[nginx]", "role[base]", "recipe[bare]"}
+	if len(got) != len(want) {
+		t.Fatalf("parseRunList = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("parseRunList[%d] = %q, want %q", i, got[i], want[i])
+		}
 	}
 }
 

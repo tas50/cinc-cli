@@ -27,15 +27,29 @@ type attrBags struct {
 	Override cinc.Attributes `json:"override"`
 }
 
-// runListText renders a node's run list one entry per line for editing.
-func runListText(n *cinc.Node) string { return strings.Join(n.RunList, "\n") }
+// runListText renders a node's run list one bulleted entry per line for
+// editing, e.g. "- recipe[nginx]". An empty run list renders as empty so a
+// fresh node shows a blank field rather than a stray bullet.
+func runListText(n *cinc.Node) string {
+	if len(n.RunList) == 0 {
+		return ""
+	}
+	lines := make([]string, len(n.RunList))
+	for i, e := range n.RunList {
+		lines[i] = "- " + e
+	}
+	return strings.Join(lines, "\n")
+}
 
-// parseRunList turns edited run-list text back into entries, trimming each
-// line and dropping blanks.
+// parseRunList turns edited run-list text back into entries: it strips the
+// leading "- " bullet (tolerating extra indentation and a bare bullet),
+// trims each line, and drops blanks.
 func parseRunList(text string) []string {
 	var out []string
 	for line := range strings.SplitSeq(text, "\n") {
-		if e := strings.TrimSpace(line); e != "" {
+		e := strings.TrimSpace(line)
+		e = strings.TrimPrefix(e, "-")
+		if e = strings.TrimSpace(e); e != "" {
 			out = append(out, e)
 		}
 	}

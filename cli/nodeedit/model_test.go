@@ -121,6 +121,24 @@ func TestFormDiveIntoRunListAndType(t *testing.T) {
 	}
 }
 
+func TestFormRunListAutoBulletsEachLine(t *testing.T) {
+	m := newForm(t, &cinc.Node{Name: "db01"})
+	for m.focus != focusRunList {
+		m = down(m)
+	}
+	m = enter(m) // dive in: an empty run list seeds the first "- " bullet
+	m = typeRunes(m, "recipe[base]")
+	m = enter(m) // Enter starts a new bulleted line, not a bare newline
+	m = typeRunes(m, "role[web]")
+	m = esc(m)
+	m = ctrlD(m)
+	got := m.Result().RunList
+	want := []string{"recipe[base]", "role[web]"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("run_list = %v, want %v", got, want)
+	}
+}
+
 func TestFormEscAtTopLevelAborts(t *testing.T) {
 	m := esc(newForm(t, &cinc.Node{Name: "db01"}))
 	if !m.Finished() || !m.Aborted() {
