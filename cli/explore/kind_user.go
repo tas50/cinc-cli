@@ -10,7 +10,8 @@ import (
 // returns a one-time private key, surfaced through CreateResult.Secret.
 func newUserKind() Kind {
 	return editorKind[cinc.User]{
-		title: "Users",
+		title:     "Users",
+		summaryFn: userSummaryFields,
 		listFn: func(ctx context.Context, c *cinc.Client) (map[string]string, error) {
 			index, _, err := c.Users.List(ctx)
 			return index, err
