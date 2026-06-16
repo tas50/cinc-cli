@@ -27,16 +27,21 @@ type attrBags struct {
 	Override cinc.Attributes `json:"override"`
 }
 
+// runListBullet is the prefix shown before each run-list entry: a small
+// indent so the items nest visually under the "Run list" heading, then the
+// "- " bullet. parseRunList strips it back off.
+const runListBullet = "    - "
+
 // runListText renders a node's run list one bulleted entry per line for
-// editing, e.g. "- recipe[nginx]". An empty run list renders as empty so a
-// fresh node shows a blank field rather than a stray bullet.
+// editing, e.g. "    - recipe[nginx]". An empty run list renders as empty so
+// a fresh node shows a blank field rather than a stray bullet.
 func runListText(n *cinc.Node) string {
 	if len(n.RunList) == 0 {
 		return ""
 	}
 	lines := make([]string, len(n.RunList))
 	for i, e := range n.RunList {
-		lines[i] = "- " + e
+		lines[i] = runListBullet + e
 	}
 	return strings.Join(lines, "\n")
 }
