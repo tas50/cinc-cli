@@ -131,3 +131,45 @@ func TestNodeTitle(t *testing.T) {
 		})
 	}
 }
+
+func TestUserSummaryFields(t *testing.T) {
+	u := &cinc.User{
+		UserName:    "alice",
+		DisplayName: "Alice Liddell",
+		Email:       "alice@example.com",
+		FirstName:   "Alice",
+		LastName:    "Liddell",
+	}
+	got := map[string]string{}
+	var order []string
+	for _, f := range userSummaryFields(u) {
+		got[f.Label] = f.Value
+		order = append(order, f.Label)
+	}
+
+	want := map[string]string{
+		"Display Name": "Alice Liddell",
+		"Email":        "alice@example.com",
+		"First Name":   "Alice",
+		"Last Name":    "Liddell",
+	}
+	for label, val := range want {
+		if got[label] != val {
+			t.Errorf("field %q = %q, want %q", label, got[label], val)
+		}
+	}
+	wantOrder := []string{"Display Name", "Email", "First Name", "Last Name"}
+	if !reflect.DeepEqual(order, wantOrder) {
+		t.Errorf("field order = %v, want %v", order, wantOrder)
+	}
+}
+
+func TestUserSummaryFieldsEmpty(t *testing.T) {
+	got := map[string]string{}
+	for _, f := range userSummaryFields(&cinc.User{UserName: "bare"}) {
+		got[f.Label] = f.Value
+	}
+	if got["Email"] != "—" {
+		t.Errorf("empty Email = %q, want em dash", got["Email"])
+	}
+}

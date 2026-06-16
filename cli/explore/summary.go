@@ -100,6 +100,18 @@ func roleSummaryFields(r *cinc.Role) []summaryField {
 	}
 }
 
+// userSummaryFields builds the curated facts panel for a user. The
+// username is already the panel heading, so it leads with the human
+// details an operator scans for.
+func userSummaryFields(u *cinc.User) []summaryField {
+	return []summaryField{
+		{"Display Name", orDash(u.DisplayName)},
+		{"Email", orDash(u.Email)},
+		{"First Name", orDash(u.FirstName)},
+		{"Last Name", orDash(u.LastName)},
+	}
+}
+
 // environmentSummaryFields builds the curated facts panel for an
 // environment.
 func environmentSummaryFields(e *cinc.Environment) []summaryField {
