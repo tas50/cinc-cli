@@ -2,16 +2,27 @@ package explore
 
 import (
 	"context"
+	"slices"
 
 	cinc "github.com/tas50/cinc-api"
+)
+
+// pivotalUser is the Cinc/Chef Server's bootstrap superuser, and
+// adminsGroup is the per-org group whose members hold admin rights.
+// userType uses both to classify a user for the summary pane.
+const (
+	pivotalUser = "pivotal"
+	adminsGroup = "admins"
 )
 
 // newUserKind builds the Users kind. Creating a user with create_key
 // returns a one-time private key, surfaced through CreateResult.Secret.
 func newUserKind() Kind {
 	return editorKind[cinc.User]{
-		title:     "Users",
-		summaryFn: userSummaryFields,
+		title: "Users",
+		summaryClientFn: func(ctx context.Context, c *cinc.Client, u *cinc.User) []summaryField {
+			return userSummaryFields(u, userType(ctx, c, u.UserName))
+		},
 		listFn: func(ctx context.Context, c *cinc.Client) (map[string]string, error) {
 			index, _, err := c.Users.List(ctx)
 			return index, err
@@ -47,4 +58,25 @@ func newUserKind() Kind {
 }`)
 		},
 	}
+}
+
+// userType classifies a user for the summary pane. The pivotal bootstrap
+// account is the server's Superuser, decided by name alone. Otherwise we
+// look up the current org's admins group: a member is an Administrator,
+// anyone else a plain User. If that lookup fails — there's no org, or the
+// signed-in user can't read the group — we report Unknown rather than
+// guess. Membership is the group's direct user list, matching what
+// `cinc group show admins` reports.
+func userType(ctx context.Context, c *cinc.Client, username string) string {
+	if username == pivotalUser {
+		return "Superuser"
+	}
+	group, _, err := c.Groups.Get(ctx, adminsGroup)
+	if err != nil {
+		return "Unknown"
+	}
+	if slices.Contains(group.Users, username) {
+		return "Administrator"
+	}
+	return "User"
 }
