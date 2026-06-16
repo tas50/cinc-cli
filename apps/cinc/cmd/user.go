@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
@@ -174,9 +175,15 @@ func emitUserCreateResult(cmd *cobra.Command, name string, created *cinc.UserCre
 	return writePrivateKey(out, priv, keyFile, fileMsg)
 }
 
+// pivotalUser is the Cinc/Chef Server's bootstrap superuser. It signs
+// the server's own administrative requests, so deleting it can lock
+// everyone out — hence the extra confirmation in `user delete`.
+const pivotalUser = "pivotal"
+
 // newUserDeleteCmd builds the `cinc user delete <name>` command.
 func newUserDeleteCmd() *cobra.Command {
-	return &cobra.Command{
+	var assumeYes bool
+	cmd := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete a user from the server",
 		Example: `Delete a user from the server.
@@ -188,12 +195,37 @@ cinc user delete alice`,
 				return err
 			}
 			name := args[0]
+			if name == pivotalUser && !assumeYes {
+				if !confirmDeletePivotal(cmd) {
+					return nil
+				}
+			}
 			if _, err := c.Users.Delete(cmd.Context(), name); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Deleted user %q\n", name)
 			return nil
 		},
+	}
+	cmd.Flags().BoolVar(&assumeYes, "yes", false, "skip the confirmation prompt when deleting the pivotal superuser")
+	return cmd
+}
+
+// confirmDeletePivotal warns that "pivotal" is the server's bootstrap
+// superuser and asks for an explicit y/N confirmation. It returns true
+// only when the user clearly opts in; anything else (including the
+// empty default and non-interactive input) declines.
+func confirmDeletePivotal(cmd *cobra.Command) bool {
+	out := cmd.ErrOrStderr()
+	fmt.Fprintln(out, "Warning: \"pivotal\" is the Cinc Server's bootstrap superuser.")
+	fmt.Fprintln(out, "Deleting it can lock every user out of the server and is rarely what you want.")
+	fmt.Fprint(out, "Are you sure you want to delete it? [y/N] ")
+	switch strings.ToLower(readPromptLine(cmd.InOrStdin())) {
+	case "y", "yes":
+		return true
+	default:
+		fmt.Fprintln(out, "Aborted — \"pivotal\" was not deleted.")
+		return false
 	}
 }
 
