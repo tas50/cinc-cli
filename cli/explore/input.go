@@ -214,9 +214,21 @@ func (m model) openSelected() (tea.Model, tea.Cmd) {
 		m.detailName = row.Name
 		m.status = ""
 		m.screen = screenDetail
-		return m, describeCmd(m.ctx, m.client, v, row.Name, m.nextReqID())
+		return m, m.detailCmd(v, row.Name)
 	}
 	return m, nil
+}
+
+// detailCmd loads a row's detail view. When the summary pane has already
+// fetched the object (its JSON is cached), it reuses that fetch instead of
+// issuing a second Get; otherwise it Describes the object freshly.
+func (m *model) detailCmd(v Viewable, name string) tea.Cmd {
+	id := m.nextReqID()
+	if cached, ok := m.summaryCache[name]; ok && cached.JSON != "" {
+		body := cached.JSON
+		return func() tea.Msg { return detailLoadedMsg{reqID: id, name: name, body: body} }
+	}
+	return describeCmd(m.ctx, m.client, v, name, id)
 }
 
 // ----- detail ----------------------------------------------------------
@@ -338,7 +350,18 @@ func (m model) startEdit(name string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.returnTo = m.screen
-	return m, editSeedCmd(m.ctx, m.client, e, name, m.nextReqID())
+	return m, m.seedEditorCmd(e, name)
+}
+
+// seedEditorCmd seeds the JSON editor with a row's object, reusing the
+// summary pane's cached fetch when present instead of fetching again.
+func (m *model) seedEditorCmd(e Editable, name string) tea.Cmd {
+	id := m.nextReqID()
+	if cached, ok := m.summaryCache[name]; ok && cached.JSON != "" {
+		body := cached.JSON
+		return func() tea.Msg { return editSeedMsg{reqID: id, name: name, json: body} }
+	}
+	return editSeedCmd(m.ctx, m.client, e, name, id)
 }
 
 func (m model) startCreate() (tea.Model, tea.Cmd) {

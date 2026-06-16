@@ -30,8 +30,11 @@ func TestUserKindSummaryShowsFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Summary: %v", err)
 	}
-	if view.JSON != "" {
-		t.Errorf("user summary fell back to JSON: %q", view.JSON)
+	// The pane shows the curated fields, not raw JSON — even though the
+	// view now also carries the object's JSON for the detail/edit views to
+	// reuse (see editorKind.Summary). Presence of fields is what matters.
+	if len(view.Fields) == 0 {
+		t.Errorf("user summary has no curated fields; would fall back to JSON")
 	}
 	got := map[string]string{}
 	for _, f := range view.Fields {

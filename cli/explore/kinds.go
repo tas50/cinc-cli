@@ -227,8 +227,17 @@ func (k editorKind[T]) Describe(ctx context.Context, c *cinc.Client, name string
 
 // Summary fetches the object and returns its curated facts panel, or —
 // for kinds without a summaryFn — the pretty JSON to render in the pane.
+//
+// The full object's JSON always rides along in the returned view (even
+// when a curated panel is shown), so the model can cache it and serve the
+// detail and edit views from this one fetch instead of issuing their own
+// Get for the same object.
 func (k editorKind[T]) Summary(ctx context.Context, c *cinc.Client, name string) (summaryView, error) {
 	obj, err := k.getFn(ctx, c, name)
+	if err != nil {
+		return summaryView{}, err
+	}
+	body, err := prettyJSON(obj)
 	if err != nil {
 		return summaryView{}, err
 	}
@@ -236,17 +245,14 @@ func (k editorKind[T]) Summary(ctx context.Context, c *cinc.Client, name string)
 	if k.titleFn != nil {
 		title = k.titleFn(obj)
 	}
-	if k.summaryClientFn != nil {
-		return summaryView{Title: title, Fields: k.summaryClientFn(ctx, c, obj)}, nil
+	switch {
+	case k.summaryClientFn != nil:
+		return summaryView{Title: title, Fields: k.summaryClientFn(ctx, c, obj), JSON: body}, nil
+	case k.summaryFn != nil:
+		return summaryView{Title: title, Fields: k.summaryFn(obj), JSON: body}, nil
+	default:
+		return summaryView{Title: title, JSON: body}, nil
 	}
-	if k.summaryFn != nil {
-		return summaryView{Title: title, Fields: k.summaryFn(obj)}, nil
-	}
-	body, err := prettyJSON(obj)
-	if err != nil {
-		return summaryView{}, err
-	}
-	return summaryView{Title: title, JSON: body}, nil
 }
 
 func (k editorKind[T]) Save(ctx context.Context, c *cinc.Client, name string, edited []byte) error {
