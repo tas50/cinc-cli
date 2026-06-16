@@ -111,9 +111,13 @@ func applyCookbookDetail(m model, msg cookbookDetailMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleBrowseKey routes a key event by mode. In search mode, printable
-// characters edit the query; in nav mode, sort/quit/etc. hotkeys win.
+// handleBrowseKey routes a key event by mode. A pending install
+// confirmation intercepts everything; otherwise, in search mode printable
+// characters edit the query, and in nav mode sort/quit/etc. hotkeys win.
 func handleBrowseKey(m model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.browse.confirmInstall {
+		return handleInstallConfirm(m, msg)
+	}
 	if m.browse.searchFocused {
 		return handleSearchKey(m, msg)
 	}
@@ -156,7 +160,56 @@ func handleNavKey(m model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return setSort(m, sortAlphabetical)
 	case key.Matches(msg, m.keys.Open):
 		return openInBrowser(m, m.browse.previewName)
+	case key.Matches(msg, m.keys.Install):
+		return startInstall(m)
 	}
+	return m, nil
+}
+
+// startInstall opens the y/n confirmation for installing the highlighted
+// cookbook onto the server. It no-ops on an empty list or mid-install.
+func startInstall(m model) (tea.Model, tea.Cmd) {
+	if m.browse.installing || len(m.browse.items) == 0 {
+		return m, nil
+	}
+	m.browse.confirmInstall = true
+	m.browse.installName = m.browse.items[m.browse.cursor].Name
+	m.browse.installErr = ""
+	m.browse.installMsg = ""
+	return m, nil
+}
+
+// handleInstallConfirm resolves the y/n prompt. Enter or y proceeds;
+// anything else cancels.
+func handleInstallConfirm(m model, msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "Y", "enter":
+		m.browse.confirmInstall = false
+		if m.install == nil {
+			m.browse.installErr = "Installing isn't available here — launch explore with a configured profile."
+			return m, nil
+		}
+		m.browse.installing = true
+		m.browse.installErr = ""
+		m.browse.installMsg = ""
+		return m, installCookbook(m.ctx, m.install, m.browse.installName, "")
+	default:
+		m.browse.confirmInstall = false
+		return m, nil
+	}
+}
+
+// applyInstallDone records the outcome of a confirmed install for the
+// footer to render.
+func applyInstallDone(m model, msg installDoneMsg) (tea.Model, tea.Cmd) {
+	m.browse.installing = false
+	if msg.err != nil {
+		m.browse.installErr = msg.err.Error()
+		m.browse.installMsg = ""
+		return m, nil
+	}
+	m.browse.installErr = ""
+	m.browse.installMsg = "Installed " + msg.name + " onto the server."
 	return m, nil
 }
 
@@ -520,14 +573,35 @@ func renderFooter(m model) string {
 		hint(m, key.NewBinding(key.WithHelp("d/u/a", "sort")).Help()),
 		hint(m, m.keys.Esc.Help()),
 		hint(m, m.keys.Open.Help()),
+		hint(m, m.keys.Install.Help()),
 		hint(m, m.keys.Quit.Help()),
 	}, "  ")
-	if m.openErr != "" {
+	if status := installStatusLine(m); status != "" {
+		help = status + "\n" + help
+	} else if m.openErr != "" {
 		help = m.styles.Error.Render("⚠ "+m.openErr) + "\n" + help
 	} else if m.browse.lastErr != "" && len(m.browse.items) > 0 {
 		help = m.styles.Error.Render("⚠ "+m.browse.lastErr) + "\n" + help
 	}
 	return m.styles.Footer.Render(help)
+}
+
+// installStatusLine renders the most relevant install state — confirm
+// prompt, in-flight notice, error, or last success — or "" when there's
+// nothing to say.
+func installStatusLine(m model) string {
+	switch {
+	case m.browse.confirmInstall:
+		return m.styles.Status.Render("Install " + m.browse.installName + " onto the server? (y/n)")
+	case m.browse.installing:
+		return m.styles.Status.Render("Installing " + m.browse.installName + "…")
+	case m.browse.installErr != "":
+		return m.styles.Error.Render("⚠ " + m.browse.installErr)
+	case m.browse.installMsg != "":
+		return m.styles.Status.Render("✓ " + m.browse.installMsg)
+	default:
+		return ""
+	}
 }
 
 func hint(m model, h key.Help) string {

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -22,6 +23,7 @@ func newSupermarketCmd() *cobra.Command {
 	cmd.AddCommand(newSupermarketShareCmd())
 	cmd.AddCommand(newSupermarketExploreCmd())
 	cmd.AddCommand(newSupermarketDownloadCmd())
+	cmd.AddCommand(newSupermarketInstallCmd())
 	cmd.AddCommand(newSupermarketListCmd())
 	cmd.AddCommand(newSupermarketSearchCmd())
 	cmd.AddCommand(newSupermarketShowCmd())
@@ -338,6 +340,62 @@ cinc supermarket download nginx`,
 	return cmd
 }
 
+// newSupermarketInstallCmd builds `cinc supermarket install`. Unlike the
+// other supermarket commands, install touches both worlds: it downloads
+// the cookbook anonymously from Supermarket and then uploads it to the
+// configured Cinc Server, so it resolves an authenticated client.
+//
+// There is no acceptance test for this command: cinc-zero simulates a
+// Chef Infra Server but does not serve the Supermarket API, so the
+// download half can't be exercised end-to-end. Coverage lives in the
+// unit test, which fakes both halves (the same gap that already excludes
+// every other `cinc supermarket` command).
+func newSupermarketInstallCmd() *cobra.Command {
+	var site string
+	cmd := &cobra.Command{
+		Use:   "install <cookbook> [version]",
+		Short: "Install a Supermarket cookbook onto the Cinc Server",
+		Example: `Install the latest version of a cookbook from Supermarket onto the server.
+cinc supermarket install nginx
+Install a specific version.
+cinc supermarket install nginx 1.2.0`,
+		Long: "Downloads a cookbook from Chef Supermarket and uploads it to your\n" +
+			"configured Cinc Server in one step. The version defaults to the\n" +
+			"latest published version. Only the named cookbook is installed —\n" +
+			"its dependencies are not resolved.",
+		Args: cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			server, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			client, err := supermarket.NewAnonymous(site)
+			if err != nil {
+				return err
+			}
+			opts := supermarket.InstallOptions{Cookbook: args[0]}
+			if len(args) == 2 {
+				opts.Version = args[1]
+			}
+			result, err := client.Install(cmd.Context(), server, opts)
+			if err != nil {
+				return err
+			}
+			if format == printer.FormatJSON {
+				return printer.New(cmd.OutOrStdout(), format).Value(result)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "Installed cookbook %q version %s into the server\n", result.Cookbook, result.Version)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&site, "supermarket-site", "", "URL of the Chef Supermarket site (default: https://supermarket.chef.io)")
+	return cmd
+}
+
 // newSupermarketExploreCmd builds the `cinc supermarket explore` TUI.
 // It needs no credentials — every endpoint it touches is anonymous —
 // so we never run the first-run flow or load a profile here.
@@ -351,19 +409,41 @@ cinc supermarket explore`,
 		Long: "Launches an interactive terminal UI for browsing cookbooks on Chef\n" +
 			"Supermarket. Move with arrow keys, press / to search, press d/u/a to\n" +
 			"sort by Downloads, Updated, or Alphabetical, enter for full details,\n" +
-			"and q to quit.",
+			"i to install the highlighted cookbook onto your Cinc Server, and q to\n" +
+			"quit.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return explore.Run(cmd.Context(), explore.Options{
-				Site:   site,
-				Stdin:  cmd.InOrStdin(),
-				Stdout: cmd.OutOrStdout(),
-				Stderr: cmd.ErrOrStderr(),
+				Site:    site,
+				Stdin:   cmd.InOrStdin(),
+				Stdout:  cmd.OutOrStdout(),
+				Stderr:  cmd.ErrOrStderr(),
+				Install: supermarketInstaller(cmd, site),
 			})
 		},
 	}
 	cmd.Flags().StringVar(&site, "supermarket-site", "", "URL of the Chef Supermarket site (default: https://supermarket.chef.io)")
 	return cmd
+}
+
+// supermarketInstaller returns the closure the explore TUI calls when the
+// user installs a cookbook. Credentials are resolved lazily — only when
+// the closure runs — so launching `cinc supermarket explore` stays
+// credential-free. Any credential or upload failure flows back to the
+// TUI footer.
+func supermarketInstaller(cmd *cobra.Command, site string) func(context.Context, string, string) error {
+	return func(ctx context.Context, name, version string) error {
+		server, err := resolveClient(cmd)
+		if err != nil {
+			return err
+		}
+		client, err := supermarket.NewAnonymous(site)
+		if err != nil {
+			return err
+		}
+		_, err = client.Install(ctx, server, supermarket.InstallOptions{Cookbook: name, Version: version})
+		return err
+	}
 }
 
 // newSupermarketShareCmd builds the `cinc supermarket share <cookbook>` command.

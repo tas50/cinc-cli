@@ -1,31 +1,36 @@
-## cinc supermarket explore
+## cinc supermarket install
 
-Browse Chef Supermarket cookbooks in a terminal UI
+Install a Supermarket cookbook onto the Cinc Server
 
 ### Synopsis
 
-Launches an interactive terminal UI for browsing cookbooks on Chef
-Supermarket. Move with arrow keys, press / to search, press d/u/a to
-sort by Downloads, Updated, or Alphabetical, enter for full details,
-i to install the highlighted cookbook onto your Cinc Server, and q to
-quit.
+Downloads a cookbook from Chef Supermarket and uploads it to your
+configured Cinc Server in one step. The version defaults to the
+latest published version. Only the named cookbook is installed —
+its dependencies are not resolved.
 
 ```
-cinc supermarket explore [flags]
+cinc supermarket install <cookbook> [version] [flags]
 ```
 
 ### Examples
 
-Browse Supermarket cookbooks in an interactive terminal UI.
+Install the latest version of a cookbook from Supermarket onto the server.
 
 ```bash
-cinc supermarket explore
+cinc supermarket install nginx
+```
+
+Install a specific version.
+
+```bash
+cinc supermarket install nginx 1.2.0
 ```
 
 ### Options
 
 ```
-  -h, --help                      help for explore
+  -h, --help                      help for install
       --supermarket-site string   URL of the Chef Supermarket site (default: https://supermarket.chef.io)
 ```
 
