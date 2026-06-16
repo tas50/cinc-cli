@@ -163,10 +163,10 @@ func (m Model) updateDived(k tea.KeyMsg) (Model, tea.Cmd) {
 		m.exitDive()
 		return m, nil
 	}
-	// In the run list, Enter starts a new bulleted line rather than a bare
-	// newline, so every entry stays prefixed with "- ".
+	// In the run list, Enter starts a new indented, bulleted line rather than
+	// a bare newline, so every entry stays prefixed alike.
 	if m.focus == focusRunList && k.Type == tea.KeyEnter {
-		m.runList.InsertString("\n- ")
+		m.runList.InsertString("\n" + runListBullet)
 		return m, nil
 	}
 	return m.forward(k)
@@ -247,7 +247,7 @@ func (m *Model) enterDive() {
 	if m.focus == focusRunList {
 		m.runList.Focus()
 		if strings.TrimSpace(m.runList.Value()) == "" {
-			m.runList.SetValue("- ")
+			m.runList.SetValue(runListBullet)
 			m.runList.CursorEnd()
 		}
 	}

@@ -9,8 +9,8 @@ import (
 
 func TestRunListRoundTrip(t *testing.T) {
 	n := &cinc.Node{RunList: []string{"recipe[nginx]", "role[base]"}}
-	if got := runListText(n); got != "- recipe[nginx]\n- role[base]" {
-		t.Errorf("runListText = %q, want each item bulleted with '- '", got)
+	if got := runListText(n); got != "    - recipe[nginx]\n    - role[base]" {
+		t.Errorf("runListText = %q, want each item indented and bulleted", got)
 	}
 	if got := runListText(&cinc.Node{}); got != "" {
 		t.Errorf("runListText of an empty run list = %q, want empty", got)
