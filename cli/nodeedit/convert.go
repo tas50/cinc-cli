@@ -94,26 +94,32 @@ func attributesSeed(n *cinc.Node) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// buildNode assembles the edited form back into a node, carrying the name
-// and the computed automatic attributes from the original (neither is
-// editable). attrsJSON must contain only the editable bags (normal,
-// default, override); any other top-level key — including automatic — is
-// rejected so a stray key is surfaced rather than silently dropped.
-func buildNode(orig *cinc.Node, env, policyName, policyGroup string, runList []string, attrsJSON []byte) (*cinc.Node, error) {
+// buildNode assembles the edited form back into a node. The name is supplied
+// by the caller (the read-only heading when editing, the typed field when
+// creating). The computed automatic attributes are carried from the original
+// when editing and empty when creating (orig is nil). attrsJSON must contain
+// only the editable bags (normal, default, override); any other top-level
+// key — including automatic — is rejected so a stray key is surfaced rather
+// than silently dropped.
+func buildNode(orig *cinc.Node, name, env, policyName, policyGroup string, runList []string, attrsJSON []byte) (*cinc.Node, error) {
 	var bags attrBags
 	dec := json.NewDecoder(bytes.NewReader(attrsJSON))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&bags); err != nil {
 		return nil, err
 	}
+	var automatic cinc.Attributes
+	if orig != nil {
+		automatic = orig.Automatic
+	}
 	return &cinc.Node{
-		Name:        orig.Name,
+		Name:        name,
 		Environment: env,
 		RunList:     runList,
 		Normal:      bags.Normal,
 		Default:     bags.Default,
 		Override:    bags.Override,
-		Automatic:   orig.Automatic,
+		Automatic:   automatic,
 		PolicyName:  policyName,
 		PolicyGroup: policyGroup,
 	}, nil

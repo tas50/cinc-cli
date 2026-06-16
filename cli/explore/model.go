@@ -13,7 +13,6 @@ import (
 	cinc "github.com/tas50/cinc-api"
 
 	"github.com/tas50/cinc-cli/cli/config"
-	"github.com/tas50/cinc-cli/cli/jsoneditor"
 )
 
 // summaryDebounce is how long the cursor must settle on a row before the
@@ -115,8 +114,9 @@ type model struct {
 	detailName  string
 	detailErr   string
 
-	// editor modal
-	editor   jsoneditor.Model
+	// editor modal: the generic JSON editor or a kind's typed form, behind
+	// the subEditor interface.
+	editor   subEditor
 	editKind editAction
 	editName string
 
@@ -497,7 +497,7 @@ func (m model) handleResize(msg tea.WindowSizeMsg) model {
 	}
 	// The editor is only constructed when opened; resize it only while
 	// it's the active screen to avoid touching a zero-value textarea.
-	if m.screen == screenEditor {
+	if m.screen == screenEditor && m.editor != nil {
 		m.editor.SetSize(msg.Width, msg.Height)
 	}
 	return m
@@ -790,16 +790,32 @@ func (m *model) reloadList() tea.Cmd {
 	return listCmd(m.ctx, m.client, m.cur, m.nextReqID())
 }
 
-// openEditor seeds and shows the JSON editor.
+// openEditor seeds and shows the modal editor for the current kind: its
+// typed form when it has one, otherwise the generic JSON editor.
 func (m *model) openEditor(action editAction, name string, seed []byte) {
-	m.editor = jsoneditor.New(seed, jsonSyntaxOnly)
+	m.editor = m.newSubEditor(action, seed)
 	m.editor.SetSize(m.width, m.height)
 	m.editKind = action
 	m.editName = name
 	m.screen = screenEditor
 }
 
-// jsonSyntaxOnly accepts any well-formed JSON; per-kind validation
-// happens server-side on save. The editor still pretty-prints and
-// previews before committing.
-func jsonSyntaxOnly([]byte) error { return nil }
+// newSubEditor builds the editor for the current kind. A kind's custom form
+// wins when it supplies one; if building it fails we fall back to the JSON
+// editor so editing is always possible, but record why so the failure isn't
+// silent.
+func (m *model) newSubEditor(action editAction, seed []byte) subEditor {
+	cf, ok := m.cur.(CustomForm)
+	if !ok {
+		return newJSONEditor(seed)
+	}
+	ed, err := cf.NewForm(action, seed)
+	if err != nil {
+		m.listErr = err.Error()
+		return newJSONEditor(seed)
+	}
+	if ed == nil {
+		return newJSONEditor(seed)
+	}
+	return ed
+}

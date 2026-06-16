@@ -1,6 +1,7 @@
 package nodeedit
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -17,7 +18,8 @@ import (
 type focus int
 
 const (
-	focusEnv focus = iota
+	focusName focus = iota
+	focusEnv
 	focusPolicyGroup
 	focusPolicyName
 	focusRunList
@@ -34,14 +36,20 @@ var (
 	errStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 )
 
-// Model is the node-edit form. The node name is a read-only heading;
-// environment, policy, and run list are plain fields; and the attribute
-// bags are edited in the embedded JSON editor. The form owns the lifecycle
+// Model is the node edit/create form. Environment, policy, and run list are
+// plain fields; the attribute bags are edited in the embedded JSON editor.
+// When editing, the node name is a read-only heading; when creating (see
+// NewCreate) it is an editable field at the top. The form owns the lifecycle
 // (Ctrl-D saves the whole node, Ctrl-C cancels) and forwards other keys to
 // the focused field.
 type Model struct {
 	name string
 	orig *cinc.Node
+
+	// creating switches the form to new-node mode: the name becomes an
+	// editable field at the top instead of a read-only heading.
+	creating  bool
+	nameInput textinput.Model
 
 	env         textinput.Model
 	policyGroup textinput.Model
@@ -49,8 +57,11 @@ type Model struct {
 	runList     textarea.Model
 	attrs       jsoneditor.Model
 
-	focus focus
-	dived bool // editing inside the focused run-list / attributes section
+	// firstFocus is the topmost focusable field: the name when creating,
+	// the environment when editing (the name is then a fixed heading).
+	firstFocus focus
+	focus      focus
+	dived      bool // editing inside the focused run-list / attributes section
 
 	errMsg   string
 	result   *cinc.Node
@@ -88,6 +99,7 @@ func New(node *cinc.Node) (Model, error) {
 	m := Model{
 		name:        node.Name,
 		orig:        node,
+		firstFocus:  focusEnv,
 		env:         env,
 		policyGroup: pg,
 		policyName:  pn,
@@ -95,6 +107,45 @@ func New(node *cinc.Node) (Model, error) {
 		attrs:       jsoneditor.New(seed, func([]byte) error { return nil }),
 	}
 	m.setFocus(focusEnv)
+	return m, nil
+}
+
+// NewCreate builds a blank node-create form: an editable name field at the
+// top, empty environment/policy/run-list fields, and empty attribute bags.
+func NewCreate() (Model, error) {
+	seed, err := attributesSeed(&cinc.Node{})
+	if err != nil {
+		return Model{}, err
+	}
+
+	name := textinput.New()
+	name.Prompt = ""
+	name.Placeholder = "new-node"
+
+	env := textinput.New()
+	env.Prompt = ""
+	env.Placeholder = "_default"
+
+	pg := textinput.New()
+	pg.Prompt = ""
+	pn := textinput.New()
+	pn.Prompt = ""
+
+	rl := textarea.New()
+	rl.ShowLineNumbers = false
+	rl.Prompt = ""
+
+	m := Model{
+		creating:    true,
+		firstFocus:  focusName,
+		nameInput:   name,
+		env:         env,
+		policyGroup: pg,
+		policyName:  pn,
+		runList:     rl,
+		attrs:       jsoneditor.New(seed, func([]byte) error { return nil }),
+	}
+	m.setFocus(focusName)
 	return m, nil
 }
 
@@ -178,6 +229,8 @@ func (m Model) updateDived(k tea.KeyMsg) (Model, tea.Cmd) {
 func (m Model) forward(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch m.focus {
+	case focusName:
+		m.nameInput, cmd = m.nameInput.Update(msg)
 	case focusEnv:
 		m.env, cmd = m.env.Update(msg)
 	case focusPolicyGroup:
@@ -196,8 +249,18 @@ func (m Model) forward(msg tea.Msg) (Model, tea.Cmd) {
 // validation error (e.g. an unknown attribute bag) it shows the message and
 // moves focus to the attributes so the user can fix it.
 func (m Model) save() Model {
+	name := m.name
+	if m.creating {
+		name = strings.TrimSpace(m.nameInput.Value())
+		if name == "" {
+			m.errMsg = "a node name is required"
+			m.setFocus(focusName)
+			return m
+		}
+	}
 	node, err := buildNode(
 		m.orig,
+		name,
 		m.env.Value(),
 		m.policyName.Value(),
 		m.policyGroup.Value(),
@@ -211,25 +274,29 @@ func (m Model) save() Model {
 	}
 	m.errMsg = ""
 	m.result = node
-	m.changed = !nodeUnchanged(m.orig, node)
+	// A freshly created node has no original to compare against.
+	m.changed = m.creating || !nodeUnchanged(m.orig, node)
 	m.finished = true
 	return m
 }
 
 func (m *Model) setFocus(f focus) {
 	switch {
-	case f < 0:
-		f = 0
+	case f < m.firstFocus:
+		f = m.firstFocus
 	case f >= focusCount:
 		f = focusCount - 1
 	}
 	m.focus = f
 	m.dived = false
+	m.nameInput.Blur()
 	m.env.Blur()
 	m.policyGroup.Blur()
 	m.policyName.Blur()
 	m.runList.Blur()
 	switch m.focus {
+	case focusName:
+		m.nameInput.Focus()
 	case focusEnv:
 		m.env.Focus()
 	case focusPolicyGroup:
@@ -262,6 +329,7 @@ func (m *Model) exitDive() {
 func (m *Model) setSize(w, h int) {
 	m.width, m.height = w, h
 	fieldWidth := max(w-16, 10)
+	m.nameInput.Width = fieldWidth
 	m.env.Width = fieldWidth
 	m.policyGroup.Width = fieldWidth
 	m.policyName.Width = fieldWidth
@@ -285,10 +353,31 @@ func (m Model) Changed() bool { return m.changed }
 // editing.
 func (m Model) Result() *cinc.Node { return m.result }
 
+// Committed is the saved node as JSON, for callers that drive the form as an
+// embedded modal sub-editor (the explorer). It is nil if the user cancelled
+// or is still editing.
+func (m Model) Committed() []byte {
+	if m.result == nil {
+		return nil
+	}
+	b, _ := json.Marshal(m.result)
+	return b
+}
+
+// SetSize lays the form out for a w×h area. The standalone driver receives
+// this through a WindowSizeMsg; an embedding caller calls it directly.
+func (m *Model) SetSize(w, h int) { m.setSize(w, h) }
+
 func (m Model) View() string {
 	var b strings.Builder
-	b.WriteString(titleStyle.Render("Node: "+m.name) + "\n")
-	b.WriteString(ruleStyle.Render(strings.Repeat("─", 48)) + "\n")
+	if m.creating {
+		b.WriteString(titleStyle.Render("New node") + "\n")
+		b.WriteString(ruleStyle.Render(strings.Repeat("─", 48)) + "\n")
+		b.WriteString(m.field("Name", focusName, m.nameInput.View()))
+	} else {
+		b.WriteString(titleStyle.Render("Node: "+m.name) + "\n")
+		b.WriteString(ruleStyle.Render(strings.Repeat("─", 48)) + "\n")
+	}
 	b.WriteString(m.field("Environment", focusEnv, m.env.View()))
 	b.WriteString(m.field("Policy group", focusPolicyGroup, m.policyGroup.View()))
 	b.WriteString(m.field("Policy name", focusPolicyName, m.policyName.View()))
