@@ -38,8 +38,9 @@ func TestStrictJSONRejectsMalformed(t *testing.T) {
 	}
 }
 
-// A bare node must edit with the full knife-style skeleton visible, not
-// just the fields the struct happens to keep after omitempty.
+// A bare node must edit with the full skeleton visible — every scalar field
+// and all four attribute precedence levels — not just the fields the struct
+// happens to keep after omitempty.
 func TestNodeEditableViewShowsFullSkeleton(t *testing.T) {
 	view := nodeEditableView(&cinc.Node{Name: "db01"})
 	out, err := json.Marshal(view)
@@ -50,6 +51,9 @@ func TestNodeEditableViewShowsFullSkeleton(t *testing.T) {
 		`"name":"db01"`,
 		`"chef_environment":"_default"`,
 		`"normal":{}`,
+		`"default":{}`,
+		`"override":{}`,
+		`"automatic":{}`,
 		`"run_list":[]`,
 		`"policy_name":null`,
 		`"policy_group":null`,
@@ -60,23 +64,19 @@ func TestNodeEditableViewShowsFullSkeleton(t *testing.T) {
 	}
 }
 
-func TestApplyNodeEditPreservesComputedAttributes(t *testing.T) {
-	orig := &cinc.Node{
-		Name:      "db01",
-		Automatic: cinc.Attributes{"platform": "ubuntu"},
-		Default:   cinc.Attributes{"role_attr": 1},
-	}
-	edited := &cinc.Node{Name: "db01", Normal: cinc.Attributes{"role": "db"}}
-	merged := applyNodeEdit(orig, edited)
-
-	if merged.Normal["role"] != "db" {
-		t.Errorf("edited normal not applied: %+v", merged.Normal)
-	}
-	if merged.Automatic["platform"] != "ubuntu" {
-		t.Errorf("automatic attributes not preserved: %+v", merged.Automatic)
-	}
-	if merged.Default["role_attr"] != 1 {
-		t.Errorf("default attributes not preserved: %+v", merged.Default)
+func TestNodeEditUnchangedDetectsAnyBagChange(t *testing.T) {
+	bare := &cinc.Node{Name: "db01"}
+	for _, tc := range []struct {
+		name string
+		node *cinc.Node
+	}{
+		{"default", &cinc.Node{Name: "db01", Default: cinc.Attributes{"x": 1}}},
+		{"override", &cinc.Node{Name: "db01", Override: cinc.Attributes{"x": 1}}},
+		{"automatic", &cinc.Node{Name: "db01", Automatic: cinc.Attributes{"x": 1}}},
+	} {
+		if nodeEditUnchanged(bare, tc.node) {
+			t.Errorf("a change to the %s bag should read as changed", tc.name)
+		}
 	}
 }
 

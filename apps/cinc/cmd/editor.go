@@ -7,6 +7,7 @@ import (
 	cinc "github.com/tas50/cinc-api"
 
 	"github.com/tas50/cinc-cli/cli/jsoneditor"
+	"github.com/tas50/cinc-cli/cli/nodeedit"
 )
 
 // strictJSON returns a save-validation func for the typed editors. It
@@ -49,7 +50,7 @@ func openClientJSONEditor(in *cinc.APIClient) (*cinc.APIClient, error) {
 // result. Each is a package variable so tests can override it without
 // spawning a TUI, mirroring editClient.
 var (
-	editNode        = openNodeJSONEditor
+	editNode        = openNodeEditor
 	editRole        = openObjectJSONEditor[cinc.Role]
 	editEnvironment = openObjectJSONEditor[cinc.Environment]
 	editUser        = openObjectJSONEditor[cinc.User]
@@ -57,41 +58,30 @@ var (
 	editKey         = openObjectJSONEditor[cinc.Key]
 )
 
-// openNodeJSONEditor edits a node the way `knife node edit` does: it shows
-// the full editable skeleton — name, chef_environment, normal, run_list,
-// policy_name, policy_group — even when a section is empty, so nothing is
-// hidden behind a struct's omitempty. The large computed attributes
-// (default, override, automatic) are kept out of the editor but preserved
-// untouched on save.
-func openNodeJSONEditor(in *cinc.Node) (*cinc.Node, error) {
-	seed, err := json.MarshalIndent(nodeEditableView(in), "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	edited, err := jsoneditor.Run(seed, strictJSON[cinc.Node]())
-	if err != nil {
-		return nil, err
-	}
-	var ev cinc.Node
-	if err := json.Unmarshal(edited, &ev); err != nil {
-		return nil, err
-	}
-	merged := applyNodeEdit(in, &ev)
-	return &merged, nil
+// openNodeEditor drives the interactive node editor: a non-JSON form for
+// the scalar fields (chef_environment, run_list, policy_name, policy_group)
+// where each Chef attribute precedence level — normal, default, override,
+// automatic — is its own row that opens the shared JSON editor. The whole
+// node is carried through, so nothing outside the edited fields is lost.
+func openNodeEditor(in *cinc.Node) (*cinc.Node, error) {
+	return nodeedit.Run(in)
 }
 
-// nodeEditableView is the knife-style editable subset of a node, with every
-// section present (empty map, empty list, or null) so the editor always
-// shows the full shape. chef_environment defaults to "_default", matching
-// the server's implicit environment.
+// nodeEditableView is the canonical editable shape of a node, with every
+// section present (empty map, empty list, or null) so nil and empty compare
+// alike. All four attribute precedence levels are included because each is
+// editable through the node editor. chef_environment defaults to
+// "_default", matching the server's implicit environment.
 func nodeEditableView(n *cinc.Node) map[string]any {
 	env := n.Environment
 	if env == "" {
 		env = "_default"
 	}
-	normal := map[string]any(n.Normal)
-	if normal == nil {
-		normal = map[string]any{}
+	bag := func(a cinc.Attributes) map[string]any {
+		if a == nil {
+			return map[string]any{}
+		}
+		return map[string]any(a)
 	}
 	runList := n.RunList
 	if runList == nil {
@@ -100,7 +90,10 @@ func nodeEditableView(n *cinc.Node) map[string]any {
 	return map[string]any{
 		"name":             n.Name,
 		"chef_environment": env,
-		"normal":           normal,
+		"normal":           bag(n.Normal),
+		"default":          bag(n.Default),
+		"override":         bag(n.Override),
+		"automatic":        bag(n.Automatic),
 		"run_list":         runList,
 		"policy_name":      nullableString(n.PolicyName),
 		"policy_group":     nullableString(n.PolicyGroup),
@@ -112,19 +105,6 @@ func nullableString(s string) any {
 		return nil
 	}
 	return s
-}
-
-// applyNodeEdit folds the edited editable fields back onto the original
-// node, preserving its computed default/override/automatic attributes.
-func applyNodeEdit(orig, edited *cinc.Node) cinc.Node {
-	merged := *orig
-	merged.Name = edited.Name
-	merged.Environment = edited.Environment
-	merged.RunList = edited.RunList
-	merged.Normal = edited.Normal
-	merged.PolicyName = edited.PolicyName
-	merged.PolicyGroup = edited.PolicyGroup
-	return merged
 }
 
 // nodeEditUnchanged reports whether two nodes have the same editable view,

@@ -289,6 +289,11 @@ func TestNodeCreateWithPolicyAgainstCincZero(t *testing.T) {
 
 // TestNodeEditAgainstCincZero edits a seeded node through --file (moving it to
 // the seeded "staging" environment) and confirms the change is persisted.
+//
+// The interactive editor — the scalar form plus the per-attribute-bag JSON
+// editor — can't be driven against a live server here (it needs a terminal),
+// so its behavior is covered by unit tests in cli/nodeedit. This exercises the
+// non-interactive --file path that shares the same save logic.
 func TestNodeEditAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
