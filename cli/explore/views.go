@@ -303,8 +303,15 @@ func (m model) renderSummaryContent() string {
 		return m.styles.Body.Render("Nothing selected.")
 	}
 
+	// Until the summary lands we only know the row name; once it's cached a
+	// kind may supply a richer heading (a node appends its platform).
+	title := row.Name
+	if view, ok := m.summaryCache[row.Name]; ok && view.Title != "" {
+		title = view.Title
+	}
+
 	var b strings.Builder
-	b.WriteString(m.styles.Title.Render(row.Name) + "\n\n")
+	b.WriteString(m.styles.Title.Render(title) + "\n\n")
 	switch {
 	case m.summaryErr != "":
 		b.WriteString(m.styles.Error.Render("✗ " + m.summaryErr))

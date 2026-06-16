@@ -23,6 +23,8 @@ func nodesServer(t *testing.T) *httptest.Server {
 		"run_list": ["role[base]"],
 		"automatic": {
 			"ohai_time": 1000000000.0,
+			"platform": "ubuntu",
+			"platform_version": "24.04",
 			"chef_packages": {"chef": {"version": "18.4.2"}}
 		}
 	}`)
@@ -53,7 +55,7 @@ func TestSummaryPanelLoadsForSelectedNode(t *testing.T) {
 		t.Fatalf("web01 summary not cached as fields: %+v", m.summaryCache)
 	}
 	out := m.View()
-	for _, want := range []string{"Environment", "production", "Policy Group", "web", "18.4.2"} {
+	for _, want := range []string{"web01 - ubuntu 24.04", "Environment", "production", "Policy Group", "web", "18.4.2"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("rendered view missing %q\n%s", want, out)
 		}

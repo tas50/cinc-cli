@@ -176,7 +176,10 @@ type editorKind[T any] struct {
 	// summaryFn, when set, builds the curated facts panel for an object;
 	// when nil the kind falls back to JSON in the summary pane.
 	summaryFn func(*T) []summaryField
-	template  func() []byte
+	// titleFn, when set, overrides the summary panel heading (otherwise the
+	// bare object name); a node uses it to append its platform and version.
+	titleFn  func(*T) string
+	template func() []byte
 	// searchIndex names this kind's Solr index when it is search-indexed
 	// (node, role, environment, client); empty leaves the kind unsearchable.
 	searchIndex string
@@ -221,14 +224,18 @@ func (k editorKind[T]) Summary(ctx context.Context, c *cinc.Client, name string)
 	if err != nil {
 		return summaryView{}, err
 	}
+	var title string
+	if k.titleFn != nil {
+		title = k.titleFn(obj)
+	}
 	if k.summaryFn != nil {
-		return summaryView{Fields: k.summaryFn(obj)}, nil
+		return summaryView{Title: title, Fields: k.summaryFn(obj)}, nil
 	}
 	body, err := prettyJSON(obj)
 	if err != nil {
 		return summaryView{}, err
 	}
-	return summaryView{JSON: body}, nil
+	return summaryView{Title: title, JSON: body}, nil
 }
 
 func (k editorKind[T]) Save(ctx context.Context, c *cinc.Client, name string, edited []byte) error {
