@@ -1,6 +1,7 @@
 package explore
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -65,6 +66,15 @@ func TestNodeSummaryFields(t *testing.T) {
 		if got[label] != val {
 			t.Errorf("field %q = %q, want %q", label, got[label], val)
 		}
+	}
+
+	var order []string
+	for _, f := range fields {
+		order = append(order, f.Label)
+	}
+	wantOrder := []string{"Environment", "Policy Group", "Run List", "Client Version", "Last Scan"}
+	if !reflect.DeepEqual(order, wantOrder) {
+		t.Errorf("field order = %v, want %v", order, wantOrder)
 	}
 }
 
