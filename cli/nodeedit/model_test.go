@@ -132,7 +132,7 @@ func TestFormSavesAttributeEdits(t *testing.T) {
 	m := newForm(t, &cinc.Node{Name: "db01"})
 	// Stand in a fresh attributes editor carrying an edit, then save.
 	m.attrs = jsoneditor.New(
-		[]byte(`{"normal":{"role":"db"},"default":{},"override":{},"automatic":{}}`),
+		[]byte(`{"normal":{"role":"db"},"default":{},"override":{}}`),
 		func([]byte) error { return nil },
 	)
 	m = ctrlD(m)
