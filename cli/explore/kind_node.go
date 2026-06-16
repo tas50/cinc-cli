@@ -16,6 +16,7 @@ func newNodeKind() Kind {
 			return nodeSummaryFields(n, time.Now())
 		},
 		titleFn: nodeTitle,
+		formFn:  newNodeForm,
 		listFn: func(ctx context.Context, c *cinc.Client) (map[string]string, error) {
 			index, _, err := c.Nodes.List(ctx)
 			return index, err

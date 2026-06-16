@@ -178,7 +178,10 @@ type editorKind[T any] struct {
 	summaryFn func(*T) []summaryField
 	// titleFn, when set, overrides the summary panel heading (otherwise the
 	// bare object name); a node uses it to append its platform and version.
-	titleFn  func(*T) string
+	titleFn func(*T) string
+	// formFn, when set, supplies a typed modal form for edit/create instead
+	// of the generic JSON editor; a node uses it for its human-fields form.
+	formFn   func(action editAction, seed []byte) (subEditor, error)
 	template func() []byte
 	// searchIndex names this kind's Solr index when it is search-indexed
 	// (node, role, environment, client); empty leaves the kind unsearchable.
@@ -247,6 +250,15 @@ func (k editorKind[T]) Save(ctx context.Context, c *cinc.Client, name string, ed
 }
 
 func (k editorKind[T]) NewTemplate() []byte { return k.template() }
+
+// NewForm returns this kind's typed modal form for the given action, or nil
+// when the kind has none (the caller then falls back to the JSON editor).
+func (k editorKind[T]) NewForm(action editAction, seed []byte) (subEditor, error) {
+	if k.formFn == nil {
+		return nil, nil
+	}
+	return k.formFn(action, seed)
+}
 
 func (k editorKind[T]) Create(ctx context.Context, c *cinc.Client, doc []byte) (CreateResult, error) {
 	var obj T

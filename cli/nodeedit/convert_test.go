@@ -55,7 +55,7 @@ func TestBuildNodeAssemblesFieldsAndPreservesAutomatic(t *testing.T) {
 	// original node untouched.
 	orig := &cinc.Node{Name: "db01", Automatic: cinc.Attributes{"platform": "ubuntu"}}
 	attrs := []byte(`{"normal":{"role":"db"},"default":{},"override":{}}`)
-	n, err := buildNode(orig, "prod", "base", "prodgrp", []string{"recipe[x]"}, attrs)
+	n, err := buildNode(orig, orig.Name, "prod", "base", "prodgrp", []string{"recipe[x]"}, attrs)
 	if err != nil {
 		t.Fatalf("buildNode: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestBuildNodeAssemblesFieldsAndPreservesAutomatic(t *testing.T) {
 func TestBuildNodeRejectsUnknownAttributeBag(t *testing.T) {
 	orig := &cinc.Node{Name: "db01"}
 	attrs := []byte(`{"normal":{},"default":{},"override":{},"bogus":{}}`)
-	if _, err := buildNode(orig, "", "", "", nil, attrs); err == nil {
+	if _, err := buildNode(orig, orig.Name, "", "", "", nil, attrs); err == nil {
 		t.Error("expected an error for an unknown attribute bag")
 	}
 }
@@ -89,7 +89,7 @@ func TestBuildNodeRejectsUnknownAttributeBag(t *testing.T) {
 func TestBuildNodeRejectsAutomaticBag(t *testing.T) {
 	orig := &cinc.Node{Name: "db01"}
 	attrs := []byte(`{"normal":{},"default":{},"override":{},"automatic":{}}`)
-	if _, err := buildNode(orig, "", "", "", nil, attrs); err == nil {
+	if _, err := buildNode(orig, orig.Name, "", "", "", nil, attrs); err == nil {
 		t.Error("automatic should be rejected as an unknown bag in the editor")
 	}
 }

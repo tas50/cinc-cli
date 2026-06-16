@@ -1,6 +1,7 @@
 package nodeedit
 
 import (
+	"encoding/json"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -174,5 +175,88 @@ func TestFormRejectsInvalidAttributeBag(t *testing.T) {
 	}
 	if m.errMsg == "" {
 		t.Error("expected an inline error for the unknown bag")
+	}
+}
+
+func newCreateForm(t *testing.T) Model {
+	t.Helper()
+	m, err := NewCreate()
+	if err != nil {
+		t.Fatalf("NewCreate: %v", err)
+	}
+	return m
+}
+
+func TestCreateFormStartsOnEditableName(t *testing.T) {
+	m := newCreateForm(t)
+	if m.focus != focusName {
+		t.Fatalf("create form should start focused on the name, got %v", m.focus)
+	}
+	m = up(m) // already at the top: stays on name
+	if m.focus != focusName {
+		t.Errorf("up at top should stay on name, got %v", m.focus)
+	}
+	m = down(m)
+	if m.focus != focusEnv {
+		t.Errorf("down from name should move to environment, got %v", m.focus)
+	}
+}
+
+func TestCreateFormSavesTypedName(t *testing.T) {
+	m := newCreateForm(t)
+	m = typeRunes(m, "web01")
+	m = down(m)
+	m = typeRunes(m, "staging")
+	m = ctrlD(m)
+	if !m.Finished() || m.Aborted() {
+		t.Fatalf("expected a saved create, finished=%v aborted=%v", m.Finished(), m.Aborted())
+	}
+	if !m.Changed() {
+		t.Error("a created node should always count as changed")
+	}
+	got := m.Result()
+	if got.Name != "web01" {
+		t.Errorf("name = %q, want web01", got.Name)
+	}
+	if got.Environment != "staging" {
+		t.Errorf("environment = %q, want staging", got.Environment)
+	}
+}
+
+func TestCreateFormRequiresAName(t *testing.T) {
+	m := newCreateForm(t)
+	m = ctrlD(m) // no name typed
+	if m.Finished() {
+		t.Fatal("an empty name should keep the create form open")
+	}
+	if m.errMsg == "" {
+		t.Error("expected an inline error demanding a name")
+	}
+	if m.focus != focusName {
+		t.Errorf("focus should return to the name field, got %v", m.focus)
+	}
+}
+
+func TestCommittedRoundTripsToJSON(t *testing.T) {
+	m := newCreateForm(t)
+	m = typeRunes(m, "web01")
+	m = ctrlD(m)
+	committed := m.Committed()
+	if committed == nil {
+		t.Fatal("a saved form should produce committed JSON")
+	}
+	var n cinc.Node
+	if err := json.Unmarshal(committed, &n); err != nil {
+		t.Fatalf("committed JSON did not parse: %v", err)
+	}
+	if n.Name != "web01" {
+		t.Errorf("committed name = %q, want web01", n.Name)
+	}
+}
+
+func TestCommittedNilWhenAborted(t *testing.T) {
+	m := ctrlC(newCreateForm(t))
+	if m.Committed() != nil {
+		t.Error("an aborted form must not produce committed JSON")
 	}
 }

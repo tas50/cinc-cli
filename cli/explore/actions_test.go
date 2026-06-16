@@ -108,7 +108,10 @@ func TestCreateReportsSubmittedNameWhenServerOmitsIt(t *testing.T) {
 	m, cmd := pressKey(t, m, tea.KeyEnter) // open Nodes
 	m, _ = step(t, m, drain(cmd))
 
-	m, _ = m2(m.startCreate()) // editor seeded with the node template
+	m, _ = m2(m.startCreate()) // the node form opens, focused on the name
+	for _, r := range "new-node" {
+		m, _ = pressRune(t, m, r)
+	}
 	m, cmd = commitEditor(t, m)
 	m, _ = step(t, m, drain(cmd)) // mutationDoneMsg
 	if !strings.Contains(m.status, "Created new-node") {
