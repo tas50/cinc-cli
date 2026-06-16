@@ -142,12 +142,13 @@ func TestUserSummaryFields(t *testing.T) {
 	}
 	got := map[string]string{}
 	var order []string
-	for _, f := range userSummaryFields(u) {
+	for _, f := range userSummaryFields(u, "Administrator") {
 		got[f.Label] = f.Value
 		order = append(order, f.Label)
 	}
 
 	want := map[string]string{
+		"Type":         "Administrator",
 		"Display Name": "Alice Liddell",
 		"Email":        "alice@example.com",
 		"First Name":   "Alice",
@@ -158,7 +159,8 @@ func TestUserSummaryFields(t *testing.T) {
 			t.Errorf("field %q = %q, want %q", label, got[label], val)
 		}
 	}
-	wantOrder := []string{"Display Name", "Email", "First Name", "Last Name"}
+	// Type leads the panel so an operator scanning users sees access at a glance.
+	wantOrder := []string{"Type", "Display Name", "Email", "First Name", "Last Name"}
 	if !reflect.DeepEqual(order, wantOrder) {
 		t.Errorf("field order = %v, want %v", order, wantOrder)
 	}
@@ -166,7 +168,7 @@ func TestUserSummaryFields(t *testing.T) {
 
 func TestUserSummaryFieldsEmpty(t *testing.T) {
 	got := map[string]string{}
-	for _, f := range userSummaryFields(&cinc.User{UserName: "bare"}) {
+	for _, f := range userSummaryFields(&cinc.User{UserName: "bare"}, "User") {
 		got[f.Label] = f.Value
 	}
 	if got["Email"] != "—" {

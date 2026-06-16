@@ -176,6 +176,11 @@ type editorKind[T any] struct {
 	// summaryFn, when set, builds the curated facts panel for an object;
 	// when nil the kind falls back to JSON in the summary pane.
 	summaryFn func(*T) []summaryField
+	// summaryClientFn is like summaryFn but also receives the client and
+	// context, so a kind can enrich the panel with data from extra API
+	// calls (the user kind uses it to look up org-admin status). It takes
+	// precedence over summaryFn when both are set.
+	summaryClientFn func(ctx context.Context, c *cinc.Client, obj *T) []summaryField
 	// titleFn, when set, overrides the summary panel heading (otherwise the
 	// bare object name); a node uses it to append its platform and version.
 	titleFn func(*T) string
@@ -230,6 +235,9 @@ func (k editorKind[T]) Summary(ctx context.Context, c *cinc.Client, name string)
 	var title string
 	if k.titleFn != nil {
 		title = k.titleFn(obj)
+	}
+	if k.summaryClientFn != nil {
+		return summaryView{Title: title, Fields: k.summaryClientFn(ctx, c, obj)}, nil
 	}
 	if k.summaryFn != nil {
 		return summaryView{Title: title, Fields: k.summaryFn(obj)}, nil
