@@ -49,9 +49,13 @@ func TestCookbookVersionSummaryFields(t *testing.T) {
 		Version:          "1.2.0",
 		AllFilesManifest: []cinc.CookbookFileRef{{Name: "recipes/default.rb"}, {Name: "metadata.rb"}},
 		Metadata: cinc.CookbookMetadata{
-			Description: "Installs and configures nginx",
-			Maintainer:  "Sous Chefs",
-			License:     "Apache-2.0",
+			Description:     "Installs and configures nginx",
+			Maintainer:      "Sous Chefs",
+			MaintainerEmail: "help@sous-chefs.org",
+			License:         "Apache-2.0",
+			SourceURL:       "https://github.com/sous-chefs/nginx",
+			IssuesURL:       "https://github.com/sous-chefs/nginx/issues",
+			Dependencies:    map[string]string{"ohai": ">= 0.0.0", "build-essential": ">= 8.0", "apt": ">= 7.0"},
 		},
 	}
 	var order []string
@@ -61,19 +65,28 @@ func TestCookbookVersionSummaryFields(t *testing.T) {
 		order = append(order, f.Label)
 	}
 	want := map[string]string{
-		"Version":     "1.2.0",
-		"Description": "Installs and configures nginx",
-		"Maintainer":  "Sous Chefs",
-		"License":     "Apache-2.0",
-		"Files":       "2",
+		"Version":          "1.2.0",
+		"Description":      "Installs and configures nginx",
+		"Maintainer":       "Sous Chefs",
+		"Maintainer email": "help@sous-chefs.org",
+		"License":          "Apache-2.0",
+		"Source URL":       "https://github.com/sous-chefs/nginx",
+		"Issues URL":       "https://github.com/sous-chefs/nginx/issues",
+		// Sorted by name; the no-op ">= 0.0.0" constraint on ohai is dropped.
+		"Dependencies": "apt >= 7.0, build-essential >= 8.0, ohai",
+		"Files":        "2",
 	}
 	for label, val := range want {
 		if got[label] != val {
 			t.Errorf("field %q = %q, want %q", label, got[label], val)
 		}
 	}
-	if !reflect.DeepEqual(order, []string{"Version", "Description", "Maintainer", "License", "Files"}) {
-		t.Errorf("field order = %v", order)
+	wantOrder := []string{
+		"Version", "Description", "Maintainer", "Maintainer email",
+		"License", "Source URL", "Issues URL", "Dependencies", "Files",
+	}
+	if !reflect.DeepEqual(order, wantOrder) {
+		t.Errorf("field order = %v, want %v", order, wantOrder)
 	}
 }
 
@@ -84,8 +97,24 @@ func TestCookbookVersionSummaryFieldsNoMetadata(t *testing.T) {
 	for _, f := range cookbookVersionSummaryFields(&cinc.Cookbook{Version: "1.0.0"}) {
 		got[f.Label] = f.Value
 	}
-	if got["Description"] != "—" || got["Maintainer"] != "—" || got["License"] != "—" {
-		t.Errorf("expected em dashes for absent metadata, got %+v", got)
+	for _, label := range []string{"Description", "Maintainer", "Maintainer email", "License", "Source URL", "Issues URL", "Dependencies"} {
+		if got[label] != "—" {
+			t.Errorf("field %q = %q, want em dash for absent metadata", label, got[label])
+		}
+	}
+}
+
+// Dependencies render sorted by name and capped so a sprawling dep set can't
+// blow out the pane, trailing the overflow as a "+N more" count.
+func TestCookbookDependenciesCapped(t *testing.T) {
+	deps := map[string]string{
+		"apt": ">= 7.0", "build-essential": ">= 8.0", "ohai": ">= 1.0",
+		"seven_zip": ">= 0.0.0", "windows": ">= 5.0", "yum": ">= 6.0", "zypper": ">= 0.5",
+	}
+	got := cookbookDependencies(&cinc.Cookbook{Metadata: cinc.CookbookMetadata{Dependencies: deps}})
+	want := "apt >= 7.0, build-essential >= 8.0, ohai >= 1.0, seven_zip, windows >= 5.0, yum >= 6.0, +1 more"
+	if got != want {
+		t.Errorf("cookbookDependencies = %q, want %q", got, want)
 	}
 }
 

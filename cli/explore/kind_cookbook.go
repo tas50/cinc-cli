@@ -121,15 +121,48 @@ func (k cookbookVersionsKind) Summary(ctx context.Context, c *cinc.Client, versi
 }
 
 // cookbookVersionSummaryFields builds the curated facts panel for a cookbook
-// version: its version and metadata identity, then the manifest file count.
+// version: its version, who maintains it and how to reach them, its license and
+// project links, the cookbooks it depends on, then the manifest file count.
 func cookbookVersionSummaryFields(cb *cinc.Cookbook) []summaryField {
 	return []summaryField{
 		{"Version", orDash(cb.Version)},
 		{"Description", orDash(cb.Metadata.Description)},
 		{"Maintainer", orDash(cb.Metadata.Maintainer)},
+		{"Maintainer email", orDash(cb.Metadata.MaintainerEmail)},
 		{"License", orDash(cb.Metadata.License)},
+		{"Source URL", orDash(cb.Metadata.SourceURL)},
+		{"Issues URL", orDash(cb.Metadata.IssuesURL)},
+		{"Dependencies", cookbookDependencies(cb)},
 		{"Files", count(len(cb.AllFiles()))},
 	}
+}
+
+// cookbookDepsShown caps how many dependencies the summary lists before
+// collapsing the rest into a "+N more" count, keeping the pane from blowing out
+// on a cookbook with a sprawling dependency set.
+const cookbookDepsShown = 6
+
+// cookbookDependencies renders a version's dependency map as a sorted,
+// human-readable list — "name constraint" per entry, e.g. "apt >= 7.0" — capped
+// at cookbookDepsShown. Maps have no stable order, so we sort by cookbook name
+// for deterministic output. The no-op ">= 0.0.0" constraint that a bare
+// `depends 'foo'` produces is dropped as noise, leaving just the name.
+func cookbookDependencies(cb *cinc.Cookbook) string {
+	deps := cb.Metadata.Dependencies
+	names := make([]string, 0, len(deps))
+	for name := range deps {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	items := make([]string, 0, len(names))
+	for _, name := range names {
+		if c := deps[name]; c != "" && c != ">= 0.0.0" {
+			items = append(items, name+" "+c)
+		} else {
+			items = append(items, name)
+		}
+	}
+	return list(items, cookbookDepsShown)
 }
 
 func (k cookbookVersionsKind) Delete(ctx context.Context, c *cinc.Client, version string) error {

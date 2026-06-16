@@ -30,7 +30,7 @@ const cincPackage = "github.com/tas50/cinc-cli/apps/cinc"
 // cincZeroVersion is the pinned cinc-zero release the acceptance suite runs
 // against. cinc-zero is a single-binary, in-memory Chef Infra Server published
 // at https://github.com/tas50/cinc-zero/releases.
-const cincZeroVersion = "v0.4.0"
+const cincZeroVersion = "v0.6.0"
 
 // cincZeroPlatforms lists the GOOS_GOARCH targets cinc-zero publishes a binary
 // for. The suite skips on anything else rather than failing.

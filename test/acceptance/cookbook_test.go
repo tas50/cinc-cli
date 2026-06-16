@@ -6,24 +6,30 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
 
-// TestCookbookListAgainstCincZero asserts that an empty server returns
-// an empty list in both formats.
+// TestCookbookListAgainstCincZero asserts the seeded `webserver` cookbook shows
+// up in the list in both formats. (Before a cookbook was seeded this asserted an
+// empty list; the seed now carries one so the explorer has real metadata to read.)
 func TestCookbookListAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
 
 	human := runCinc(t, env.binary, "cookbook", "list", "--config", env.cfgPath)
-	if human != "" {
-		t.Errorf("cookbook list (human) = %q, want empty", human)
+	if !strings.Contains(human, "webserver") {
+		t.Errorf("cookbook list (human) = %q, want it to contain webserver", human)
 	}
 
-	jsonOut := strings.TrimSpace(runCinc(t, env.binary, "cookbook", "list", "--config", env.cfgPath, "--format", "json"))
-	if jsonOut != "[]" {
-		t.Errorf("cookbook list (json) = %q, want \"[]\"", jsonOut)
+	jsonOut := runCinc(t, env.binary, "cookbook", "list", "--config", env.cfgPath, "--format", "json")
+	var names []string
+	if err := json.Unmarshal([]byte(jsonOut), &names); err != nil {
+		t.Fatalf("cookbook list (json) is not valid JSON: %v\noutput: %s", err, jsonOut)
+	}
+	if !slices.Contains(names, "webserver") {
+		t.Errorf("cookbook list (json) = %v, want it to contain webserver", names)
 	}
 }
 
@@ -99,6 +105,48 @@ func TestCookbookDeleteMissingAgainstCincZero(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "404") && !strings.Contains(stderr, "not found") {
 		t.Errorf("cookbook delete stderr does not mention 404/not found: %s", stderr)
+	}
+}
+
+// TestCookbookShowSurfacesMetadataAgainstCincZero confirms cinc-zero serves the
+// description, license, and dependencies a cookbook declares in metadata.rb, and
+// that `cinc cookbook show` carries them through. This is the data source the
+// explorer's cookbook-version summary pane reads (its Description, License, and
+// Dependencies fields); the pane itself can't be exercised here because the TUI
+// refuses a non-TTY stdout (see TestExploreRequiresTTY), so the pane rendering
+// is covered by the unit tests in cli/explore.
+//
+// cinc-zero only parses this metadata on the --repo seed-load path, so the
+// assertion runs against the seeded `webserver` cookbook rather than an upload
+// (the upload path stores the client-computed manifest untouched). cinc-zero
+// does not parse maintainer, maintainer_email, source_url, or issues_url even
+// when seeded, so those summary fields stay unit-test-only by necessity.
+func TestCookbookShowSurfacesMetadataAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	showOut := runCinc(t, env.binary, "cookbook", "show", "webserver", "2.1.0", "--config", env.cfgPath, "--format", "json")
+	var manifest struct {
+		Metadata struct {
+			Description  string            `json:"description"`
+			License      string            `json:"license"`
+			Dependencies map[string]string `json:"dependencies"`
+		} `json:"metadata"`
+	}
+	if err := json.Unmarshal([]byte(showOut), &manifest); err != nil {
+		t.Fatalf("cookbook show output is not valid JSON: %v\noutput: %s", err, showOut)
+	}
+	if manifest.Metadata.Description != "Installs and configures the acme web server" {
+		t.Errorf("metadata.description = %q", manifest.Metadata.Description)
+	}
+	if manifest.Metadata.License != "Apache-2.0" {
+		t.Errorf("metadata.license = %q, want Apache-2.0", manifest.Metadata.License)
+	}
+	if got := manifest.Metadata.Dependencies["apt"]; got != ">= 7.0" {
+		t.Errorf("metadata.dependencies[apt] = %q, want >= 7.0", got)
+	}
+	if _, ok := manifest.Metadata.Dependencies["build-essential"]; !ok {
+		t.Errorf("metadata.dependencies missing build-essential: %+v", manifest.Metadata.Dependencies)
 	}
 }
 
