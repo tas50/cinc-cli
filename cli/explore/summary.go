@@ -1,7 +1,9 @@
 package explore
 
 import (
+	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,15 +16,52 @@ type summaryField struct {
 	Value string
 }
 
-// summaryView is what the panel renders for the selected object: either a
-// curated set of Fields, or — when a kind has no custom summary — the
-// pretty-printed JSON in JSON. Title, when set, overrides the bare object
-// name in the panel heading (a node adds its platform, for example).
+// summaryView is what the panel renders for the selected object: a curated
+// set of human-friendly Fields, plus the object's pretty-printed JSON in
+// JSON. The pane shows the Fields; JSON rides along so the detail and edit
+// views can reuse this one fetch instead of issuing their own Get. Title,
+// when set, overrides the bare object name in the panel heading (a node adds
+// its platform, for example).
 type summaryView struct {
 	Title  string
 	Fields []summaryField
 	JSON   string
 }
+
+// summarize is the single contract every kind summarizes through: fetch the
+// object with get, build the heading with title (nil ⇒ bare name) and the
+// curated facts with fields, and always carry the object's JSON along for the
+// detail/edit views to reuse. Centralizing the fetch-then-render shape here is
+// what lets each kind declare only its own get and field builder.
+func summarize[T any](
+	ctx context.Context, c *cinc.Client, name string,
+	get func(context.Context, *cinc.Client, string) (*T, error),
+	title func(*T) string,
+	fields func(context.Context, *cinc.Client, *T) []summaryField,
+) (summaryView, error) {
+	obj, err := get(ctx, c, name)
+	if err != nil {
+		return summaryView{}, err
+	}
+	body, err := prettyJSON(obj)
+	if err != nil {
+		return summaryView{}, err
+	}
+	var heading string
+	if title != nil {
+		heading = title(obj)
+	}
+	var fs []summaryField
+	if fields != nil {
+		fs = fields(ctx, c, obj)
+	}
+	return summaryView{Title: heading, Fields: fs, JSON: body}, nil
+}
+
+// ----- shared value formatters -----------------------------------------
+//
+// Every per-type field builder renders through these so empty values,
+// counts, booleans, and lists read the same way across the whole UI.
 
 // dash is the placeholder shown for an empty field value.
 const dash = "—"
@@ -33,6 +72,39 @@ func orDash(s string) string {
 		return dash
 	}
 	return s
+}
+
+// count renders a quantity as its plain decimal string.
+func count(n int) string { return strconv.Itoa(n) }
+
+// yesNo renders a boolean as a human Yes/No.
+func yesNo(b bool) string {
+	if b {
+		return "Yes"
+	}
+	return "No"
+}
+
+// presence reports whether a value is set, for fields where the value itself
+// is noise (a key blob) but its presence is the fact worth showing.
+func presence(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return "not set"
+	}
+	return "set"
+}
+
+// list renders items as a comma-separated string, collapsing to the em-dash
+// when empty and, when max > 0 and there are more than max, trailing the first
+// max with a "+N more" count so a long list can't blow out the pane.
+func list(items []string, max int) string {
+	if len(items) == 0 {
+		return dash
+	}
+	if max > 0 && len(items) > max {
+		return strings.Join(items[:max], ", ") + fmt.Sprintf(", +%d more", len(items)-max)
+	}
+	return strings.Join(items, ", ")
 }
 
 // relativeTime renders a Unix epoch (as a float, the shape Chef's
@@ -55,70 +127,5 @@ func relativeTime(epoch float64, now time.Time) string {
 		return fmt.Sprintf("%dh ago", int(d.Hours()))
 	default:
 		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
-	}
-}
-
-// nodeTitle is the heading for a node's summary panel: its name, plus the
-// platform and version when ohai has reported them — e.g. "web1 - ubuntu
-// 24.04". A node we've never scanned has no platform, so it shows the bare
-// name.
-func nodeTitle(n *cinc.Node) string {
-	platform := n.Automatic.GetString("platform")
-	if platform == "" {
-		return n.Name
-	}
-	if version := n.Automatic.GetString("platform_version"); version != "" {
-		return fmt.Sprintf("%s - %s %s", n.Name, platform, version)
-	}
-	return fmt.Sprintf("%s - %s", n.Name, platform)
-}
-
-// nodeSummaryFields builds the curated facts panel for a node: the bits an
-// operator scanning a fleet wants at a glance.
-func nodeSummaryFields(n *cinc.Node, now time.Time) []summaryField {
-	var ohai float64
-	if v, ok := n.Automatic.Dig("ohai_time"); ok {
-		if f, ok := v.(float64); ok {
-			ohai = f
-		}
-	}
-	return []summaryField{
-		{"Environment", orDash(n.Environment)},
-		{"Policy Group", orDash(n.PolicyGroup)},
-		{"Run List", orDash(strings.Join(n.RunList, ", "))},
-		{"Client Version", orDash(n.Automatic.GetString("chef_packages", "chef", "version"))},
-		{"Last Scan", relativeTime(ohai, now)},
-	}
-}
-
-// roleSummaryFields builds the curated facts panel for a role.
-func roleSummaryFields(r *cinc.Role) []summaryField {
-	return []summaryField{
-		{"Description", orDash(r.Description)},
-		{"Run List", orDash(strings.Join(r.RunList, ", "))},
-		{"Env Run Lists", fmt.Sprintf("%d", len(r.EnvRunLists))},
-	}
-}
-
-// userSummaryFields builds the curated facts panel for a user. The
-// username is already the panel heading, so it leads with the user's
-// Type — the access classification resolved by userType — followed by
-// the human details an operator scans for.
-func userSummaryFields(u *cinc.User, userType string) []summaryField {
-	return []summaryField{
-		{"Type", userType},
-		{"Display Name", orDash(u.DisplayName)},
-		{"Email", orDash(u.Email)},
-		{"First Name", orDash(u.FirstName)},
-		{"Last Name", orDash(u.LastName)},
-	}
-}
-
-// environmentSummaryFields builds the curated facts panel for an
-// environment.
-func environmentSummaryFields(e *cinc.Environment) []summaryField {
-	return []summaryField{
-		{"Description", orDash(e.Description)},
-		{"Cookbook Constraints", fmt.Sprintf("%d", len(e.CookbookVersions))},
 	}
 }

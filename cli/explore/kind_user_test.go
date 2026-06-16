@@ -4,8 +4,55 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
+
+	cinc "github.com/tas50/cinc-api"
 )
+
+func TestUserSummaryFields(t *testing.T) {
+	u := &cinc.User{
+		UserName:    "alice",
+		DisplayName: "Alice Liddell",
+		Email:       "alice@example.com",
+		FirstName:   "Alice",
+		LastName:    "Liddell",
+	}
+	got := map[string]string{}
+	var order []string
+	for _, f := range userSummaryFields(u, "Administrator") {
+		got[f.Label] = f.Value
+		order = append(order, f.Label)
+	}
+
+	want := map[string]string{
+		"Type":         "Administrator",
+		"Display Name": "Alice Liddell",
+		"Email":        "alice@example.com",
+		"First Name":   "Alice",
+		"Last Name":    "Liddell",
+	}
+	for label, val := range want {
+		if got[label] != val {
+			t.Errorf("field %q = %q, want %q", label, got[label], val)
+		}
+	}
+	// Type leads the panel so an operator scanning users sees access at a glance.
+	wantOrder := []string{"Type", "Display Name", "Email", "First Name", "Last Name"}
+	if !reflect.DeepEqual(order, wantOrder) {
+		t.Errorf("field order = %v, want %v", order, wantOrder)
+	}
+}
+
+func TestUserSummaryFieldsEmpty(t *testing.T) {
+	got := map[string]string{}
+	for _, f := range userSummaryFields(&cinc.User{UserName: "bare"}, "User") {
+		got[f.Label] = f.Value
+	}
+	if got["Email"] != "—" {
+		t.Errorf("empty Email = %q, want em dash", got["Email"])
+	}
+}
 
 // The Users kind renders a curated facts panel in the summary pane, not
 // raw JSON, so an operator scanning users sees the human details at a

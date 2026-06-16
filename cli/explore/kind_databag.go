@@ -38,6 +38,20 @@ func (dataBagKind) Delete(ctx context.Context, c *cinc.Client, name string) erro
 
 func (dataBagKind) Child(parent string) Kind { return dataBagItemsKind{bag: parent} }
 
+// Summary shows how many items a bag holds — the one fact worth knowing
+// before drilling in.
+func (dataBagKind) Summary(ctx context.Context, c *cinc.Client, name string) (summaryView, error) {
+	return summarize(ctx, c, name,
+		func(ctx context.Context, c *cinc.Client, bag string) (*map[string]string, error) {
+			index, _, err := c.DataBags.Items(bag).List(ctx)
+			return &index, err
+		},
+		nil,
+		func(_ context.Context, _ *cinc.Client, index *map[string]string) []summaryField {
+			return []summaryField{{"Items", count(len(*index))}}
+		})
+}
+
 // dataBagItemsKind lists and edits the items of one data bag. Items are
 // free-form JSON objects keyed by their "id".
 type dataBagItemsKind struct{ bag string }
@@ -63,6 +77,32 @@ func (k dataBagItemsKind) Describe(ctx context.Context, c *cinc.Client, id strin
 		return "", err
 	}
 	return prettyJSON(item)
+}
+
+// Summary shows a free-form item's shape — its id, how many top-level keys
+// it carries, and which keys those are — without dumping the whole JSON.
+func (k dataBagItemsKind) Summary(ctx context.Context, c *cinc.Client, id string) (summaryView, error) {
+	return summarize(ctx, c, id,
+		func(ctx context.Context, c *cinc.Client, id string) (*cinc.DataBagItem, error) {
+			item, _, err := c.DataBags.Items(k.bag).Get(ctx, id)
+			return &item, err
+		},
+		nil,
+		func(_ context.Context, _ *cinc.Client, item *cinc.DataBagItem) []summaryField {
+			return dataBagItemSummaryFields(*item)
+		})
+}
+
+// dataBagItemSummaryFields builds the curated facts panel for a data bag
+// item. The "id" key names the item and is already the heading, so the key
+// list and count cover the rest of its top-level shape.
+func dataBagItemSummaryFields(item cinc.DataBagItem) []summaryField {
+	keys := sortedKeys(item)
+	return []summaryField{
+		{"ID", orDash(itemID(item))},
+		{"Keys", count(len(keys))},
+		{"Top Keys", list(keys, 8)},
+	}
 }
 
 func (k dataBagItemsKind) Save(ctx context.Context, c *cinc.Client, id string, edited []byte) error {

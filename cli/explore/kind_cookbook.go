@@ -35,6 +35,43 @@ func (cookbookKind) List(ctx context.Context, c *cinc.Client) ([]Row, error) {
 
 func (cookbookKind) Child(parent string) Kind { return cookbookVersionsKind{name: parent} }
 
+// Summary shows how many versions a cookbook has and which is newest — the
+// shape of the version set you're about to drill into.
+func (cookbookKind) Summary(ctx context.Context, c *cinc.Client, name string) (summaryView, error) {
+	return summarize(ctx, c, name,
+		func(ctx context.Context, c *cinc.Client, n string) (*cinc.CookbookListEntry, error) {
+			index, _, err := c.Cookbooks.List(ctx)
+			if err != nil {
+				return nil, err
+			}
+			entry, ok := index[n]
+			if !ok {
+				return nil, fmt.Errorf("cookbook %q not found", n)
+			}
+			return &entry, nil
+		},
+		nil,
+		func(_ context.Context, _ *cinc.Client, entry *cinc.CookbookListEntry) []summaryField {
+			return []summaryField{
+				{"Versions", count(len(entry.Versions))},
+				{"Latest", orDash(latestCookbookVersion(entry.Versions))},
+			}
+		})
+}
+
+// latestCookbookVersion returns the newest version string, picking the
+// greatest by string comparison to match the newest-first ordering the
+// version list itself uses.
+func latestCookbookVersion(versions []cinc.CookbookVersion) string {
+	latest := ""
+	for _, v := range versions {
+		if v.Version > latest {
+			latest = v.Version
+		}
+	}
+	return latest
+}
+
 // cookbookVersionsKind lists the versions of one cookbook. A version
 // can be viewed (its manifest), downloaded, or deleted.
 type cookbookVersionsKind struct{ name string }
@@ -66,6 +103,22 @@ func (k cookbookVersionsKind) Describe(ctx context.Context, c *cinc.Client, vers
 		return "", err
 	}
 	return prettyJSON(cb)
+}
+
+// Summary shows a version's identity and how many files its manifest carries.
+func (k cookbookVersionsKind) Summary(ctx context.Context, c *cinc.Client, version string) (summaryView, error) {
+	return summarize(ctx, c, version,
+		func(ctx context.Context, c *cinc.Client, v string) (*cinc.Cookbook, error) {
+			cb, _, err := c.Cookbooks.Get(ctx, k.name, v)
+			return cb, err
+		},
+		nil,
+		func(_ context.Context, _ *cinc.Client, cb *cinc.Cookbook) []summaryField {
+			return []summaryField{
+				{"Version", orDash(cb.Version)},
+				{"Files", count(len(cb.AllFiles()))},
+			}
+		})
 }
 
 func (k cookbookVersionsKind) Delete(ctx context.Context, c *cinc.Client, version string) error {

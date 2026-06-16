@@ -33,6 +33,29 @@ func (groupKind) Describe(ctx context.Context, c *cinc.Client, name string) (str
 	return prettyJSON(g)
 }
 
+// Summary shows the group's membership at a glance — how many users,
+// clients, and nested groups it pulls in.
+func (groupKind) Summary(ctx context.Context, c *cinc.Client, name string) (summaryView, error) {
+	return summarize(ctx, c, name,
+		func(ctx context.Context, c *cinc.Client, n string) (*cinc.Group, error) {
+			g, _, err := c.Groups.Get(ctx, n)
+			return g, err
+		},
+		nil,
+		func(_ context.Context, _ *cinc.Client, g *cinc.Group) []summaryField {
+			return groupSummaryFields(g)
+		})
+}
+
+// groupSummaryFields builds the curated facts panel for a group.
+func groupSummaryFields(g *cinc.Group) []summaryField {
+	return []summaryField{
+		{"Users", count(len(g.Users))},
+		{"Clients", count(len(g.Clients))},
+		{"Nested Groups", count(len(g.Groups))},
+	}
+}
+
 func (groupKind) Save(ctx context.Context, c *cinc.Client, name string, edited []byte) error {
 	var g cinc.Group
 	if err := json.Unmarshal(edited, &g); err != nil {

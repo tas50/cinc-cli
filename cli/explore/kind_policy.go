@@ -39,6 +39,20 @@ func (policyKind) Delete(ctx context.Context, c *cinc.Client, name string) error
 
 func (policyKind) Child(parent string) Kind { return policyRevisionsKind{policy: parent} }
 
+// Summary shows how many revisions a policy has — the set you're about to
+// drill into.
+func (policyKind) Summary(ctx context.Context, c *cinc.Client, name string) (summaryView, error) {
+	return summarize(ctx, c, name,
+		func(ctx context.Context, c *cinc.Client, n string) (*cinc.PolicyRevisions, error) {
+			revs, _, err := c.Policies.Get(ctx, n)
+			return revs, err
+		},
+		nil,
+		func(_ context.Context, _ *cinc.Client, revs *cinc.PolicyRevisions) []summaryField {
+			return []summaryField{{"Revisions", count(len(revs.Revisions))}}
+		})
+}
+
 // policyRevisionsKind lists the revisions of one policy. A revision can
 // be viewed or deleted.
 type policyRevisionsKind struct{ policy string }
@@ -65,6 +79,28 @@ func (k policyRevisionsKind) Describe(ctx context.Context, c *cinc.Client, revis
 		return "", err
 	}
 	return prettyJSON(rev)
+}
+
+// Summary shows what a revision pins down: its run list and how many
+// cookbooks it locks to exact versions.
+func (k policyRevisionsKind) Summary(ctx context.Context, c *cinc.Client, revision string) (summaryView, error) {
+	return summarize(ctx, c, revision,
+		func(ctx context.Context, c *cinc.Client, rev string) (*cinc.PolicyRevision, error) {
+			r, _, err := c.Policies.GetRevision(ctx, k.policy, rev)
+			return r, err
+		},
+		nil,
+		policyRevisionSummaryFields)
+}
+
+// policyRevisionSummaryFields builds the curated facts panel for a policy
+// revision — shared by a policy's own revisions and a policy group's pinned
+// bindings, which are the same revision document.
+func policyRevisionSummaryFields(_ context.Context, _ *cinc.Client, rev *cinc.PolicyRevision) []summaryField {
+	return []summaryField{
+		{"Run List", list(rev.RunList, 0)},
+		{"Cookbook Locks", count(len(rev.CookbookLocks))},
+	}
 }
 
 func (k policyRevisionsKind) Delete(ctx context.Context, c *cinc.Client, revision string) error {
