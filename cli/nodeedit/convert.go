@@ -1,9 +1,11 @@
 // Package nodeedit is a bubbletea form for editing a Chef/Cinc node. It
 // presents the node's name, environment, policy, and run list as plain
-// human-readable fields and its attribute bags (normal, default, override,
-// automatic) in the shared JSON editor — so the common parts of a node
-// never look like raw JSON. The pure node<->form conversions live here;
-// the interactive Model lives in model.go.
+// human-readable fields and its editable attribute bags (normal, default,
+// override) in the shared JSON editor — so the common parts of a node never
+// look like raw JSON. The automatic bag is not editable: ohai recomputes it
+// on every cinc run, so it is preserved untouched rather than shown. The
+// pure node<->form conversions live here; the interactive Model lives in
+// model.go.
 package nodeedit
 
 import (
@@ -15,13 +17,14 @@ import (
 	cinc "github.com/tas50/cinc-api"
 )
 
-// attrBags is the object presented in the attributes JSON editor: the four
-// node attribute precedence levels, in Chef's conventional order.
+// attrBags is the object presented in the attributes JSON editor: the
+// editable node attribute precedence levels, in Chef's conventional order.
+// automatic is deliberately absent — it is recomputed by ohai every run, so
+// it is preserved from the original node rather than edited (see buildNode).
 type attrBags struct {
-	Normal    cinc.Attributes `json:"normal"`
-	Default   cinc.Attributes `json:"default"`
-	Override  cinc.Attributes `json:"override"`
-	Automatic cinc.Attributes `json:"automatic"`
+	Normal   cinc.Attributes `json:"normal"`
+	Default  cinc.Attributes `json:"default"`
+	Override cinc.Attributes `json:"override"`
 }
 
 // runListText renders a node's run list one entry per line for editing.
@@ -51,7 +54,6 @@ func attributesSeed(n *cinc.Node) ([]byte, error) {
 		{"normal", n.Normal},
 		{"default", n.Default},
 		{"override", n.Override},
-		{"automatic", n.Automatic},
 	}
 	var b bytes.Buffer
 	b.WriteByte('{')
@@ -74,9 +76,10 @@ func attributesSeed(n *cinc.Node) ([]byte, error) {
 }
 
 // buildNode assembles the edited form back into a node, carrying the name
-// from the original (it is not editable). attrsJSON must contain exactly the
-// four known bags; an unknown top-level key is rejected so a stray key is
-// surfaced rather than silently dropped.
+// and the computed automatic attributes from the original (neither is
+// editable). attrsJSON must contain only the editable bags (normal,
+// default, override); any other top-level key — including automatic — is
+// rejected so a stray key is surfaced rather than silently dropped.
 func buildNode(orig *cinc.Node, env, policyName, policyGroup string, runList []string, attrsJSON []byte) (*cinc.Node, error) {
 	var bags attrBags
 	dec := json.NewDecoder(bytes.NewReader(attrsJSON))
@@ -91,7 +94,7 @@ func buildNode(orig *cinc.Node, env, policyName, policyGroup string, runList []s
 		Normal:      bags.Normal,
 		Default:     bags.Default,
 		Override:    bags.Override,
-		Automatic:   bags.Automatic,
+		Automatic:   orig.Automatic,
 		PolicyName:  policyName,
 		PolicyGroup: policyGroup,
 	}, nil
