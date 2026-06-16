@@ -152,11 +152,11 @@ cinc node edit web01`,
 				if err != nil {
 					return err
 				}
-				edited, err := editNode(current)
+				edited, changed, err := editNodeForm(current)
 				if err != nil {
 					return err
 				}
-				if nodeEditUnchanged(current, edited) {
+				if !changed {
 					fmt.Fprintf(cmd.OutOrStdout(), "Node %q unchanged\n", name)
 					return nil
 				}
