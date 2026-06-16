@@ -105,7 +105,9 @@ func (k cookbookVersionsKind) Describe(ctx context.Context, c *cinc.Client, vers
 	return prettyJSON(cb)
 }
 
-// Summary shows a version's identity and how many files its manifest carries.
+// Summary shows a version's identity — what it does, who maintains it, and
+// under what license — drawn from the cookbook metadata, plus how many files
+// its manifest carries.
 func (k cookbookVersionsKind) Summary(ctx context.Context, c *cinc.Client, version string) (summaryView, error) {
 	return summarize(ctx, c, version,
 		func(ctx context.Context, c *cinc.Client, v string) (*cinc.Cookbook, error) {
@@ -114,11 +116,20 @@ func (k cookbookVersionsKind) Summary(ctx context.Context, c *cinc.Client, versi
 		},
 		nil,
 		func(_ context.Context, _ *cinc.Client, cb *cinc.Cookbook) []summaryField {
-			return []summaryField{
-				{"Version", orDash(cb.Version)},
-				{"Files", count(len(cb.AllFiles()))},
-			}
+			return cookbookVersionSummaryFields(cb)
 		})
+}
+
+// cookbookVersionSummaryFields builds the curated facts panel for a cookbook
+// version: its version and metadata identity, then the manifest file count.
+func cookbookVersionSummaryFields(cb *cinc.Cookbook) []summaryField {
+	return []summaryField{
+		{"Version", orDash(cb.Version)},
+		{"Description", orDash(cb.Metadata.Description)},
+		{"Maintainer", orDash(cb.Metadata.Maintainer)},
+		{"License", orDash(cb.Metadata.License)},
+		{"Files", count(len(cb.AllFiles()))},
+	}
 }
 
 func (k cookbookVersionsKind) Delete(ctx context.Context, c *cinc.Client, version string) error {
