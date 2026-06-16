@@ -235,6 +235,108 @@ client_key      = %q
 	}
 }
 
+// userDeletePivotalServer stands up an httptest server that records
+// whether DELETE /users/pivotal was called, plus a config pointing at it.
+func userDeletePivotalServer(t *testing.T, deleted *bool) string {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/users/pivotal", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %q, want DELETE", r.Method)
+		}
+		*deleted = true
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"username": "pivotal"})
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url = "%s/organizations/acme"
+client_name     = "tim"
+client_key      = %q
+`, srv.URL, writeTestKey(t))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return cfgPath
+}
+
+// Deleting the pivotal superuser is dangerous, so the command warns and
+// requires an explicit confirmation. Answering "yes" goes through.
+func TestUserDeletePivotalConfirmed(t *testing.T) {
+	var deleted bool
+	cfgPath := userDeletePivotalServer(t, &deleted)
+
+	root := newRootCmd()
+	var out, errBuf bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&errBuf)
+	root.SetIn(strings.NewReader("yes\n"))
+	root.SetArgs([]string{"user", "delete", "pivotal", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc user delete pivotal: %v", err)
+	}
+	if !deleted {
+		t.Error("server never saw the delete after confirmation")
+	}
+	if !strings.Contains(errBuf.String(), "pivotal") || !strings.Contains(strings.ToLower(errBuf.String()), "superuser") {
+		t.Errorf("expected a pivotal superuser warning on stderr, got %q", errBuf.String())
+	}
+	if got := out.String(); got != "Deleted user \"pivotal\"\n" {
+		t.Errorf("user delete output = %q", got)
+	}
+}
+
+// Answering "no" (or pressing Enter for the No default) aborts without
+// touching the server, and exits cleanly with no error.
+func TestUserDeletePivotalDeclined(t *testing.T) {
+	for _, answer := range []string{"n\n", "\n"} {
+		var deleted bool
+		cfgPath := userDeletePivotalServer(t, &deleted)
+
+		root := newRootCmd()
+		var out, errBuf bytes.Buffer
+		root.SetOut(&out)
+		root.SetErr(&errBuf)
+		root.SetIn(strings.NewReader(answer))
+		root.SetArgs([]string{"user", "delete", "pivotal", "--config", cfgPath})
+
+		if err := root.Execute(); err != nil {
+			t.Fatalf("answer %q: expected clean exit, got %v", answer, err)
+		}
+		if deleted {
+			t.Errorf("answer %q: server saw a delete despite declining", answer)
+		}
+		if out.String() != "" {
+			t.Errorf("answer %q: expected no success output, got %q", answer, out.String())
+		}
+	}
+}
+
+// The --yes flag skips the prompt entirely for scripted use.
+func TestUserDeletePivotalForced(t *testing.T) {
+	var deleted bool
+	cfgPath := userDeletePivotalServer(t, &deleted)
+
+	root := newRootCmd()
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetArgs([]string{"user", "delete", "pivotal", "--yes", "--config", cfgPath})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc user delete pivotal --yes: %v", err)
+	}
+	if !deleted {
+		t.Error("server never saw the delete with --yes")
+	}
+	if got := out.String(); got != "Deleted user \"pivotal\"\n" {
+		t.Errorf("user delete output = %q", got)
+	}
+}
+
 func TestUserPasswordCommandEndToEnd(t *testing.T) {
 	var putBody map[string]any
 	mux := http.NewServeMux()

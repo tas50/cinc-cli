@@ -62,6 +62,35 @@ func TestUserCreateDeleteAgainstCincZero(t *testing.T) {
 	}
 }
 
+// TestUserDeletePivotalDeclinedAgainstCincZero confirms that deleting the
+// "pivotal" superuser warns and, with no answer on stdin (the No default),
+// aborts cleanly without touching the server.
+//
+// We exercise only the decline path here: actually deleting pivotal would
+// remove the very superuser this harness signs its requests as, breaking
+// the rest of the session. The --yes happy path is covered by the unit
+// test TestUserDeletePivotalForced.
+func TestUserDeletePivotalDeclinedAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	stdout, stderr, err := runCincRaw(env.binary, "user", "delete", "pivotal", "--config", env.cfgPath)
+	if err != nil {
+		t.Fatalf("declining the pivotal delete should exit cleanly, got %v\nstderr: %s", err, stderr)
+	}
+	if !strings.Contains(stderr, "superuser") {
+		t.Errorf("expected a superuser warning on stderr, got %q", stderr)
+	}
+	if stdout != "" {
+		t.Errorf("expected no success output when declining, got %q", stdout)
+	}
+
+	list := runCinc(t, env.binary, "user", "list", "--config", env.cfgPath)
+	if !strings.Contains(list, "pivotal") {
+		t.Errorf("pivotal should still exist after declining the delete:\n%s", list)
+	}
+}
+
 // TestUserPasswordAgainstCincZero sets a seeded user's password.
 func TestUserPasswordAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
