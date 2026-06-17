@@ -109,18 +109,18 @@ func TestCookbookDeleteMissingAgainstCincZero(t *testing.T) {
 }
 
 // TestCookbookShowSurfacesMetadataAgainstCincZero confirms cinc-zero serves the
-// description, license, and dependencies a cookbook declares in metadata.rb, and
-// that `cinc cookbook show` carries them through. This is the data source the
-// explorer's cookbook-version summary pane reads (its Description, License, and
-// Dependencies fields); the pane itself can't be exercised here because the TUI
-// refuses a non-TTY stdout (see TestExploreRequiresTTY), so the pane rendering
-// is covered by the unit tests in cli/explore.
+// identity metadata a cookbook declares in metadata.rb — description, maintainer
+// and contact, license, project URLs, and dependencies — and that `cinc cookbook
+// show` carries it through. This is the data source the explorer's cookbook-
+// version summary pane reads; the pane itself can't be exercised here because the
+// TUI refuses a non-TTY stdout (see TestExploreRequiresTTY), so the pane
+// rendering is covered by the unit tests in cli/explore.
 //
 // cinc-zero only parses this metadata on the --repo seed-load path, so the
 // assertion runs against the seeded `webserver` cookbook rather than an upload
-// (the upload path stores the client-computed manifest untouched). cinc-zero
-// does not parse maintainer, maintainer_email, source_url, or issues_url even
-// when seeded, so those summary fields stay unit-test-only by necessity.
+// (the upload path stores the client-computed manifest untouched). The
+// maintainer, maintainer_email, source_url, and issues_url fields are served as
+// of cinc-zero v0.6.3 (PR #65).
 func TestCookbookShowSurfacesMetadataAgainstCincZero(t *testing.T) {
 	env, stop := startAcceptance(t)
 	defer stop()
@@ -128,25 +128,36 @@ func TestCookbookShowSurfacesMetadataAgainstCincZero(t *testing.T) {
 	showOut := runCinc(t, env.binary, "cookbook", "show", "webserver", "2.1.0", "--config", env.cfgPath, "--format", "json")
 	var manifest struct {
 		Metadata struct {
-			Description  string            `json:"description"`
-			License      string            `json:"license"`
-			Dependencies map[string]string `json:"dependencies"`
+			Description     string            `json:"description"`
+			Maintainer      string            `json:"maintainer"`
+			MaintainerEmail string            `json:"maintainer_email"`
+			License         string            `json:"license"`
+			SourceURL       string            `json:"source_url"`
+			IssuesURL       string            `json:"issues_url"`
+			Dependencies    map[string]string `json:"dependencies"`
 		} `json:"metadata"`
 	}
 	if err := json.Unmarshal([]byte(showOut), &manifest); err != nil {
 		t.Fatalf("cookbook show output is not valid JSON: %v\noutput: %s", err, showOut)
 	}
-	if manifest.Metadata.Description != "Installs and configures the acme web server" {
-		t.Errorf("metadata.description = %q", manifest.Metadata.Description)
+	md := manifest.Metadata
+	for _, c := range []struct{ field, got, want string }{
+		{"description", md.Description, "Installs and configures the acme web server"},
+		{"maintainer", md.Maintainer, "Acme Infra"},
+		{"maintainer_email", md.MaintainerEmail, "infra@acme.test"},
+		{"license", md.License, "Apache-2.0"},
+		{"source_url", md.SourceURL, "https://github.com/acme/webserver"},
+		{"issues_url", md.IssuesURL, "https://github.com/acme/webserver/issues"},
+	} {
+		if c.got != c.want {
+			t.Errorf("metadata.%s = %q, want %q", c.field, c.got, c.want)
+		}
 	}
-	if manifest.Metadata.License != "Apache-2.0" {
-		t.Errorf("metadata.license = %q, want Apache-2.0", manifest.Metadata.License)
-	}
-	if got := manifest.Metadata.Dependencies["apt"]; got != ">= 7.0" {
+	if got := md.Dependencies["apt"]; got != ">= 7.0" {
 		t.Errorf("metadata.dependencies[apt] = %q, want >= 7.0", got)
 	}
-	if _, ok := manifest.Metadata.Dependencies["build-essential"]; !ok {
-		t.Errorf("metadata.dependencies missing build-essential: %+v", manifest.Metadata.Dependencies)
+	if _, ok := md.Dependencies["build-essential"]; !ok {
+		t.Errorf("metadata.dependencies missing build-essential: %+v", md.Dependencies)
 	}
 }
 

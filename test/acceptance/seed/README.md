@@ -11,8 +11,9 @@ built with `server.load_data`.
 - `roles/` — `web`, `db`, `base`
 - `environments/` — `prod`, `staging` (plus the `_default` env cinc-zero always creates)
 - `clients/` — `worker-01`, `worker-02`
-- `cookbooks/webserver/` — version `2.1.0`, carrying the `description`,
-  `license`, and `depends` metadata cinc-zero surfaces (v0.6.0+)
+- `cookbooks/webserver/` — version `2.1.0`, carrying the identity metadata
+  cinc-zero surfaces: `description`/`license`/`depends` (v0.6.0+) and
+  `maintainer`/`maintainer_email`/`source_url`/`issues_url` (v0.6.3+)
 - `data_bags/users/` — items `alice`, `bob`; `data_bags/apps/` — an empty bag (kept by `.gitkeep`)
 - `policies/appserver-1.0.0.json` — a Policyfile lock loaded as revision `1.0.0`
 - `policy_groups/prod.json` — pins `appserver` `1.0.0` into the `prod` group
