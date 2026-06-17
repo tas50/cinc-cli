@@ -35,27 +35,39 @@ func (cookbookKind) List(ctx context.Context, c *cinc.Client) ([]Row, error) {
 
 func (cookbookKind) Child(parent string) Kind { return cookbookVersionsKind{name: parent} }
 
-// Summary shows how many versions a cookbook has and which is newest — the
-// shape of the version set you're about to drill into.
+// Summary shows how many versions a cookbook has and which is newest, then the
+// latest version's identity metadata — so the cookbook list surfaces what a
+// cookbook is and who maintains it without having to drill into a version. The
+// metadata lives on the per-version manifest, so we fetch the latest version to
+// read it; the JSON carried along for the detail view is that same manifest.
 func (cookbookKind) Summary(ctx context.Context, c *cinc.Client, name string) (summaryView, error) {
-	return summarize(ctx, c, name,
-		func(ctx context.Context, c *cinc.Client, n string) (*cinc.CookbookListEntry, error) {
-			index, _, err := c.Cookbooks.List(ctx)
-			if err != nil {
-				return nil, err
+	index, _, err := c.Cookbooks.List(ctx)
+	if err != nil {
+		return summaryView{}, err
+	}
+	entry, ok := index[name]
+	if !ok {
+		return summaryView{}, fmt.Errorf("cookbook %q not found", name)
+	}
+	versions := len(entry.Versions)
+	latest := latestCookbookVersion(entry.Versions)
+
+	return summarize(ctx, c, latest,
+		func(ctx context.Context, c *cinc.Client, v string) (*cinc.Cookbook, error) {
+			if v == "" {
+				// A cookbook with no versions has no manifest to read.
+				return &cinc.Cookbook{}, nil
 			}
-			entry, ok := index[n]
-			if !ok {
-				return nil, fmt.Errorf("cookbook %q not found", n)
-			}
-			return &entry, nil
+			cb, _, err := c.Cookbooks.Get(ctx, name, v)
+			return cb, err
 		},
 		nil,
-		func(_ context.Context, _ *cinc.Client, entry *cinc.CookbookListEntry) []summaryField {
-			return []summaryField{
-				{"Versions", count(len(entry.Versions))},
-				{"Latest", orDash(latestCookbookVersion(entry.Versions))},
+		func(_ context.Context, _ *cinc.Client, cb *cinc.Cookbook) []summaryField {
+			fields := []summaryField{
+				{"Versions", count(versions)},
+				{"Latest", orDash(latest)},
 			}
+			return append(fields, cookbookIdentityFields(cb)...)
 		})
 }
 
@@ -121,11 +133,21 @@ func (k cookbookVersionsKind) Summary(ctx context.Context, c *cinc.Client, versi
 }
 
 // cookbookVersionSummaryFields builds the curated facts panel for a cookbook
-// version: its version, who maintains it and how to reach them, its license and
-// project links, the cookbooks it depends on, then the manifest file count.
+// version: its version, the shared identity metadata, then the manifest file
+// count (which, unlike the identity, is specific to this one version).
 func cookbookVersionSummaryFields(cb *cinc.Cookbook) []summaryField {
+	fields := []summaryField{{"Version", orDash(cb.Version)}}
+	fields = append(fields, cookbookIdentityFields(cb)...)
+	return append(fields, summaryField{"Files", count(len(cb.AllFiles()))})
+}
+
+// cookbookIdentityFields renders the metadata that identifies a cookbook
+// independent of any one version's file manifest: what it does, who maintains it
+// and how to reach them, its license and project links, and what it depends on.
+// Both the cookbook-level pane (reading the latest version) and the per-version
+// pane render through this so the two stay consistent.
+func cookbookIdentityFields(cb *cinc.Cookbook) []summaryField {
 	return []summaryField{
-		{"Version", orDash(cb.Version)},
 		{"Description", orDash(cb.Metadata.Description)},
 		{"Maintainer", orDash(cb.Metadata.Maintainer)},
 		{"Maintainer email", orDash(cb.Metadata.MaintainerEmail)},
@@ -133,7 +155,6 @@ func cookbookVersionSummaryFields(cb *cinc.Cookbook) []summaryField {
 		{"Source URL", orDash(cb.Metadata.SourceURL)},
 		{"Issues URL", orDash(cb.Metadata.IssuesURL)},
 		{"Dependencies", cookbookDependencies(cb)},
-		{"Files", count(len(cb.AllFiles()))},
 	}
 }
 
