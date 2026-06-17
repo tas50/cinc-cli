@@ -20,11 +20,16 @@ func TestLatestCookbookVersion(t *testing.T) {
 	}
 }
 
-// A cookbook shows its version count and newest version on hover.
+// A cookbook shows its version count and newest version on hover, plus the
+// latest version's identity metadata so you needn't drill in to see it.
 func TestCookbookKindSummary(t *testing.T) {
 	mux := http.NewServeMux()
 	jsonHandler(mux, "/organizations/acme/cookbooks",
 		`{"nginx":{"versions":[{"version":"1.0.0"},{"version":"1.2.0"}]}}`)
+	jsonHandler(mux, "/organizations/acme/cookbooks/nginx/1.2.0",
+		`{"cookbook_name":"nginx","version":"1.2.0",
+		  "metadata":{"description":"Installs and configures nginx","maintainer":"Sous Chefs","license":"Apache-2.0",
+		    "dependencies":{"apt":">= 7.0"}}}`)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
@@ -36,11 +41,18 @@ func TestCookbookKindSummary(t *testing.T) {
 	for _, f := range view.Fields {
 		got[f.Label] = f.Value
 	}
-	if got["Versions"] != "2" {
-		t.Errorf("Versions = %q, want 2", got["Versions"])
+	want := map[string]string{
+		"Versions":     "2",
+		"Latest":       "1.2.0",
+		"Description":  "Installs and configures nginx",
+		"Maintainer":   "Sous Chefs",
+		"License":      "Apache-2.0",
+		"Dependencies": "apt >= 7.0",
 	}
-	if got["Latest"] != "1.2.0" {
-		t.Errorf("Latest = %q, want 1.2.0", got["Latest"])
+	for label, val := range want {
+		if got[label] != val {
+			t.Errorf("field %q = %q, want %q", label, got[label], val)
+		}
 	}
 }
 
