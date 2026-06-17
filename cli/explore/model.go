@@ -143,6 +143,10 @@ type model struct {
 	status string // transient success line shown in the footer
 	styles styles
 	keys   keyMap
+
+	// colorJSON enables syntax highlighting of the JSON panes; resolved once
+	// from the terminal's color support so non-TTY output stays plain.
+	colorJSON bool
 }
 
 // startup carries the resolved entry state from Run into the model.
@@ -179,6 +183,7 @@ func newModel(ctx context.Context, opts Options, s startup) model {
 		searchInput:  search,
 		styles:       newStyles(),
 		keys:         newKeyMap(),
+		colorJSON:    colorize(newStyles()),
 	}
 }
 
@@ -570,7 +575,7 @@ func (m model) handleDetailLoaded(msg detailLoadedMsg) model {
 	}
 	m.detailErr = ""
 	m.detailName = msg.name
-	m.detail.SetContent(msg.body)
+	m.detail.SetContent(highlightJSON(m.colorJSON, msg.body))
 	m.detail.GotoTop()
 	return m
 }

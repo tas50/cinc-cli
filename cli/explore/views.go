@@ -320,7 +320,7 @@ func (m model) renderSummaryContent() string {
 			if len(view.Fields) > 0 {
 				b.WriteString(m.renderFields(view.Fields))
 			} else {
-				b.WriteString(m.styles.Body.Render(view.JSON))
+				b.WriteString(highlightJSON(m.colorJSON, view.JSON))
 			}
 		} else {
 			b.WriteString(m.styles.Body.Render("Loading…"))
