@@ -57,6 +57,17 @@ func TestStructuralRejectsInvalidScalar(t *testing.T) {
 	}
 }
 
+// A top-level scalar document has no parent container, so pressing 'a' (add
+// sibling) must be a no-op rather than panicking on an empty path slice.
+func TestStructuralAddOnScalarRootIsNoOp(t *testing.T) {
+	m := New([]byte(`"hello"`), func([]byte) error { return nil })
+	m = runeKey(m, 'a') // must not panic
+	m = commit(m)
+	if got := strings.TrimSpace(string(m.Committed())); got != `"hello"` {
+		t.Errorf("scalar root should be unchanged, got %q", got)
+	}
+}
+
 func TestStructuralAddMember(t *testing.T) {
 	m := New([]byte(`{"a":1}`), func([]byte) error { return nil })
 	m = runeKey(m, 'a') // add sibling member after "a"

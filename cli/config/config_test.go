@@ -414,6 +414,27 @@ func TestConfigValidateReportsProfileIssues(t *testing.T) {
 	}
 }
 
+// A profile whose server URL is present but malformed (missing the
+// /organizations/<org> segment) should report the malformed URL, not the
+// misleading "you configured no endpoint" message.
+func TestConfigValidateReportsMalformedServerURL(t *testing.T) {
+	cfg := &Config{Profiles: map[string]Profile{
+		"bad": {
+			ClientName:   "tim",
+			KeyPath:      "/keys/tim.pem",
+			RawServerURL: "https://cinc.example.com", // no /organizations/<org>
+		},
+	}}
+
+	issues := cfg.Validate()
+	if !hasValidationIssue(issues, "bad", "cinc_server_url") {
+		t.Fatalf("issues = %#v, want a malformed server URL issue", issues)
+	}
+	if hasValidationIssue(issues, "bad", "endpoint") {
+		t.Fatalf("issues = %#v, a malformed URL must not be reported as a missing endpoint", issues)
+	}
+}
+
 func TestConfigValidateRejectsEmptyConfig(t *testing.T) {
 	cfg := &Config{Profiles: map[string]Profile{}}
 

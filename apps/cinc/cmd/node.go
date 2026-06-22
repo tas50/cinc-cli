@@ -277,7 +277,7 @@ cinc node bootstrap web01.example.com --ssh-user ubuntu --policy-name base --pol
 			if flags.nodeName == "" {
 				flags.nodeName = target
 			}
-			if err := validateBootstrapFlags(flags); err != nil {
+			if err := validateBootstrapFlags(flags, cmd.Flags().Changed("environment")); err != nil {
 				return err
 			}
 			profile, err := resolveProfile(cmd)
@@ -676,12 +676,18 @@ func countRemoteFailures(results []remote.CommandResult) int {
 	return failed
 }
 
-func validateBootstrapFlags(flags nodeBootstrapFlags) error {
+func validateBootstrapFlags(flags nodeBootstrapFlags, environmentChanged bool) error {
 	if (flags.policyName == "") != (flags.policyGroup == "") {
 		return fmt.Errorf("--policy-name and --policy-group must be provided together")
 	}
+	// A node is managed either by a run-list/environment or by a Policyfile,
+	// never both — they are two incompatible methods. (--environment defaults to
+	// "_default", so only reject an explicitly set value.)
 	if flags.policyName != "" && flags.runList != "" {
 		return fmt.Errorf("--run-list cannot be combined with policy bootstrap flags")
+	}
+	if flags.policyName != "" && environmentChanged {
+		return fmt.Errorf("--environment cannot be combined with policy bootstrap flags (use a run-list/environment or a Policyfile, not both)")
 	}
 	return nil
 }

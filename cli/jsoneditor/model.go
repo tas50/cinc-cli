@@ -278,6 +278,11 @@ func (m Model) addNode() Model {
 			targetType = uScalar
 		}
 	default:
+		// A top-level scalar has an empty path and therefore no parent
+		// container to add a sibling into — adding is a no-op.
+		if len(u.path) == 0 {
+			return m
+		}
 		parent := m.root.at(u.path[:len(u.path)-1])
 		if parent.kind == kindObject {
 			m.root.insertSiblingAfter(u.path, "newKey", nullNode())

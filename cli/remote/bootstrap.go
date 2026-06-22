@@ -71,10 +71,16 @@ func BootstrapCommand(opts BootstrapOptions) (string, error) {
 
 func firstBootJSON(opts BootstrapOptions) ([]byte, error) {
 	doc := map[string]any{}
+	// A Policyfile-managed node and a run-list/environment-managed node are two
+	// mutually exclusive management modes — cinc-client/chef-client aborts the
+	// first run if policy_name/policy_group are set alongside chef_environment.
+	// The --environment flag defaults to "_default", so emit chef_environment
+	// only when the node isn't policy-managed.
+	policyManaged := opts.PolicyName != "" || opts.PolicyGroup != ""
 	if len(opts.RunList) > 0 {
 		doc["run_list"] = opts.RunList
 	}
-	if opts.Environment != "" {
+	if opts.Environment != "" && !policyManaged {
 		doc["chef_environment"] = opts.Environment
 	}
 	if opts.PolicyName != "" {
@@ -87,7 +93,19 @@ func firstBootJSON(opts BootstrapOptions) ([]byte, error) {
 }
 
 func clientRB(opts BootstrapOptions) string {
-	return fmt.Sprintf("chef_server_url %q\nnode_name %q\nclient_key %q\n", opts.ServerURL, opts.NodeName, "/etc/cinc/client.pem")
+	return fmt.Sprintf("chef_server_url %s\nnode_name %s\nclient_key %s\n",
+		rubyQuote(opts.ServerURL), rubyQuote(opts.NodeName), rubyQuote("/etc/cinc/client.pem"))
+}
+
+// rubyQuote renders s as a single-quoted Ruby string literal. Ruby single
+// quotes do not interpolate #{...} (unlike double quotes and unlike Go's %q),
+// so this prevents a node name or server URL from injecting Ruby code into the
+// client.rb that cinc-client evaluates on the target. Only backslash and the
+// single quote itself are special inside a single-quoted Ruby literal.
+func rubyQuote(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `'`, `\'`)
+	return "'" + s + "'"
 }
 
 func writeFileCommand(prefix, path, content string) string {

@@ -387,6 +387,59 @@ func TestNodeSSHSearchBackedCommand(t *testing.T) {
 	}
 }
 
+func TestNodeBootstrapPolicyExcludesEnvironmentInFirstBoot(t *testing.T) {
+	cfgPath := writeCommandConfig(t, "https://cinc.example.test")
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{
+		"node", "bootstrap", "web01.example.test",
+		"--node-name", "web01",
+		"--ssh-user", "ubuntu",
+		"--policy-name", "base",
+		"--policy-group", "prod",
+		"--config", cfgPath,
+		"--dry-run",
+	})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc node bootstrap --dry-run: %v", err)
+	}
+	got := buf.String()
+	if strings.Contains(got, "chef_environment") {
+		t.Fatalf("policy bootstrap must not emit chef_environment:\n%s", got)
+	}
+	for _, want := range []string{`"policy_name": "base"`, `"policy_group": "prod"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("policy bootstrap output missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestNodeBootstrapRejectsEnvironmentWithPolicy(t *testing.T) {
+	cfgPath := writeCommandConfig(t, "https://cinc.example.test")
+	root := newRootCmd()
+	root.SetOut(&bytes.Buffer{})
+	root.SetErr(&bytes.Buffer{})
+	root.SetArgs([]string{
+		"node", "bootstrap", "web01.example.test",
+		"--ssh-user", "ubuntu",
+		"--policy-name", "base",
+		"--policy-group", "prod",
+		"--environment", "prod",
+		"--config", cfgPath,
+		"--dry-run",
+	})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected an error combining --environment with policy flags")
+	}
+	if !strings.Contains(err.Error(), "environment") {
+		t.Fatalf("error should mention environment: %v", err)
+	}
+}
+
 func TestNodeBootstrapDryRunCommand(t *testing.T) {
 	cfgPath := writeCommandConfig(t, "https://cinc.example.test")
 	root := newRootCmd()
@@ -407,8 +460,8 @@ func TestNodeBootstrapDryRunCommand(t *testing.T) {
 	got := buf.String()
 	for _, want := range []string{
 		"curl -L 'https://omnitruck.cinc.sh/install.sh'",
-		"chef_server_url \"https://cinc.example.test/organizations/acme\"",
-		"node_name \"web01\"",
+		"chef_server_url 'https://cinc.example.test/organizations/acme'",
+		"node_name 'web01'",
 		"\"run_list\": [",
 		"recipe[nginx]",
 	} {
