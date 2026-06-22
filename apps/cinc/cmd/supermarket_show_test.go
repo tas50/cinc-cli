@@ -74,7 +74,7 @@ func TestSupermarketShowVersionKeyValueOutput(t *testing.T) {
 			"license": "Apache-2.0",
 			"tarball_file_size": 145842,
 			"dependencies": {"ohai": ">= 5.2.0"},
-			"platforms": {"ubuntu": ">= 0.0.0"}
+			"supports": {"ubuntu": ">= 0.0.0"}
 		}`,
 	})
 	defer srv.Close()
