@@ -44,35 +44,15 @@ func gzTarball(t *testing.T, topDir string, files map[string]string) []byte {
 	return buf.Bytes()
 }
 
-func TestClassifySource(t *testing.T) {
-	cases := []struct {
-		name     string
-		opts     map[string]any
-		wantKind string
-		wantVal  string
-		wantErr  bool
-	}{
-		{name: "path", opts: map[string]any{"path": "../foo"}, wantKind: "path", wantVal: "../foo"},
-		{name: "artifactserver", opts: map[string]any{"artifactserver": "https://x/d", "version": "1.0.0"}, wantKind: "artifactserver", wantVal: "https://x/d"},
-		{name: "git", opts: map[string]any{"git": "https://x.git", "revision": "abc"}, wantKind: "git", wantVal: "https://x.git"},
-		{name: "chef_server", opts: map[string]any{"chef_server": "https://x"}, wantKind: "chef_server", wantVal: "https://x"},
-		{name: "path wins over others", opts: map[string]any{"path": "p", "artifactserver": "u"}, wantKind: "path", wantVal: "p"},
-		{name: "unknown", opts: map[string]any{"mystery": "x"}, wantErr: true},
-		{name: "non-string", opts: map[string]any{"path": 7}, wantErr: true},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			kind, val, err := classifySource(tc.opts)
-			if tc.wantErr {
-				if err == nil {
-					t.Fatalf("classifySource(%v) = (%q,%q,nil), want error", tc.opts, kind, val)
-				}
-				return
-			}
-			if err != nil || kind != tc.wantKind || val != tc.wantVal {
-				t.Errorf("classifySource(%v) = (%q,%q,%v), want (%q,%q,nil)", tc.opts, kind, val, err, tc.wantKind, tc.wantVal)
-			}
-		})
+// Source classification now lives in cinc-api (CookbookLock.Origin); the CLI
+// only needs to surface its error. An unrecognized source has no usable origin.
+func TestEnsureCookbookUnknownSource(t *testing.T) {
+	f := &Fetcher{CacheRoot: t.TempDir(), LockDir: t.TempDir()}
+	_, err := f.EnsureCookbook(context.Background(), "mystery", cinc.CookbookLock{
+		SourceOptions: map[string]any{"mystery": "x"},
+	})
+	if err == nil {
+		t.Error("expected an error for an unrecognized cookbook source")
 	}
 }
 
