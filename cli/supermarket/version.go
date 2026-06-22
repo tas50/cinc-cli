@@ -37,15 +37,61 @@ func compareSemver(a, b string) int {
 	case bpre == "":
 		return -1
 	default:
-		return strings.Compare(apre, bpre)
+		return comparePrerelease(apre, bpre)
 	}
 }
 
+// splitPrerelease separates a version into its numeric base and pre-release
+// suffix. Build metadata (everything after a '+') is discarded entirely, since
+// semver §10 says it must be ignored for precedence.
 func splitPrerelease(v string) (base, pre string) {
-	if i := strings.IndexAny(v, "-+"); i >= 0 {
-		return v[:i], v[i+1:]
+	v, _, _ = strings.Cut(v, "+")
+	base, pre, _ = strings.Cut(v, "-")
+	return base, pre
+}
+
+// comparePrerelease compares two dot-separated pre-release strings per semver
+// §11: identifiers are compared left to right; all-numeric identifiers compare
+// numerically and rank below alphanumeric ones, and a larger set of fields wins
+// when all preceding identifiers are equal.
+func comparePrerelease(a, b string) int {
+	ai := strings.Split(a, ".")
+	bi := strings.Split(b, ".")
+	for i := 0; i < len(ai) && i < len(bi); i++ {
+		if c := comparePrereleaseIdent(ai[i], bi[i]); c != 0 {
+			return c
+		}
 	}
-	return v, ""
+	switch {
+	case len(ai) < len(bi):
+		return -1
+	case len(ai) > len(bi):
+		return 1
+	default:
+		return 0
+	}
+}
+
+func comparePrereleaseIdent(a, b string) int {
+	an, aerr := strconv.Atoi(a)
+	bn, berr := strconv.Atoi(b)
+	switch {
+	case aerr == nil && berr == nil:
+		switch {
+		case an < bn:
+			return -1
+		case an > bn:
+			return 1
+		default:
+			return 0
+		}
+	case aerr == nil: // numeric identifiers rank below alphanumeric ones
+		return -1
+	case berr == nil:
+		return 1
+	default:
+		return strings.Compare(a, b)
+	}
 }
 
 func compareNumericSegments(a, b string) int {

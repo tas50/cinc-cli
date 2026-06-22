@@ -121,12 +121,39 @@ func TestNodeBootstrapAgainstCincZeroAndSSHServer(t *testing.T) {
 	command := server.lastCommand()
 	for _, want := range []string{
 		"curl -L 'https://omnitruck.cinc.sh/install.sh'",
-		"node_name \"boot01\"",
+		"node_name 'boot01'",
 		"cinc-client -j /etc/cinc/first-boot.json",
 	} {
 		if !strings.Contains(command, want) {
 			t.Fatalf("bootstrap command missing %q:\n%s", want, command)
 		}
+	}
+}
+
+func TestNodeBootstrapPolicyOmitsEnvironment(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+	server := startAcceptanceSSHServer(t, "bootstrap ok\n")
+
+	runCinc(t, env.binary,
+		"node", "bootstrap", "127.0.0.1",
+		"--node-name", "boot02",
+		"--ssh-user", "tester",
+		"--ssh-password", "secret",
+		"--ssh-port", fmt.Sprint(server.port),
+		"--no-host-key-verify",
+		"--policy-name", "appserver",
+		"--policy-group", "prod",
+		"--config", env.cfgPath,
+	)
+	command := server.lastCommand()
+	for _, want := range []string{`"policy_name": "appserver"`, `"policy_group": "prod"`} {
+		if !strings.Contains(command, want) {
+			t.Fatalf("policy bootstrap command missing %q:\n%s", want, command)
+		}
+	}
+	if strings.Contains(command, "chef_environment") {
+		t.Fatalf("policy bootstrap must not set chef_environment:\n%s", command)
 	}
 }
 

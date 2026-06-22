@@ -321,10 +321,13 @@ func validateProfile(name string, p Profile) []ValidationIssue {
 	if p.KeyPath == "" {
 		add("client_key", "client_key is required")
 	}
-	if p.ServerURL == "" && p.Org == "" && p.SupermarketSite == "" {
+	switch {
+	case p.ServerURL == "" && p.Org == "" && p.RawServerURL == "" && p.SupermarketSite == "":
 		add("endpoint", "configure cinc_server_url, chef_server_url, or supermarket_site")
-	}
-	if (p.ServerURL == "") != (p.Org == "") {
+	case p.RawServerURL != "" && p.ServerURL == "":
+		// A server URL was set but couldn't be parsed into server + org.
+		add("cinc_server_url", "server URL must include /organizations/<org>")
+	case (p.ServerURL == "") != (p.Org == ""):
 		add("cinc_server_url", "server URL must include /organizations/<org>")
 	}
 	if p.SupermarketSite != "" {
