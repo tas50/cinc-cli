@@ -2,28 +2,16 @@ package supermarket
 
 import (
 	"sort"
-	"strings"
+
+	sm "github.com/tas50/cinc-supermarket"
 )
 
-// VersionFromURL extracts the version segment from a Supermarket
-// version URL like
-// https://supermarket.chef.io/api/v1/cookbooks/nginx/versions/12_0_4
-// returning "12.0.4". Supermarket encodes dots in URLs as underscores;
-// we tolerate either form. If the URL doesn't look like a version
-// URL, the input is returned unchanged so callers can pass through
-// raw "12.0.4" version strings.
+// VersionFromURL extracts the version segment from a Supermarket version URL
+// like https://supermarket.chef.io/api/v1/cookbooks/nginx/versions/12_0_4
+// returning "12.0.4". It delegates to the cinc-supermarket SDK, which owns the
+// Supermarket version-encoding rules.
 func VersionFromURL(s string) string {
-	if s == "" {
-		return ""
-	}
-	tail := s
-	if i := strings.LastIndex(tail, "/versions/"); i >= 0 {
-		tail = tail[i+len("/versions/"):]
-	}
-	if i := strings.IndexAny(tail, "/?"); i >= 0 {
-		tail = tail[:i]
-	}
-	return strings.ReplaceAll(tail, "_", ".")
+	return sm.VersionFromURL(s)
 }
 
 // VersionListFromURLs decodes a slice of Supermarket version URLs and
@@ -34,12 +22,12 @@ func VersionListFromURLs(urls []string) []string {
 	}
 	out := make([]string, 0, len(urls))
 	for _, u := range urls {
-		if v := VersionFromURL(u); v != "" {
+		if v := sm.VersionFromURL(u); v != "" {
 			out = append(out, v)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
-		return compareSemver(out[i], out[j]) > 0
+		return sm.CompareVersions(out[i], out[j]) > 0
 	})
 	return out
 }

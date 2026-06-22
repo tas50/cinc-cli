@@ -104,13 +104,11 @@ func (c *Client) attachLatestVersions(ctx context.Context, entries []ListEntry) 
 		if len(versions) == 0 {
 			continue
 		}
-		latest := ""
+		keys := make([]string, 0, len(versions))
 		for v := range versions {
-			if compareSemver(v, latest) > 0 {
-				latest = v
-			}
+			keys = append(keys, v)
 		}
-		entries[i].LatestVersion = latest
+		entries[i].LatestVersion = sm.LatestVersion(keys)
 	}
 	return nil
 }

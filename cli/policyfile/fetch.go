@@ -56,12 +56,12 @@ func (f *Fetcher) supermarketClient(base string) (*sm.Client, error) {
 // place; artifactserver/chef_server cookbooks are cached under CacheRoot keyed
 // by the lock's cache_key (a cache hit is a directory-exists check).
 func (f *Fetcher) EnsureCookbook(ctx context.Context, name string, lock cinc.CookbookLock) (string, error) {
-	kind, value, err := classifySource(lock.SourceOptions)
+	kind, value, err := lock.Origin()
 	if err != nil {
 		return "", fmt.Errorf("cookbook %q: %w", name, err)
 	}
 
-	if kind == sourcePath {
+	if kind == cinc.SourcePath {
 		dir := value
 		if !filepath.IsAbs(dir) {
 			dir = filepath.Join(f.LockDir, dir)
@@ -92,11 +92,11 @@ func (f *Fetcher) EnsureCookbook(ctx context.Context, name string, lock cinc.Coo
 		return "", err
 	}
 	switch kind {
-	case sourceArtifactserver:
-		err = f.fetchArtifactserver(ctx, name, value, sourceVersion(lock), staging)
-	case sourceChefServer:
-		err = f.fetchChefServer(ctx, name, sourceVersion(lock), staging)
-	case sourceGit:
+	case cinc.SourceArtifactserver:
+		err = f.fetchArtifactserver(ctx, name, value, lock.PinnedVersion(), staging)
+	case cinc.SourceChefServer:
+		err = f.fetchChefServer(ctx, name, lock.PinnedVersion(), staging)
+	case cinc.SourceGit:
 		err = f.fetchGit(ctx, lock, value, staging)
 	}
 	if err != nil {
@@ -271,38 +271,6 @@ func stringOption(opts map[string]any, key string) string {
 	return ""
 }
 
-const (
-	sourcePath           = "path"
-	sourceArtifactserver = "artifactserver"
-	sourceGit            = "git"
-	sourceChefServer     = "chef_server"
-)
-
-// classifySource inspects a cookbook lock's source_options and returns the
-// source kind and its string value (the path or URL). It checks path first
-// (local development cookbooks), then the remote sources.
-func classifySource(opts map[string]any) (kind, value string, err error) {
-	for _, k := range []string{sourcePath, sourceArtifactserver, sourceGit, sourceChefServer} {
-		if v, ok := opts[k]; ok {
-			s, ok := v.(string)
-			if !ok {
-				return "", "", fmt.Errorf("source_options.%s is not a string", k)
-			}
-			return k, s, nil
-		}
-	}
-	return "", "", fmt.Errorf("unsupported or missing cookbook source in %v", keysOf(opts))
-}
-
-// sourceVersion returns the version a lock pins: the source_options "version"
-// if present, otherwise the lock's top-level version.
-func sourceVersion(lock cinc.CookbookLock) string {
-	if v, ok := lock.SourceOptions["version"].(string); ok && v != "" {
-		return v
-	}
-	return lock.Version
-}
-
 func baseURL(raw string) (string, error) {
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme == "" || u.Host == "" {
@@ -314,12 +282,4 @@ func baseURL(raw string) (string, error) {
 func isDir(p string) bool {
 	info, err := os.Stat(p)
 	return err == nil && info.IsDir()
-}
-
-func keysOf(m map[string]any) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
 }
