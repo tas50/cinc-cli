@@ -237,9 +237,9 @@ func printSupermarketVersion(w io.Writer, v *supermarket.CookbookVersion) error 
 			fmt.Fprintf(tw, "  %s\t%s\n", name, constraint)
 		}
 	}
-	if len(v.Platforms) > 0 {
+	if len(v.Supports) > 0 {
 		row("Platforms", "")
-		for name, constraint := range v.Platforms {
+		for name, constraint := range v.Supports {
 			fmt.Fprintf(tw, "  %s\t%s\n", name, constraint)
 		}
 	}
