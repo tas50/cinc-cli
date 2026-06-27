@@ -25,9 +25,11 @@ cinc version
 If you have a Go toolchain handy, `make build` (or `make install`)
 from a checkout works too.
 
-**2. Point cinc at your server.** If you already have a Chef
-`~/.chef/credentials`, you can skip this — `cinc` reads that file
-unchanged. Otherwise, run the interactive configurator:
+**2. Point cinc at your server.** Already have a Chef
+`~/.chef/credentials`? See [Migrating from Chef](migrating-from-chef.md)
+— `cinc` can migrate it for you on first run, or read it in place with
+`--config ~/.chef/credentials`. Otherwise, run the interactive
+configurator:
 
 ```sh
 cinc config create
@@ -36,7 +38,9 @@ cinc config create
 It prompts for the server URL (including the `/organizations/<org>`
 segment), the client name, and the path to the client's PEM private
 key, then writes `~/.cinc/credentials`. Pass `--profile staging`
-(or any name) to set up additional profiles next to the default.
+(or any name) to set up additional profiles next to the default. For
+the full credentials reference, see
+[Configuring cinc](configuration.md).
 
 **3. Verify and use it.** Sanity-check the profile, then run your
 first command:
@@ -52,6 +56,13 @@ noun-verb grammar described below.
 
 ## Where to find what
 
+- **[`configuration.md`](configuration.md)** — the definitive
+  configuration reference: every credentials key, multiple profiles,
+  profile selection, encrypted data bag secrets, Supermarket upload
+  identities, and the `cinc config` commands.
+- **[`migrating-from-chef.md`](migrating-from-chef.md)** — for knife and
+  Chef Workstation users: reusing your existing `~/.chef/credentials`,
+  the chef/cinc key duality, and how knife commands map onto cinc.
 - **[`commands/`](commands/)** — auto-generated reference for every
   command and flag, regenerated from the live cobra command tree on
   every push to `main`. Start at [`commands/cinc.md`](commands/cinc.md)

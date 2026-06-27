@@ -84,54 +84,15 @@ Release archives are built by `make dist` and include `SHA256SUMS`.
 `cinc` reads a TOML credentials file (default `~/.cinc/credentials`)
 holding named profiles, in the same shape as Chef's `~/.chef/credentials`.
 Each top-level section is a profile that points at one Cinc/Chef Server.
+The quickest way to create one is `cinc config create`, which walks you
+through it interactively.
 
 ```toml
 [default]
 cinc_server_url = "https://cinc.example.com/organizations/acme"
 client_name     = "tim"
 client_key      = "/keys/tim.pem"
-secret_file     = "/keys/encrypted_data_bag_secret"
-
-[staging]
-cinc_server_url = "https://staging.example.com/organizations/acme-staging"
-client_name     = "tim"
-client_key      = "/keys/staging.pem"
-ssl_verify_mode = ":verify_none"
 ```
-
-The optional `secret_file` key points at the shared key used to encrypt and
-decrypt **encrypted data bag items** (`cinc databag secret …`). It's the
-default for that profile; a command can always override it with
-`--secret-file <path>` or an inline `--secret <key>`, or you can set
-`$CINC_SECRET_FILE` (or `$CHEF_SECRET_FILE`) in the environment. The on-disk
-key name matches knife's `knife[:secret_file]`, so an existing
-`encrypted_data_bag_secret` works unchanged.
-
-The optional `supermarket_site` key sets the Supermarket instance the
-`cinc supermarket` commands target (default `https://supermarket.chef.io`).
-Two further optional keys override the identity used to **sign Supermarket
-uploads** (`cinc supermarket share`), so you can publish to the public
-Supermarket under a different account than the one you use against your Cinc
-Server:
-
-```toml
-[default]
-cinc_server_url         = "https://cinc.example.com/organizations/acme"
-client_name             = "tim"
-client_key              = "/keys/tim.pem"
-supermarket_client_name = "tim-public"
-supermarket_key         = "/keys/supermarket.pem"
-```
-
-- `supermarket_client_name` — the Supermarket username uploads are signed as.
-- `supermarket_key` — path to the private key used to sign uploads.
-
-Each falls back **independently**: the effective username is
-`supermarket_client_name` or, when unset, `client_name`; the effective key is
-`supermarket_key` or, when unset, `client_key`. Override just the key, just
-the username, or both. When neither is set, uploads use `client_name`/
-`client_key` exactly as before. These are **cinc-only** keys — knife has no
-equivalent, so there's no chef-prefixed pairing.
 
 Persistent flags on every command:
 
@@ -141,18 +102,18 @@ Persistent flags on every command:
 | `--profile` | Profile name to use (default: `$CINC_PROFILE`, then `$CHEF_PROFILE`, then `default`) |
 | `--format` | Output format: `human` or `json` |
 
-### `CINC_*` and `CHEF_*` are both accepted
+Every chef-prefixed key and environment variable has a cinc-prefixed
+equivalent (the `cinc_`/`CINC_` form wins when both are set), so an
+existing Chef setup works unchanged.
 
-Every chef-prefixed config key and environment variable has a
-cinc-prefixed equivalent. Both are accepted; if both are set in the same
-profile or environment the `cinc_`/`CINC_` form wins. This lets you run
-`cinc` against an existing Chef setup unchanged, and override individual
-settings without rewriting the whole file.
-
-| Chef-prefixed | Cinc-prefixed |
-| --- | --- |
-| `chef_server_url` (TOML key) | `cinc_server_url` (TOML key) |
-| `CHEF_PROFILE` (env var) | `CINC_PROFILE` (env var) |
+- **[`docs/configuration.md`](docs/configuration.md)** — the complete
+  reference: every config key, multi-profile setups, profile selection,
+  encrypted data bag secrets, Supermarket upload identities, and the
+  `cinc config create` / `cinc config validate` commands.
+- **[`docs/migrating-from-chef.md`](docs/migrating-from-chef.md)** — for
+  knife and Chef Workstation users: reusing your existing
+  `~/.chef/credentials`, the chef/cinc key duality, and how knife
+  commands map onto cinc's noun-verb grammar.
 
 ## Usage
 
