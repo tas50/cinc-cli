@@ -25,6 +25,12 @@ type Profile struct {
 	KeyPath         string
 	SSLVerifyMode   string
 
+	// SecretFile is the path to the encrypted data bag secret used to
+	// encrypt and decrypt `cinc databag secret` items. The on-disk key
+	// is `secret_file`, matching knife's `knife[:secret_file]`, so the
+	// same key serves cinc and chef users.
+	SecretFile string
+
 	// RawServerURL is the server URL exactly as written in the config, before
 	// it is split into ServerURL + Org. It is preserved even when the URL is
 	// malformed (ServerURL/Org are then empty) so validation can report the
@@ -43,6 +49,7 @@ type rawProfile struct {
 	ClientName      string `toml:"client_name,omitempty"`
 	ClientKey       string `toml:"client_key,omitempty"`
 	SSLVerifyMode   string `toml:"ssl_verify_mode,omitempty"`
+	SecretFile      string `toml:"secret_file,omitempty"`
 }
 
 // serverURL returns the configured server URL, preferring the
@@ -169,6 +176,7 @@ func WriteProfile(path, name string, p Profile) error {
 		ClientName:      p.ClientName,
 		ClientKey:       p.KeyPath,
 		SSLVerifyMode:   p.SSLVerifyMode,
+		SecretFile:      p.SecretFile,
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("config: create credentials directory: %w", err)
@@ -208,6 +216,9 @@ func tomlProfiles(raw map[string]rawProfile) map[string]map[string]string {
 		}
 		if profile.SSLVerifyMode != "" {
 			values["ssl_verify_mode"] = profile.SSLVerifyMode
+		}
+		if profile.SecretFile != "" {
+			values["secret_file"] = profile.SecretFile
 		}
 		out[name] = values
 	}
@@ -261,6 +272,7 @@ func resolveProfile(rp rawProfile) (Profile, error) {
 		ClientName:      rp.ClientName,
 		KeyPath:         rp.ClientKey,
 		SSLVerifyMode:   rp.SSLVerifyMode,
+		SecretFile:      rp.SecretFile,
 	}
 	if raw := rp.serverURL(); raw != "" {
 		// Preserve the raw URL even when it doesn't parse, so validation can

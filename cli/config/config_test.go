@@ -58,6 +58,43 @@ func TestLoadParsesProfiles(t *testing.T) {
 	}
 }
 
+func TestLoadParsesSecretFile(t *testing.T) {
+	const cfg = `
+[default]
+client_name     = "tim"
+client_key      = "/keys/tim.pem"
+cinc_server_url = "https://cinc.example.com/organizations/acme"
+secret_file     = "/keys/encrypted_data_bag_secret"
+`
+	c, err := Load(writeConfig(t, cfg))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := c.Profiles["default"].SecretFile; got != "/keys/encrypted_data_bag_secret" {
+		t.Errorf("default secret_file = %q, want %q", got, "/keys/encrypted_data_bag_secret")
+	}
+}
+
+func TestWriteProfileRoundTripsSecretFile(t *testing.T) {
+	path := writeConfig(t, "")
+	if err := WriteProfile(path, "worker", Profile{
+		ServerURL:  "https://cinc.example.com",
+		Org:        "acme",
+		ClientName: "worker",
+		KeyPath:    "/keys/worker.pem",
+		SecretFile: "/keys/secret",
+	}); err != nil {
+		t.Fatalf("WriteProfile: %v", err)
+	}
+	c, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := c.Profiles["worker"].SecretFile; got != "/keys/secret" {
+		t.Errorf("round-tripped secret_file = %q, want %q", got, "/keys/secret")
+	}
+}
+
 func TestConfigProfileResolvesDefaultWhenNameEmpty(t *testing.T) {
 	t.Setenv("CHEF_PROFILE", "")
 	cfg, _ := Load(writeConfig(t, sampleConfig))
