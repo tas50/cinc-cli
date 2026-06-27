@@ -40,6 +40,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(newClientCmd())
 	root.AddCommand(newUserCmd())
 	root.AddCommand(newGroupCmd())
+	root.AddCommand(newOrgCmd())
 	root.AddCommand(newRoleCmd())
 	root.AddCommand(newEnvironmentCmd())
 	root.AddCommand(newCookbookCmd())
