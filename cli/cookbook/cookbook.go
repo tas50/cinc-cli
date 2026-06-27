@@ -596,7 +596,7 @@ func candidateBases(cookbookPath string) []string {
 
 func cookbookDir(base, name string) (string, bool) {
 	info, err := os.Stat(base)
-	if err == nil && info.IsDir() && filepath.Base(base) == name && hasMetadata(base) {
+	if err == nil && info.IsDir() && hasMetadata(base) && baseIsCookbook(base, name) {
 		return base, true
 	}
 	dir := filepath.Join(base, name)
@@ -605,6 +605,53 @@ func cookbookDir(base, name string) (string, bool) {
 		return dir, true
 	}
 	return "", false
+}
+
+// baseIsCookbook reports whether base, already known to hold metadata, is the
+// cookbook the caller asked for by name. It matches on either the directory's
+// (absolute) basename — so "." resolves to the real folder name — or the
+// cookbook's declared metadata name, which lets `share mondoo` succeed from a
+// directory literally named chef-mondoo.
+func baseIsCookbook(base, name string) bool {
+	if filepath.Base(absDir(base)) == name {
+		return true
+	}
+	if cbName, ok := cookbookName(base); ok && cbName == name {
+		return true
+	}
+	return false
+}
+
+// cookbookName returns the cookbook's declared name from metadata.json, or from
+// metadata.rb when only that exists. It reuses the metadata.rb DSL parser and
+// is deliberately lightweight — it reports false rather than erroring when a
+// name can't be determined, so callers fall back to directory-name matching.
+func cookbookName(dir string) (string, bool) {
+	if data, err := os.ReadFile(filepath.Join(dir, "metadata.json")); err == nil {
+		var md Metadata
+		if json.Unmarshal(data, &md) == nil && md.Name != "" {
+			return md.Name, true
+		}
+		return "", false
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "metadata.rb"))
+	if err != nil {
+		return "", false
+	}
+	doc, err := parseMetadataRB(data, filepath.Base(absDir(dir)))
+	if err != nil || doc.Name == "" {
+		return "", false
+	}
+	return doc.Name, true
+}
+
+// absDir resolves dir to an absolute path so a base of "." reflects the real
+// working-directory name; it falls back to dir unchanged when resolution fails.
+func absDir(dir string) string {
+	if abs, err := filepath.Abs(dir); err == nil {
+		return abs
+	}
+	return dir
 }
 
 func hasMetadata(dir string) bool {
