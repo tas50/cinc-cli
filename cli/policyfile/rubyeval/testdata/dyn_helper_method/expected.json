@@ -1,0 +1,22 @@
+{
+  "name": "dyn_helper",
+  "run_list": [
+    "recipe[app::default]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {
+    "apache2": {
+      "version_constraint": "~> 5.0",
+      "source_options": {}
+    },
+    "mysql": {
+      "version_constraint": "~> 8.0",
+      "source_options": {}
+    }
+  },
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": []
+}

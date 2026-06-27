@@ -1,0 +1,18 @@
+{
+  "name": "app-prod",
+  "run_list": [
+    "recipe[app::v2_4]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {
+    "app": {
+      "version_constraint": "~> 2.4",
+      "source_options": {}
+    }
+  },
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": []
+}

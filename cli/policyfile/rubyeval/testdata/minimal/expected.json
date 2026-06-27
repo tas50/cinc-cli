@@ -1,0 +1,13 @@
+{
+  "name": "minimal",
+  "run_list": [
+    "recipe[minimal::default]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {},
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": []
+}

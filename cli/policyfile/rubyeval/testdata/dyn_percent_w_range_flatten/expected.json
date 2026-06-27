@@ -1,0 +1,17 @@
+{
+  "name": "dyn_pw",
+  "run_list": [
+    "recipe[app::base]",
+    "recipe[app::config]",
+    "recipe[feature_1]",
+    "recipe[feature_2]",
+    "recipe[feature_3]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {},
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": []
+}

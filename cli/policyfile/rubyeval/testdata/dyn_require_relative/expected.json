@@ -1,0 +1,26 @@
+{
+  "name": "dyn_require",
+  "run_list": [
+    "recipe[app::default]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {
+    "redis": {
+      "version_constraint": ">= 0.0.0",
+      "source_options": {}
+    },
+    "postfix": {
+      "version_constraint": ">= 0.0.0",
+      "source_options": {}
+    },
+    "nginx": {
+      "version_constraint": ">= 0.0.0",
+      "source_options": {}
+    }
+  },
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": []
+}

@@ -1,0 +1,15 @@
+{
+  "name": "err_src",
+  "run_list": [
+    "recipe[app::default]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {},
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": [
+    "Invalid default_source type ':bogus_source'"
+  ]
+}

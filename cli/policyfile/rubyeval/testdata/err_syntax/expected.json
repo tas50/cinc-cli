@@ -1,0 +1,13 @@
+{
+  "name": null,
+  "run_list": [],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {},
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": [
+    "Invalid Ruby syntax in Policyfile 'Policyfile.rb':\n\nPolicyfile.rb:3: syntax error found\n  1 | name 'err_syntax'\n  2 | run_list 'recipe[app::default]'\n> 3 | cookbook 'app',\n    |               ^ unexpected end-of-input; expected an argument\n"
+  ]
+}
