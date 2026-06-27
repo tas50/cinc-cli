@@ -1,0 +1,15 @@
+{
+  "name": "err_item",
+  "run_list": [
+    "recipe[has a space]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {},
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": [
+    "Run List Item 'recipe[has a space]' has invalid cookbook name 'has a space'.\nCookbook names can only contain alphanumerics, hyphens, and underscores."
+  ]
+}

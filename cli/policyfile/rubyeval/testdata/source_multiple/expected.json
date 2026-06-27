@@ -1,0 +1,22 @@
+{
+  "name": "src_multi",
+  "run_list": [
+    "recipe[app::default]"
+  ],
+  "named_run_lists": {},
+  "default_source": [
+    {
+      "type": "community",
+      "uri": "https://supermarket.chef.io"
+    },
+    {
+      "type": "chef_server",
+      "uri": "https://chef.example.com/organizations/acme"
+    }
+  ],
+  "cookbooks": {},
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": []
+}

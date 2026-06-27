@@ -1,0 +1,21 @@
+{
+  "name": "cb_git_tag",
+  "run_list": [
+    "recipe[app::default]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {
+    "app": {
+      "version_constraint": "~> 3.0",
+      "source_options": {
+        "git": "https://github.com/example/app",
+        "tag": "release-3.0"
+      }
+    }
+  },
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": []
+}

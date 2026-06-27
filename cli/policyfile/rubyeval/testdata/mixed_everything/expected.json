@@ -1,0 +1,67 @@
+{
+  "name": "kitchen_sink",
+  "run_list": [
+    "recipe[app::default]",
+    "role[web]"
+  ],
+  "named_run_lists": {
+    "update": [
+      "recipe[app::update]"
+    ]
+  },
+  "default_source": [
+    {
+      "type": "community",
+      "uri": "https://supermarket.chef.io"
+    },
+    {
+      "type": "chef_server",
+      "uri": "https://chef.example.com/organizations/acme"
+    }
+  ],
+  "cookbooks": {
+    "app": {
+      "version_constraint": ">= 0.0.0",
+      "source_options": {
+        "path": "."
+      }
+    },
+    "apache2": {
+      "version_constraint": "~> 5.0",
+      "source_options": {}
+    },
+    "mysql": {
+      "version_constraint": ">= 8.0.0",
+      "source_options": {}
+    },
+    "nginx": {
+      "version_constraint": ">= 0.0.0",
+      "source_options": {
+        "git": "https://github.com/example/nginx",
+        "ref": "v1.0.0"
+      }
+    }
+  },
+  "included_policies": [
+    {
+      "name": "base",
+      "source_options": {
+        "path": "../base/Policyfile.lock.json"
+      }
+    }
+  ],
+  "default_attributes": {
+    "app": {
+      "port": 8080,
+      "db": {
+        "host": "localhost"
+      }
+    }
+  },
+  "override_attributes": {
+    "app": {
+      "env": "production"
+    }
+  },
+  "errors": []
+}

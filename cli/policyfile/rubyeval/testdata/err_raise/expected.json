@@ -1,0 +1,15 @@
+{
+  "name": "err_raise",
+  "run_list": [
+    "recipe[app::default]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {},
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": [
+    "Evaluation of policyfile 'Policyfile.rb' raised an exception\n  Exception: RuntimeError \"boom: something went wrong in the Policyfile\"\n\n  Relevant Code:\n    3: raise 'boom: something went wrong in the Policyfile'\n\n  Backtrace:\n    Policyfile.rb:3:in `eval_policyfile'\n"
+  ]
+}

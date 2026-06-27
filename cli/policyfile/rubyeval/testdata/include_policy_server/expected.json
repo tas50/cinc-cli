@@ -1,0 +1,22 @@
+{
+  "name": "inc_server",
+  "run_list": [
+    "recipe[app::default]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {},
+  "included_policies": [
+    {
+      "name": "base",
+      "source_options": {
+        "server": "https://chef.example.com",
+        "policy_name": "base",
+        "policy_group": "prod"
+      }
+    }
+  ],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": []
+}

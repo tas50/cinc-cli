@@ -1,0 +1,18 @@
+{
+  "name": "cb_range",
+  "run_list": [
+    "recipe[app::default]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {
+    "app": {
+      "version_constraint": ">= 1.0.0",
+      "source_options": {}
+    }
+  },
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": []
+}

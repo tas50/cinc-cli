@@ -1,0 +1,370 @@
+// Package rubyeval evaluates arbitrary Policyfile.rb files by running CRuby
+// compiled to WebAssembly (the official ruby/ruby.wasm WASI build) under the
+// pure-Go wazero runtime — no system Ruby and no CGo required.
+//
+// The user's Policyfile.rb is instance_eval'd, inside a real Ruby VM, against a
+// faithful reimplementation of chef-cli's Policyfile DSL (shim.rb). Because the
+// file runs in genuine CRuby, ANY valid Ruby works — loops, conditionals,
+// helper methods, ENV, string interpolation, the stdlib, and require_relative
+// against sibling files. Only the Policyfile DSL *methods* are reimplemented;
+// the language is real. The shim captures every declaration and serializes it
+// to canonical JSON, which Evaluate unmarshals into an EvaluatedPolicy.
+//
+// See doc.go for the canonical JSON schema, the chef semantics it mirrors, and
+// the evaluation-vs-resolution boundary.
+package rubyeval
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+
+	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
+)
+
+// policyfileRoot is the notional directory a Policyfile "lives in", used only to
+// expand `default_source :chef_repo` paths deterministically. It is a fixed
+// sentinel (not the real temp dir) so results are portable across machines, and
+// generate_goldens.rb configures chef with the same value.
+const policyfileRoot = "/cinc/policyfile"
+
+// stdlibIncludes are the guest load paths CRuby needs to find its standard
+// library. The "full" wasm build ships the stdlib as host files (mounted at
+// /usr) but does not put these on $LOAD_PATH automatically, so we add them.
+var stdlibIncludes = []string{
+	"/usr/local/lib/ruby/3.4.0",
+	"/usr/local/lib/ruby/3.4.0/wasm32-wasi",
+}
+
+// Options tunes a single Evaluate call.
+type Options struct {
+	// Filename is the basename the Policyfile is written under in the work dir
+	// and the filename used for Ruby backtraces. Defaults to "Policyfile.rb".
+	Filename string
+	// Dir, if set, is a directory whose files are copied next to the Policyfile
+	// in the work dir, so the Policyfile can require_relative / File.read its
+	// siblings. The Policyfile source passed to Evaluate always takes
+	// precedence over a same-named file in Dir.
+	Dir string
+	// Env is the set of environment variables exposed to the Policyfile (so
+	// ENV[...] works). When nil, the Policyfile sees no host environment.
+	Env map[string]string
+}
+
+// Engine owns the wazero runtime and the compiled CRuby module, which are
+// expensive to build (compilation takes a few seconds) and so are created once
+// and reused across Evaluate calls.
+type Engine struct {
+	fetch fetcher // overridable in tests; nil means download over HTTP
+
+	mu       sync.Mutex
+	prepared bool
+	prepErr  error
+	runtime  wazero.Runtime
+	compiled wazero.CompiledModule
+	rt       runtimeFiles
+}
+
+// NewEngine returns an Engine that downloads ruby.wasm over HTTP on first use.
+func NewEngine() *Engine { return &Engine{} }
+
+// defaultEngine backs the package-level Evaluate.
+var defaultEngine = NewEngine()
+
+// Evaluate runs source as a Policyfile.rb against the embedded DSL using the
+// default engine. See Engine.Evaluate.
+func Evaluate(ctx context.Context, source string, opts Options) (*EvaluatedPolicy, error) {
+	return defaultEngine.Evaluate(ctx, source, opts)
+}
+
+// Available reports whether the pinned ruby.wasm runtime can be obtained
+// (downloaded or already cached). It returns an error wrapping
+// ErrRubyWasmUnavailable when the runtime cannot be fetched, which callers use
+// to skip cleanly rather than fail. It does not compile the module.
+func (e *Engine) Available() error {
+	_, err := ensureRuntime(e.fetch)
+	return err
+}
+
+// prepare downloads/extracts the runtime and compiles the module once.
+func (e *Engine) prepare(ctx context.Context) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.prepared {
+		return e.prepErr
+	}
+	e.prepared = true
+
+	rt, err := ensureRuntime(e.fetch)
+	if err != nil {
+		e.prepErr = err
+		return err
+	}
+	e.rt = rt
+
+	wasm, err := os.ReadFile(rt.wasmPath)
+	if err != nil {
+		e.prepErr = fmt.Errorf("policyfile: read ruby.wasm: %w", err)
+		return e.prepErr
+	}
+
+	cfg := wazero.NewRuntimeConfig()
+	// Persist the (slow) wasm compilation across processes so repeated runs —
+	// e.g. the test suite — pay the cost once. Best-effort: fall back to an
+	// in-memory cache if the dir cannot be created.
+	if dir, derr := cacheDir(); derr == nil {
+		ccDir := filepath.Join(dir, "wazero-compilation-cache")
+		if os.MkdirAll(ccDir, 0o755) == nil {
+			if cache, cerr := wazero.NewCompilationCacheWithDir(ccDir); cerr == nil {
+				cfg = cfg.WithCompilationCache(cache)
+			}
+		}
+	}
+
+	r := wazero.NewRuntimeWithConfig(ctx, cfg)
+	wasi_snapshot_preview1.MustInstantiate(ctx, r)
+
+	compiled, err := r.CompileModule(ctx, wasm)
+	if err != nil {
+		_ = r.Close(ctx)
+		e.prepErr = fmt.Errorf("policyfile: compile ruby.wasm: %w", err)
+		return e.prepErr
+	}
+	e.runtime = r
+	e.compiled = compiled
+	return nil
+}
+
+// Evaluate runs source as a Policyfile.rb and returns the captured declarations.
+//
+// Evaluation mirrors chef: problems the file would surface (an empty run_list,
+// invalid run_list item names, conflicting sources, a syntax error, or an
+// exception raised by the file) are collected into EvaluatedPolicy.Errors
+// rather than raised. When that slice is non-empty Evaluate also returns a
+// non-nil error summarizing it, while still returning the (partial) policy, so
+// callers can both detect the failure and inspect what was captured.
+//
+// A returned error wrapping ErrRubyWasmUnavailable means the runtime could not
+// be obtained (e.g. offline); callers should skip/degrade rather than treat it
+// as a Policyfile problem.
+func (e *Engine) Evaluate(ctx context.Context, source string, opts Options) (*EvaluatedPolicy, error) {
+	if err := e.prepare(ctx); err != nil {
+		return nil, err
+	}
+
+	filename := opts.Filename
+	if filename == "" {
+		filename = "Policyfile.rb"
+	}
+
+	work, err := os.MkdirTemp("", "cinc-policyfile-*")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(work)
+
+	engineDir := filepath.Join(work, ".cinc_engine")
+	if err := os.MkdirAll(engineDir, 0o755); err != nil {
+		return nil, err
+	}
+
+	// Copy any sibling files first, then the Policyfile source (so the source
+	// passed to Evaluate wins over a same-named file in Dir).
+	if opts.Dir != "" {
+		if err := copySiblings(opts.Dir, work, filename); err != nil {
+			return nil, err
+		}
+	}
+	policyfilePath := filepath.Join(work, filename)
+	if err := os.WriteFile(policyfilePath, []byte(source), 0o644); err != nil {
+		return nil, err
+	}
+
+	// Lay down the shim and its vendored Ruby libraries.
+	if err := os.WriteFile(filepath.Join(engineDir, "shim.rb"), []byte(shimSource), 0o644); err != nil {
+		return nil, err
+	}
+	rubyLibDir := filepath.Join(engineDir, "rubylib")
+	if err := writeEmbeddedDir(rubyLib, "rubylib", rubyLibDir); err != nil {
+		return nil, err
+	}
+
+	guestPath := func(host string) string {
+		rel, _ := filepath.Rel(work, host)
+		return "/work/" + filepath.ToSlash(rel)
+	}
+	outHost := filepath.Join(engineDir, "out.json")
+
+	args := []string{"ruby"}
+	for _, inc := range stdlibIncludes {
+		args = append(args, "-I", inc)
+	}
+	args = append(args,
+		guestPath(filepath.Join(engineDir, "shim.rb")),
+		guestPath(policyfilePath),
+		guestPath(outHost),
+		guestPath(rubyLibDir),
+		policyfileRoot,
+	)
+
+	fsConfig := wazero.NewFSConfig().
+		WithReadOnlyDirMount(e.rt.usrDir, "/usr").
+		WithDirMount(work, "/work")
+
+	var stderr strings.Builder
+	modCfg := wazero.NewModuleConfig().
+		WithName("").
+		WithArgs(args...).
+		WithStdout(io.Discard). // the Policyfile's own puts output is ignored
+		WithStderr(&stderr).
+		WithFSConfig(fsConfig)
+	for k, v := range opts.Env {
+		modCfg = modCfg.WithEnv(k, v)
+	}
+
+	mod, err := e.runtime.InstantiateModule(ctx, e.compiled, modCfg)
+	if mod != nil {
+		_ = mod.Close(ctx)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("policyfile: ruby.wasm evaluation failed: %w\n%s", err, stderr.String())
+	}
+
+	raw, err := os.ReadFile(outHost)
+	if err != nil {
+		return nil, fmt.Errorf("policyfile: engine produced no result%s: %w",
+			stderrSuffix(stderr.String()), err)
+	}
+
+	var policy EvaluatedPolicy
+	if err := json.Unmarshal(raw, &policy); err != nil {
+		return nil, fmt.Errorf("policyfile: decode engine output: %w", err)
+	}
+	if len(policy.Errors) > 0 {
+		return &policy, fmt.Errorf("policyfile: %s", strings.Join(policy.Errors, "; "))
+	}
+	return &policy, nil
+}
+
+// EvaluateFile reads a Policyfile.rb from disk and evaluates it, using its
+// directory for sibling resolution and its basename for backtraces. The host
+// environment is passed through so ENV[...] behaves as it would for chef.
+func (e *Engine) EvaluateFile(ctx context.Context, path string) (*EvaluatedPolicy, error) {
+	source, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return e.Evaluate(ctx, string(source), Options{
+		Filename: filepath.Base(path),
+		Dir:      filepath.Dir(path),
+		Env:      hostEnv(),
+	})
+}
+
+// hostEnv snapshots the process environment as a map for Options.Env.
+func hostEnv() map[string]string {
+	out := map[string]string{}
+	for _, kv := range os.Environ() {
+		if i := strings.IndexByte(kv, '='); i >= 0 {
+			out[kv[:i]] = kv[i+1:]
+		}
+	}
+	return out
+}
+
+// copySiblings copies the files directly under src into dst, skipping the
+// Policyfile name (which Evaluate writes itself) and any nested directories'
+// dotfiles is allowed. Only regular files at the top level are copied, which
+// covers the require_relative / File.read sibling use cases without pulling in
+// large trees.
+func copySiblings(src, dst, skip string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+	for _, ent := range entries {
+		if ent.Name() == skip || ent.Name() == ".cinc_engine" {
+			continue
+		}
+		if ent.IsDir() {
+			if err := copyDir(filepath.Join(src, ent.Name()), filepath.Join(dst, ent.Name())); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := copyFile(filepath.Join(src, ent.Name()), filepath.Join(dst, ent.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyDir(src, dst string) error {
+	return filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(src, p)
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		return copyFile(p, target)
+	})
+}
+
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0o644)
+}
+
+// writeEmbeddedDir copies an embedded directory tree (rooted at root within
+// efs) to dst on disk.
+func writeEmbeddedDir(efs fs.FS, root, dst string) error {
+	return fs.WalkDir(efs, root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(root, p)
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := fs.ReadFile(efs, p)
+		if err != nil {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, 0o644)
+	})
+}
+
+func stderrSuffix(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	return " (ruby stderr: " + s + ")"
+}
+
+// IsUnavailable reports whether err indicates the ruby.wasm runtime could not
+// be obtained (so callers can skip rather than fail).
+func IsUnavailable(err error) bool {
+	return errors.Is(err, ErrRubyWasmUnavailable)
+}

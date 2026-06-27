@@ -1,0 +1,15 @@
+{
+  "name": "multi",
+  "run_list": [
+    "recipe[app::default]",
+    "role[web]",
+    "recipe[app::db]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {},
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": []
+}

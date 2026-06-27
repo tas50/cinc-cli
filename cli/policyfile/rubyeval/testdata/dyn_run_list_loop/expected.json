@@ -1,0 +1,24 @@
+{
+  "name": "dyn_loop",
+  "run_list": [
+    "role[web]",
+    "role[app]",
+    "role[db]"
+  ],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {
+    "base": {
+      "version_constraint": ">= 0.0.0",
+      "source_options": {}
+    },
+    "monitoring": {
+      "version_constraint": ">= 0.0.0",
+      "source_options": {}
+    }
+  },
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": []
+}

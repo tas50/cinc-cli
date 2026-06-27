@@ -1,0 +1,13 @@
+{
+  "name": "err_empty",
+  "run_list": [],
+  "named_run_lists": {},
+  "default_source": [],
+  "cookbooks": {},
+  "included_policies": [],
+  "default_attributes": {},
+  "override_attributes": {},
+  "errors": [
+    "Invalid run_list. run_list cannot be empty"
+  ]
+}
