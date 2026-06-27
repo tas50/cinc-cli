@@ -19,6 +19,7 @@ Manage Policyfile policies on the Cinc Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc policy acl](cinc_policy_acl.md)	 - Manage the ACL of a policy
 * [cinc policy clean](cinc_policy_clean.md)	 - Delete policy revisions that no policy group references
 * [cinc policy create](cinc_policy_create.md)	 - Scaffold a new Policyfile on disk
 * [cinc policy delete](cinc_policy_delete.md)	 - Delete a policy and all its revisions from the server

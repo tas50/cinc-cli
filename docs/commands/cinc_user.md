@@ -19,6 +19,7 @@ Manage users on the Cinc Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc user acl](cinc_user_acl.md)	 - Manage the ACL of a user
 * [cinc user create](cinc_user_create.md)	 - Create a user on the server
 * [cinc user delete](cinc_user_delete.md)	 - Delete a user from the server
 * [cinc user edit](cinc_user_edit.md)	 - Edit a user on the server

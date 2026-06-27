@@ -33,6 +33,7 @@ different org, switch profiles with --profile.
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc org acl](cinc_org_acl.md)	 - Manage the ACL of the current organization
 * [cinc org create](cinc_org_create.md)	 - Create an organization on the server
 * [cinc org delete](cinc_org_delete.md)	 - Delete an organization from the server
 * [cinc org edit](cinc_org_edit.md)	 - Edit an organization on the server

@@ -19,6 +19,7 @@ Manage data bags on the Cinc Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc databag acl](cinc_databag_acl.md)	 - Manage the ACL of a databag
 * [cinc databag create](cinc_databag_create.md)	 - Create a data bag, optionally with an initial item
 * [cinc databag delete](cinc_databag_delete.md)	 - Delete a data bag from the server
 * [cinc databag item](cinc_databag_item.md)	 - Manage items within a data bag

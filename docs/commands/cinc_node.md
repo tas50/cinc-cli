@@ -19,6 +19,7 @@ Manage nodes on the Cinc Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc node acl](cinc_node_acl.md)	 - Manage the ACL of a node
 * [cinc node bootstrap](cinc_node_bootstrap.md)	 - Bootstrap a node with Cinc Client over SSH
 * [cinc node create](cinc_node_create.md)	 - Create a node on the server
 * [cinc node delete](cinc_node_delete.md)	 - Delete a node from the server
