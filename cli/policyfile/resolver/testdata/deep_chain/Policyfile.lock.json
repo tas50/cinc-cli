@@ -1,0 +1,105 @@
+{
+  "revision_id": "99194c95dab8b60271ef80dd1cfbb10c7c66447f4d1adc32bd6cdcb040ceef5b",
+  "name": "deep_chain",
+  "run_list": [
+    "recipe[a::default]"
+  ],
+  "included_policy_locks": [
+
+  ],
+  "cookbook_locks": {
+    "a": {
+      "version": "1.0.0",
+      "identifier": "b8e6e9c8c4122712ec699e42737e6956a295df89",
+      "dotted_decimal_identifier": "52045287484822055.5326487951668094.115820815835017",
+      "source": "cookbooks/a",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/a"
+      }
+    },
+    "b": {
+      "version": "2.1.0",
+      "identifier": "3ae8bd5cff27d503b220d0b24fb3989a88f5e3e8",
+      "dotted_decimal_identifier": "16581448655906773.1040278940176307.167789490201576",
+      "source": "cookbooks/b",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/b"
+      }
+    },
+    "c": {
+      "version": "3.4.5",
+      "identifier": "3e03cecd59a43a724c60198210989568c072e69f",
+      "dotted_decimal_identifier": "17455635299411002.32172122973540504.164277137893023",
+      "source": "cookbooks/c",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/c"
+      }
+    },
+    "d": {
+      "version": "0.1.0",
+      "identifier": "ff8eea086b2bbd0abc4185a688ee7783ad2b312c",
+      "dotted_decimal_identifier": "71933254875950013.3021739368286446.131407429710124",
+      "source": "cookbooks/d",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/d"
+      }
+    }
+  },
+  "default_attributes": {
+
+  },
+  "override_attributes": {
+
+  },
+  "solution_dependencies": {
+    "Policyfile": [
+      [
+        "a",
+        ">= 0.0.0"
+      ],
+      [
+        "b",
+        ">= 0.0.0"
+      ],
+      [
+        "c",
+        ">= 0.0.0"
+      ],
+      [
+        "d",
+        ">= 0.0.0"
+      ]
+    ],
+    "dependencies": {
+      "a (1.0.0)": [
+        [
+          "b",
+          ">= 1.0.0"
+        ]
+      ],
+      "b (2.1.0)": [
+        [
+          "c",
+          "~> 3.0"
+        ]
+      ],
+      "c (3.4.5)": [
+        [
+          "d",
+          ">= 0.0.0"
+        ]
+      ],
+      "d (0.1.0)": [
+
+      ]
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "web",
+  "version": "3.1.0",
+  "dependencies": {
+    "util": ">= 1.0"
+  }
+}

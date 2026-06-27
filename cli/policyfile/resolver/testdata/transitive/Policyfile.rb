@@ -1,0 +1,5 @@
+name 'transitive'
+run_list 'alpha::default'
+cookbook 'alpha', path: 'cookbooks/alpha'
+cookbook 'beta', path: 'cookbooks/beta'
+cookbook 'gamma', path: 'cookbooks/gamma'

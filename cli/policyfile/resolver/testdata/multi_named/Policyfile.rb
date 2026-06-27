@@ -1,0 +1,6 @@
+name 'multi_named'
+run_list 'svc::default'
+named_run_list :setup, 'svc::install', 'helper::default'
+named_run_list :teardown, 'svc::remove'
+cookbook 'svc', path: 'cookbooks/svc'
+cookbook 'helper', path: 'cookbooks/helper'

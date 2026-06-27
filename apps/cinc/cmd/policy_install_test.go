@@ -33,42 +33,78 @@ func writePolicyfile(t *testing.T, body string) (dir, path string) {
 	return dir, path
 }
 
-// TestPolicyInstallEvaluatesDynamicPolicyfile drives `cinc policy install`
-// against a Policyfile that builds its run_list in a loop and adds a cookbook
-// conditionally from an environment variable — proving the command runs the
-// real embedded-Ruby engine — then checks the written lock reflects the
-// dynamically-produced declarations.
-func TestPolicyInstallEvaluatesDynamicPolicyfile(t *testing.T) {
+// writeCookbook scaffolds a minimal path cookbook (metadata.rb + a default
+// recipe) under dir/cookbooks/<name>, so `policy install` can resolve it.
+func writeCookbook(t *testing.T, dir, name, version string, depends ...string) {
+	t.Helper()
+	cbDir := filepath.Join(dir, "cookbooks", name)
+	if err := os.MkdirAll(filepath.Join(cbDir, "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	md := "name '" + name + "'\nversion '" + version + "'\n"
+	for _, d := range depends {
+		md += "depends " + d + "\n"
+	}
+	if err := os.WriteFile(filepath.Join(cbDir, "metadata.rb"), []byte(md), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cbDir, "recipes", "default.rb"), []byte("log '"+name+"'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestPolicyInstallResolvesPushReadyLock drives `cinc policy install` against a
+// Policyfile whose run_list is built dynamically in a loop and whose cookbooks
+// come from path sources, and asserts the written lock is fully resolved: every
+// cookbook lock carries a content identifier, dotted-decimal identifier, and
+// resolved version, plus a revision_id and solution_dependencies.
+func TestPolicyInstallResolvesPushReadyLock(t *testing.T) {
 	requireRubyEngine(t)
 
 	t.Setenv("CINC_TEST_WITH_CACHE", "yes")
 	dir, path := writePolicyfile(t, `
 name 'shop'
-default_source :supermarket
-run_list(%w[web app].map { |t| "role[#{t}]" })
-cookbook 'shop', path: '.'
-cookbook 'redis', '~> 5.0'
-cookbook 'memcached' if ENV['CINC_TEST_WITH_CACHE'] == 'yes'
+run_list(%w[web app].map { |c| "#{c}::default" })
+cookbook 'web', path: 'cookbooks/web'
+cookbook 'app', path: 'cookbooks/app'
+cookbook 'cache', path: 'cookbooks/cache' if ENV['CINC_TEST_WITH_CACHE'] == 'yes'
 default['shop']['port'] = 8080
 `)
+	writeCookbook(t, dir, "web", "1.0.0", "'app', '~> 2.0'")
+	writeCookbook(t, dir, "app", "2.1.0")
+	writeCookbook(t, dir, "cache", "0.3.0")
 
 	out, _, err := runRoot(t, "policy", "install", path)
 	if err != nil {
 		t.Fatalf("policy install: %v", err)
 	}
-	if !strings.Contains(out, "evaluation-only lock") {
-		t.Errorf("expected the evaluation-only boundary note in output:\n%s", out)
+	if !strings.Contains(out, "revision id:") || !strings.Contains(out, "cinc policy push") {
+		t.Errorf("expected a resolved summary with a revision id and push hint:\n%s", out)
 	}
 
 	lock := readLock(t, filepath.Join(dir, "Policyfile.lock.json"))
-	if got := lock["run_list"]; !equalStrings(got, []any{"role[web]", "role[app]"}) {
-		t.Errorf("run_list = %v, want [role[web] role[app]] from the loop", got)
+	if got := lock["run_list"]; !equalStrings(got, []any{"recipe[web::default]", "recipe[app::default]"}) {
+		t.Errorf("run_list = %v, want [recipe[web::default] recipe[app::default]]", got)
+	}
+	if lock["revision_id"] == "" || lock["revision_id"] == nil {
+		t.Error("lock is missing a revision_id")
 	}
 	cbs, _ := lock["cookbook_locks"].(map[string]any)
-	for _, want := range []string{"shop", "redis", "memcached"} {
-		if _, ok := cbs[want]; !ok {
+	for _, want := range []string{"web", "app", "cache"} {
+		entry, ok := cbs[want].(map[string]any)
+		if !ok {
 			t.Errorf("cookbook %q missing from lock; got %v", want, keysOf(cbs))
+			continue
 		}
+		if entry["identifier"] == "" || entry["identifier"] == nil {
+			t.Errorf("cookbook %q lock is missing an identifier (not push-ready): %v", want, entry)
+		}
+		if entry["dotted_decimal_identifier"] == "" || entry["dotted_decimal_identifier"] == nil {
+			t.Errorf("cookbook %q lock is missing a dotted_decimal_identifier", want)
+		}
+	}
+	if _, ok := lock["solution_dependencies"].(map[string]any); !ok {
+		t.Error("lock is missing solution_dependencies")
 	}
 	def, _ := lock["default_attributes"].(map[string]any)
 	shop, _ := def["shop"].(map[string]any)
@@ -78,38 +114,87 @@ default['shop']['port'] = 8080
 }
 
 // TestPolicyInstallConditionalCookbookDropped proves ENV truly drives the
-// evaluation: with the env var unset the conditional cookbook is absent.
+// evaluation: with the env var unset the conditional cookbook is absent from
+// the resolved lock.
 func TestPolicyInstallConditionalCookbookDropped(t *testing.T) {
 	requireRubyEngine(t)
 	t.Setenv("CINC_TEST_WITH_CACHE", "no")
 	dir, path := writePolicyfile(t, `
 name 'shop'
-run_list 'recipe[shop::default]'
-cookbook 'memcached' if ENV['CINC_TEST_WITH_CACHE'] == 'yes'
+run_list 'shop::default'
+cookbook 'shop', path: 'cookbooks/shop'
+cookbook 'cache', path: 'cookbooks/cache' if ENV['CINC_TEST_WITH_CACHE'] == 'yes'
 `)
+	writeCookbook(t, dir, "shop", "1.0.0")
+	writeCookbook(t, dir, "cache", "0.3.0")
+
 	if _, _, err := runRoot(t, "policy", "install", path); err != nil {
 		t.Fatalf("policy install: %v", err)
 	}
 	lock := readLock(t, filepath.Join(dir, "Policyfile.lock.json"))
 	cbs, _ := lock["cookbook_locks"].(map[string]any)
-	if _, ok := cbs["memcached"]; ok {
-		t.Errorf("memcached should be absent when the env var is unset; got %v", keysOf(cbs))
+	if _, ok := cbs["cache"]; ok {
+		t.Errorf("cache should be absent when the env var is unset; got %v", keysOf(cbs))
 	}
 }
 
 func TestPolicyInstallJSONFormat(t *testing.T) {
 	requireRubyEngine(t)
-	_, path := writePolicyfile(t, "name 'j'\nrun_list 'recipe[j::default]'\ncookbook 'j', '= 1.0.0'\n")
+	dir, path := writePolicyfile(t, "name 'j'\nrun_list 'j::default'\ncookbook 'j', path: 'cookbooks/j'\n")
+	writeCookbook(t, dir, "j", "1.0.0")
+
 	out, _, err := runRoot(t, "policy", "install", path, "--format", "json")
 	if err != nil {
 		t.Fatalf("policy install --format json: %v", err)
 	}
-	var eval rubyeval.EvaluatedPolicy
-	if err := json.Unmarshal([]byte(out), &eval); err != nil {
-		t.Fatalf("output is not valid EvaluatedPolicy JSON: %v\n%s", err, out)
+	var summary struct {
+		Name       string `json:"name"`
+		RevisionID string `json:"revision_id"`
+		Cookbooks  []struct {
+			Name       string `json:"name"`
+			Version    string `json:"version"`
+			Identifier string `json:"identifier"`
+		} `json:"cookbooks"`
 	}
-	if eval.Name != "j" || eval.Cookbooks["j"].VersionConstraint != "= 1.0.0" {
-		t.Errorf("unexpected evaluation: %+v", eval)
+	if err := json.Unmarshal([]byte(out), &summary); err != nil {
+		t.Fatalf("output is not valid install-summary JSON: %v\n%s", err, out)
+	}
+	if summary.Name != "j" || summary.RevisionID == "" {
+		t.Errorf("unexpected summary: %+v", summary)
+	}
+	if len(summary.Cookbooks) != 1 || summary.Cookbooks[0].Name != "j" || summary.Cookbooks[0].Identifier == "" {
+		t.Errorf("expected one resolved cookbook j with an identifier, got %+v", summary.Cookbooks)
+	}
+}
+
+// TestPolicyInstallUnsupportedSource reports a friendly error when a cookbook
+// uses a source the resolver can't handle yet (here: a Supermarket default
+// source with no path).
+func TestPolicyInstallUnsupportedSource(t *testing.T) {
+	requireRubyEngine(t)
+	_, path := writePolicyfile(t, "name 's'\nrun_list 's::default'\ndefault_source :supermarket\ncookbook 's'\n")
+	_, _, err := runRoot(t, "policy", "install", path)
+	if err == nil || !strings.Contains(err.Error(), "path:") {
+		t.Fatalf("expected an unsupported-source error mentioning path: sources, got %v", err)
+	}
+}
+
+// TestPolicyInstallUnsatisfiable surfaces a clear error when no version
+// satisfies the constraints (chef's NoSolutionError failure mode).
+func TestPolicyInstallUnsatisfiable(t *testing.T) {
+	requireRubyEngine(t)
+	dir, path := writePolicyfile(t, `
+name 'conflict'
+run_list 'app::default'
+cookbook 'app', path: 'cookbooks/app'
+cookbook 'lib', path: 'cookbooks/lib'
+`)
+	writeCookbook(t, dir, "app", "1.0.0", "'lib', '~> 3.0'")
+	writeCookbook(t, dir, "lib", "1.0.0")
+
+	_, _, err := runRoot(t, "policy", "install", path)
+	if err == nil || !strings.Contains(err.Error(), "lib") {
+		t.Fatalf("expected an unsatisfiable-constraint error naming lib, got %v", err)
 	}
 }
 

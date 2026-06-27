@@ -1,0 +1,42 @@
+{
+  "revision_id": "97ab44348543bce0d8bde3df322bc8cde2181089178b62c21f96db1ce48c846d",
+  "name": "chefignore_cookbook",
+  "run_list": [
+    "recipe[widget::default]"
+  ],
+  "included_policy_locks": [
+
+  ],
+  "cookbook_locks": {
+    "widget": {
+      "version": "1.0.0",
+      "identifier": "e80db6497ca7c1baab2f722b0372f6bc57e8bbba",
+      "dotted_decimal_identifier": "65317271164987329.52542565935416178.271288789154746",
+      "source": "cookbooks/widget",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/widget"
+      }
+    }
+  },
+  "default_attributes": {
+
+  },
+  "override_attributes": {
+
+  },
+  "solution_dependencies": {
+    "Policyfile": [
+      [
+        "widget",
+        ">= 0.0.0"
+      ]
+    ],
+    "dependencies": {
+      "widget (1.0.0)": [
+
+      ]
+    }
+  }
+}

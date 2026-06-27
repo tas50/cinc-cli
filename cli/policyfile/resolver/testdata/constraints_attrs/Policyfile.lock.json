@@ -1,0 +1,72 @@
+{
+  "revision_id": "133fa7e46c69dd534ff1b70f896c234d523c2e29dc01787e4e5f3543e8bcc83b",
+  "name": "constraints_attrs",
+  "run_list": [
+    "recipe[app::default]"
+  ],
+  "named_run_lists": {
+    "db": [
+      "recipe[app::default]"
+    ]
+  },
+  "included_policy_locks": [
+
+  ],
+  "cookbook_locks": {
+    "app": {
+      "version": "2.0.0",
+      "identifier": "33da00c1d7af38327f5363039a272ce483d884c5",
+      "dotted_decimal_identifier": "14594920599236408.14213744955726375.49359976170693",
+      "source": "cookbooks/app",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/app"
+      }
+    },
+    "lib": {
+      "version": "1.5.2",
+      "identifier": "93f4c9e9b9de2b28685e34bfe311f9586b54f2cd",
+      "dotted_decimal_identifier": "41645969623342635.11373752889631505.274158153167565",
+      "source": "cookbooks/lib",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/lib"
+      }
+    }
+  },
+  "default_attributes": {
+    "app": {
+      "port": 8080
+    }
+  },
+  "override_attributes": {
+    "app": {
+      "debug": true
+    }
+  },
+  "solution_dependencies": {
+    "Policyfile": [
+      [
+        "app",
+        "~> 2.0"
+      ],
+      [
+        "lib",
+        ">= 0.0.0"
+      ]
+    ],
+    "dependencies": {
+      "app (2.0.0)": [
+        [
+          "lib",
+          "~> 1.0"
+        ]
+      ],
+      "lib (1.5.2)": [
+
+      ]
+    }
+  }
+}

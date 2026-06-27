@@ -1,0 +1,88 @@
+{
+  "revision_id": "d204c376ddb01a4134c015913974e936bd91b6d6fe6bf3456c6518d02ce8c0ff",
+  "name": "transitive",
+  "run_list": [
+    "recipe[alpha::default]"
+  ],
+  "included_policy_locks": [
+
+  ],
+  "cookbook_locks": {
+    "alpha": {
+      "version": "1.2.3",
+      "identifier": "3817872381e3cbf5d8bcbc16bced7e5e5438344b",
+      "dotted_decimal_identifier": "15788467879535563.69199674415168749.138943604995147",
+      "source": "cookbooks/alpha",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/alpha"
+      }
+    },
+    "beta": {
+      "version": "1.4.0",
+      "identifier": "484874ca84fbec8d44006eb2a1840781c331292f",
+      "dotted_decimal_identifier": "20345864774286316.39762740364091780.8253906954543",
+      "source": "cookbooks/beta",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/beta"
+      }
+    },
+    "gamma": {
+      "version": "0.5.1",
+      "identifier": "194c08b2a394d35a12d38482a060c2cdf63df9b3",
+      "dotted_decimal_identifier": "7120474658280659.25353447574511712.214189855340979",
+      "source": "cookbooks/gamma",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/gamma"
+      }
+    }
+  },
+  "default_attributes": {
+
+  },
+  "override_attributes": {
+
+  },
+  "solution_dependencies": {
+    "Policyfile": [
+      [
+        "alpha",
+        ">= 0.0.0"
+      ],
+      [
+        "beta",
+        ">= 0.0.0"
+      ],
+      [
+        "gamma",
+        ">= 0.0.0"
+      ]
+    ],
+    "dependencies": {
+      "alpha (1.2.3)": [
+        [
+          "beta",
+          "~> 1.0"
+        ],
+        [
+          "gamma",
+          ">= 0.0.0"
+        ]
+      ],
+      "beta (1.4.0)": [
+
+      ],
+      "gamma (0.5.1)": [
+        [
+          "beta",
+          ">= 0.0.0"
+        ]
+      ]
+    }
+  }
+}

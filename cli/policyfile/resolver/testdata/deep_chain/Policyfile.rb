@@ -1,0 +1,6 @@
+name 'deep_chain'
+run_list 'a'
+cookbook 'a', path: 'cookbooks/a'
+cookbook 'b', path: 'cookbooks/b'
+cookbook 'c', path: 'cookbooks/c'
+cookbook 'd', path: 'cookbooks/d'
