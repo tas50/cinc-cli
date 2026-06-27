@@ -126,6 +126,15 @@ release, bump `cincZeroVersion` in `test/acceptance/helpers_test.go`.
      untestable in acceptance, document the gap inline and cover it in
      the unit test instead.
   3. `go test ./...` and `go test -tags acceptance ./test/...` both pass.
+  4. The command is recorded in `test/acceptance/coverage_manifest.toml` —
+     either `status = "covered"` with the acceptance test function name(s),
+     or `status = "exempt"` with a reason (e.g. it needs the external
+     Supermarket service or an interactive TTY). The `coverage_meta_test.go`
+     meta-test walks the live cobra tree and **fails CI** if a shipped leaf
+     command is missing from the manifest, an exemption has no reason, or a
+     `covered` entry names a test that doesn't exist. A command isn't done
+     until its manifest entry is green — this is what lets us say everything
+     we ship is tested against a real server.
 - Run `gofmt` and `go vet ./...` before committing; both must be clean.
 - Configuration is a TOML file (`~/.cinc/credentials` by default) holding
   named profiles. Each top-level section is a profile carrying
@@ -146,7 +155,11 @@ release, bump `cincZeroVersion` in `test/acceptance/helpers_test.go`.
 5. Add unit tests in `apps/cinc/cmd/<noun>_test.go` and acceptance
    tests in `test/acceptance/<noun>_test.go`. Both are required (see
    Conventions).
-6. Run `make docs` so the per-command reference under `docs/commands/`
+6. Add the new leaf command(s) to `test/acceptance/coverage_manifest.toml`
+   (`status = "covered"` with the acceptance test name(s), or `status =
+   "exempt"` with a reason). The acceptance `coverage_meta_test.go` fails CI
+   if a shipped command is missing from the manifest.
+7. Run `make docs` so the per-command reference under `docs/commands/`
    picks up the new command, short/long help, and flags. CI also runs
    this on every push to `main` and commits the result, but landing
    the docs alongside the code keeps PR review honest.
