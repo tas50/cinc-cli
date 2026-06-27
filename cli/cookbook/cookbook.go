@@ -506,16 +506,16 @@ func metadataOverlay(metadataJSON []byte) map[string][]byte {
 }
 
 func buildArchive(dir, cookbookName string, opts ArchiveOptions) (Archive, error) {
-	var patterns []string
+	ignore := &cinc.Chefignore{}
 	if !opts.SkipChefignore {
 		var err error
-		patterns, err = LoadChefignore(dir)
+		ignore, err = cinc.LoadChefignore(dir)
 		if err != nil {
 			return Archive{}, fmt.Errorf("read chefignore: %w", err)
 		}
 	}
 	overlays := metadataOverlay(opts.MetadataJSON)
-	entries, err := archiveEntries(dir, patterns)
+	entries, err := archiveEntries(dir, ignore)
 	if err != nil {
 		return Archive{}, err
 	}
@@ -642,7 +642,7 @@ func overlayEntries(entries []archiveEntry, overlays map[string][]byte) []archiv
 	return entries
 }
 
-func archiveEntries(dir string, chefignorePatterns []string) ([]archiveEntry, error) {
+func archiveEntries(dir string, ignore *cinc.Chefignore) ([]archiveEntry, error) {
 	var entries []archiveEntry
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -657,7 +657,7 @@ func archiveEntries(dir string, chefignorePatterns []string) ([]archiveEntry, er
 			if d.Name() == ".git" {
 				return filepath.SkipDir
 			}
-			if rel != "." && chefignoreMatches(chefignorePatterns, rel) {
+			if rel != "." && ignore.Ignores(rel) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -672,7 +672,7 @@ func archiveEntries(dir string, chefignorePatterns []string) ([]archiveEntry, er
 		if strings.HasPrefix(rel, ".git/") {
 			return nil
 		}
-		if chefignoreMatches(chefignorePatterns, rel) {
+		if ignore.Ignores(rel) {
 			return nil
 		}
 		entries = append(entries, archiveEntry{path: rel, size: info.Size()})
