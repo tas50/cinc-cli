@@ -30,6 +30,7 @@ func newUserCmd() *cobra.Command {
 	cmd.AddCommand(newUserDeleteCmd())
 	cmd.AddCommand(newUserPasswordCmd())
 	cmd.AddCommand(newKeyCmd(userKeyOwner))
+	cmd.AddCommand(newUserACLCmd())
 	return cmd
 }
 

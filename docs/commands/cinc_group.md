@@ -19,6 +19,7 @@ Manage groups on the Cinc Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc group acl](cinc_group_acl.md)	 - Manage the ACL of a group
 * [cinc group create](cinc_group_create.md)	 - Create a group on the server
 * [cinc group delete](cinc_group_delete.md)	 - Delete a group from the server
 * [cinc group edit](cinc_group_edit.md)	 - Edit a group's members on the server

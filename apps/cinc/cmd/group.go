@@ -28,6 +28,7 @@ func newGroupCmd() *cobra.Command {
 	cmd.AddCommand(newGroupEditCmd())
 	cmd.AddCommand(newGroupDeleteCmd())
 	cmd.AddCommand(newGroupMemberCmd())
+	cmd.AddCommand(newACLCmd("group", "groups"))
 	return cmd
 }
 

@@ -48,6 +48,7 @@ different org, switch profiles with --profile.`,
 	cmd.AddCommand(newOrgDeleteCmd())
 	cmd.AddCommand(newOrgMemberCmd())
 	cmd.AddCommand(newOrgInviteCmd())
+	cmd.AddCommand(newOrgACLCmd())
 	return cmd
 }
 

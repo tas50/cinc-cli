@@ -27,6 +27,7 @@ func newClientCmd() *cobra.Command {
 	cmd.AddCommand(newClientDeleteCmd())
 	cmd.AddCommand(newClientReregisterCmd())
 	cmd.AddCommand(newKeyCmd(clientKeyOwner))
+	cmd.AddCommand(newACLCmd("client", "clients"))
 	return cmd
 }
 

@@ -24,6 +24,7 @@ func newCookbookCmd() *cobra.Command {
 	cmd.AddCommand(newCookbookDeleteCmd())
 	cmd.AddCommand(newCookbookUploadCmd())
 	cmd.AddCommand(newCookbookDownloadCmd())
+	cmd.AddCommand(newACLCmd("cookbook", "cookbooks"))
 	return cmd
 }
 

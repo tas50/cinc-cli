@@ -19,6 +19,7 @@ Manage API clients on the Cinc Server
 ### SEE ALSO
 
 * [cinc](cinc.md)	 - Cinc is a unified command-line tool for Cinc/Chef Infra
+* [cinc client acl](cinc_client_acl.md)	 - Manage the ACL of a client
 * [cinc client create](cinc_client_create.md)	 - Create an API client on the server
 * [cinc client delete](cinc_client_delete.md)	 - Delete an API client from the server
 * [cinc client edit](cinc_client_edit.md)	 - Edit an API client on the server
