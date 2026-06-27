@@ -68,7 +68,7 @@ the Linux AMD64 binary without installing Go:
 ```yaml
 - name: Install cinc
   env:
-    CINC_VERSION: v0.1.0
+    CINC_VERSION: v0.17.0
   run: |
     archive="cinc_${CINC_VERSION}_linux_amd64.tar.gz"
     curl -fsSL -o "$archive" "https://github.com/tas50/cinc-cli/releases/download/${CINC_VERSION}/${archive}"
@@ -90,6 +90,7 @@ Each top-level section is a profile that points at one Cinc/Chef Server.
 cinc_server_url = "https://cinc.example.com/organizations/acme"
 client_name     = "tim"
 client_key      = "/keys/tim.pem"
+secret_file     = "/keys/encrypted_data_bag_secret"
 
 [staging]
 cinc_server_url = "https://staging.example.com/organizations/acme-staging"
@@ -97,6 +98,14 @@ client_name     = "tim"
 client_key      = "/keys/staging.pem"
 ssl_verify_mode = ":verify_none"
 ```
+
+The optional `secret_file` key points at the shared key used to encrypt and
+decrypt **encrypted data bag items** (`cinc databag secret …`). It's the
+default for that profile; a command can always override it with
+`--secret-file <path>` or an inline `--secret <key>`, or you can set
+`$CINC_SECRET_FILE` (or `$CHEF_SECRET_FILE`) in the environment. The on-disk
+key name matches knife's `knife[:secret_file]`, so an existing
+`encrypted_data_bag_secret` works unchanged.
 
 Persistent flags on every command:
 
