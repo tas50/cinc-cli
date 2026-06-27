@@ -27,11 +27,14 @@ func TestSupermarketShareDryRunCommand(t *testing.T) {
 		t.Fatalf("cinc supermarket share --dry-run: %v", err)
 	}
 	got := buf.String()
-	if !strings.Contains(got, "Making tarball nginx.tgz\n") {
-		t.Fatalf("output = %q, want tarball line", got)
+	if !strings.Contains(got, "nginx 1.2.0") {
+		t.Fatalf("output = %q, want cookbook name and version", got)
 	}
-	if !strings.Contains(got, "nginx/metadata.json\n") {
-		t.Fatalf("output = %q, want archive file list", got)
+	if !strings.Contains(got, "nginx.tgz") {
+		t.Fatalf("output = %q, want tarball name", got)
+	}
+	if !strings.Contains(got, "  nginx/metadata.json\n") {
+		t.Fatalf("output = %q, want indented archive file list", got)
 	}
 }
 
@@ -61,6 +64,7 @@ client_key      = %q
 	}
 	var result struct {
 		Cookbook string `json:"cookbook"`
+		Version  string `json:"version"`
 		Category string `json:"category"`
 		Uploaded bool   `json:"uploaded"`
 		Status   int    `json:"status"`
@@ -69,7 +73,7 @@ client_key      = %q
 	if err := json.Unmarshal(buf.Bytes(), &result); err != nil {
 		t.Fatalf("decode JSON output: %v\n%s", err, buf.String())
 	}
-	if result.Cookbook != "nginx" || result.Category != "Other" || result.Uploaded || result.Status != 0 || result.Tarball != "nginx.tgz" {
+	if result.Cookbook != "nginx" || result.Version != "1.2.0" || result.Category != "Other" || result.Uploaded || result.Status != 0 || result.Tarball != "nginx.tgz" {
 		t.Fatalf("result = %+v", result)
 	}
 }
@@ -178,8 +182,12 @@ supermarket_site        = %q
 	if userID != "tim-public" {
 		t.Fatalf("X-Ops-Userid = %q, want supermarket_client_name tim-public", userID)
 	}
-	if !strings.Contains(buf.String(), "Upload complete") {
-		t.Fatalf("output = %q, want upload confirmation", buf.String())
+	got := buf.String()
+	if !strings.Contains(got, "Uploaded to "+srv.URL) {
+		t.Fatalf("output = %q, want confirmation naming the Supermarket URL", got)
+	}
+	if !strings.Contains(got, "nginx 1.2.0 is now live: "+srv.URL+"/cookbooks/nginx/versions/1.2.0") {
+		t.Fatalf("output = %q, want the published cookbook version URL", got)
 	}
 }
 

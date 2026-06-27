@@ -43,12 +43,17 @@ type ShareOptions struct {
 // ShareResult describes the work done by Share.
 type ShareResult struct {
 	Cookbook    string   `json:"cookbook"`
+	Version     string   `json:"version"`
 	Category    string   `json:"category"`
 	Uploaded    bool     `json:"uploaded"`
 	Status      int      `json:"status"`
 	Tarball     string   `json:"tarball"`
 	TarballSize int      `json:"tarball_size"`
 	Files       []string `json:"files,omitempty"`
+	// Site is the Supermarket base URL an upload was sent to, and URL is the
+	// public page for the uploaded version. Both are empty on a dry run.
+	Site string `json:"site,omitempty"`
+	URL  string `json:"url,omitempty"`
 }
 
 // New builds a Supermarket client using the profile's Supermarket identity.
@@ -110,6 +115,8 @@ func (c *Client) Share(ctx context.Context, opts ShareOptions) (ShareResult, err
 	}
 	result.Uploaded = true
 	result.Status = status
+	result.Site = c.base.String()
+	result.URL = fmt.Sprintf("%s/cookbooks/%s/versions/%s", c.base.String(), result.Cookbook, result.Version)
 	return result, nil
 }
 
@@ -146,7 +153,7 @@ func packageCookbook(opts ShareOptions, category string, includeFiles bool) (Sha
 		return ShareResult{}, localcookbook.Archive{}, err
 	}
 	return ShareResult{
-		Cookbook: opts.Cookbook, Category: category,
+		Cookbook: opts.Cookbook, Version: md.Version, Category: category,
 		Uploaded: false, Status: 0, Tarball: archive.Name,
 		TarballSize: len(archive.Bytes), Files: archive.Files,
 	}, archive, nil
