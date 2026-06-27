@@ -3,7 +3,7 @@ package supermarket
 import (
 	"sort"
 
-	sm "github.com/tas50/cinc-supermarket"
+	sm "github.com/tas50/cinc-supermarket-api"
 )
 
 // VersionFromURL extracts the version segment from a Supermarket version URL

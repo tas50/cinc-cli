@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	sm "github.com/tas50/cinc-supermarket"
+	sm "github.com/tas50/cinc-supermarket-api"
 )
 
 // ListOptions controls a cookbook list operation.

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	sm "github.com/tas50/cinc-supermarket"
+	sm "github.com/tas50/cinc-supermarket-api"
 )
 
 func TestNewAnonymousAcceptsEmptyProfile(t *testing.T) {
