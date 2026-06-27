@@ -25,9 +25,29 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
+)
+
+// Sandbox bounds applied to every guest evaluation. The wasm jail itself is
+// enforced by wazero/WASI; these caps bound what an attacker-controlled
+// Policyfile.rb / metadata.rb can cost the host.
+// defaultEvalTimeout (which bounds a single guest evaluation — the cold wasm
+// compile on first run plus the actual evaluation) is defined in the build-
+// tagged files timeout.go / timeout_race.go: the production default is tight,
+// but a `-race` test build runs the wasm engine ~30-50x slower, so the bound
+// is scaled up there to avoid false timeouts on legitimate Policyfiles.
+
+const (
+	// maxMemoryPages caps guest linear memory at 512 MiB (8192 * 64 KiB pages),
+	// bounding a memory-bomb guest rather than letting it exhaust host RAM.
+	maxMemoryPages = 8192
+
+	// maxResultBytes caps how many bytes of the shim's out.json the host will
+	// read back, so a guest cannot make the host buffer an unbounded result.
+	maxResultBytes = 64 << 20 // 64 MiB
 )
 
 // policyfileRoot is the notional directory a Policyfile "lives in", used only to
@@ -57,6 +77,9 @@ type Options struct {
 	// Env is the set of environment variables exposed to the Policyfile (so
 	// ENV[...] works). When nil, the Policyfile sees no host environment.
 	Env map[string]string
+	// Timeout bounds this single evaluation (compile + run). When zero or
+	// negative, defaultEvalTimeout is used. A timed-out guest is interrupted.
+	Timeout time.Duration
 }
 
 // Engine owns the wazero runtime and the compiled CRuby module, which are
@@ -116,7 +139,13 @@ func (e *Engine) prepare(ctx context.Context) error {
 		return e.prepErr
 	}
 
-	cfg := wazero.NewRuntimeConfig()
+	cfg := wazero.NewRuntimeConfig().
+		// Honor context cancellation/timeout inside a running guest so a
+		// runaway evaluation (loop {}) is actually interrupted, not just
+		// abandoned, and cap guest linear memory so a memory-bomb guest cannot
+		// exhaust host RAM.
+		WithCloseOnContextDone(true).
+		WithMemoryLimitPages(maxMemoryPages)
 	// Persist the (slow) wasm compilation across processes so repeated runs —
 	// e.g. the test suite — pay the cost once. Best-effort: fall back to an
 	// in-memory cache if the dir cannot be created.
@@ -185,6 +214,15 @@ func (e *Engine) evaluateRaw(ctx context.Context, source string, opts Options) (
 // Both the Policyfile shim and the metadata shim share this machinery; they
 // differ only in the shim source and the schema of the JSON they emit.
 func (e *Engine) run(ctx context.Context, shimSrc, source string, opts Options) ([]byte, error) {
+	// Bound the whole evaluation (first-run compile + guest execution). With
+	// WithCloseOnContextDone, a deadline reached mid-guest interrupts it.
+	timeout := opts.Timeout
+	if timeout <= 0 {
+		timeout = defaultEvalTimeout
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	if err := e.prepare(ctx); err != nil {
 		return nil, err
 	}
@@ -264,10 +302,13 @@ func (e *Engine) run(ctx context.Context, shimSrc, source string, opts Options) 
 		_ = mod.Close(ctx)
 	}
 	if err != nil {
+		if ctxErr := ctx.Err(); errors.Is(ctxErr, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("policyfile: evaluation timed out after %s (the file may loop forever): %w", timeout, ctxErr)
+		}
 		return nil, fmt.Errorf("policyfile: ruby.wasm evaluation failed: %w\n%s", err, stderr.String())
 	}
 
-	raw, err := os.ReadFile(outHost)
+	raw, err := readCapped(outHost, maxResultBytes)
 	if err != nil {
 		return nil, fmt.Errorf("policyfile: engine produced no result%s: %w",
 			stderrSuffix(stderr.String()), err)
@@ -275,9 +316,35 @@ func (e *Engine) run(ctx context.Context, shimSrc, source string, opts Options) 
 	return raw, nil
 }
 
+// readCapped reads at most max bytes from path, rejecting a result larger than
+// the cap rather than buffering it. It bounds how much an attacker-controlled
+// guest can make the host allocate via the shim's out.json.
+func readCapped(path string, max int64) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	if info, err := f.Stat(); err == nil && info.Size() > max {
+		return nil, fmt.Errorf("policyfile: engine result is %d bytes, over the %d-byte cap", info.Size(), max)
+	}
+	// Read up to max+1 so a file that grows past the stat is still caught.
+	data, err := io.ReadAll(io.LimitReader(f, max+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > max {
+		return nil, fmt.Errorf("policyfile: engine result exceeds the %d-byte cap", max)
+	}
+	return data, nil
+}
+
 // EvaluateFile reads a Policyfile.rb from disk and evaluates it, using its
-// directory for sibling resolution and its basename for backtraces. The host
-// environment is passed through so ENV[...] behaves as it would for chef.
+// directory for sibling resolution and its basename for backtraces. A
+// denylist-filtered view of the host environment is passed through so dynamic
+// Policyfiles can still read benign vars (ENV[...] behaves as it would for
+// chef), while obviously-sensitive vars (credentials, tokens, keys) are
+// withheld from attacker-controllable Ruby — see sanitizedHostEnv.
 func (e *Engine) EvaluateFile(ctx context.Context, path string) (*EvaluatedPolicy, error) {
 	source, err := os.ReadFile(path)
 	if err != nil {
@@ -286,7 +353,7 @@ func (e *Engine) EvaluateFile(ctx context.Context, path string) (*EvaluatedPolic
 	return e.Evaluate(ctx, string(source), Options{
 		Filename: filepath.Base(path),
 		Dir:      filepath.Dir(path),
-		Env:      hostEnv(),
+		Env:      sanitizedHostEnv(),
 	})
 }
 
@@ -301,7 +368,7 @@ func (e *Engine) EvaluateFileWithRaw(ctx context.Context, path string) (*Evaluat
 	return e.evaluateRaw(ctx, string(source), Options{
 		Filename: filepath.Base(path),
 		Dir:      filepath.Dir(path),
-		Env:      hostEnv(),
+		Env:      sanitizedHostEnv(),
 	})
 }
 
@@ -316,6 +383,42 @@ func hostEnv() map[string]string {
 	return out
 }
 
+// sanitizedHostEnv is hostEnv with obviously-sensitive variables stripped, for
+// the Policyfile.rb evaluation path. A Policyfile is attacker-controllable
+// (it's fetched/edited like any cookbook artifact) but chef-compat allows
+// dynamic Policyfiles to read benign env, so we keep the bulk of the
+// environment and only deny names that look like credentials. cookbook
+// metadata.rb, by contrast, gets NO env at all (see EvaluateMetadataFile).
+func sanitizedHostEnv() map[string]string {
+	out := hostEnv()
+	for k := range out {
+		if isSensitiveEnvName(k) {
+			delete(out, k)
+		}
+	}
+	return out
+}
+
+// isSensitiveEnvName reports whether an env var name looks like it carries a
+// secret and so must not be exposed to attacker-controllable Ruby. The match is
+// case-insensitive: it denies the CINC_/CHEF_/AWS_ families outright (server
+// URLs, keys, profiles) plus anything whose name contains a credential-ish
+// word.
+func isSensitiveEnvName(name string) bool {
+	u := strings.ToUpper(name)
+	for _, prefix := range []string{"CINC_", "CHEF_", "AWS_"} {
+		if strings.HasPrefix(u, prefix) {
+			return true
+		}
+	}
+	for _, frag := range []string{"SECRET", "TOKEN", "PASSWORD", "PRIVATE", "KEY"} {
+		if strings.Contains(u, frag) {
+			return true
+		}
+	}
+	return false
+}
+
 // copySiblings copies the files directly under src into dst, skipping the
 // Policyfile name (which Evaluate writes itself) and any nested directories'
 // dotfiles is allowed. Only regular files at the top level are copied, which
@@ -328,6 +431,13 @@ func copySiblings(src, dst, skip string) error {
 	}
 	for _, ent := range entries {
 		if ent.Name() == skip || ent.Name() == ".cinc_engine" {
+			continue
+		}
+		// Don't follow a symlinked sibling into the sandbox: a malicious
+		// Policyfile dir could point evil.rb at /etc/passwd or a host secret
+		// and then File.read it from inside the guest. Lstat (via DirEntry's
+		// type) sees the link itself, not its target.
+		if ent.Type()&os.ModeSymlink != 0 {
 			continue
 		}
 		if ent.IsDir() {
@@ -348,6 +458,13 @@ func copyDir(src, dst string) error {
 		if err != nil {
 			return err
 		}
+		// Skip symlinks (and don't descend into symlinked directories) so a
+		// link inside a copied sibling tree can't dereference a host file into
+		// the sandbox. WalkDir does not follow symlinked dirs, but an entry can
+		// still itself be a symlink; reject those explicitly.
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
 		rel, _ := filepath.Rel(src, p)
 		target := filepath.Join(dst, rel)
 		if d.IsDir() {
@@ -357,7 +474,17 @@ func copyDir(src, dst string) error {
 	})
 }
 
+// copyFile copies a regular file from src to dst. It Lstat's src and refuses to
+// copy anything that is not a regular file (symlinks, devices, sockets), so the
+// sandbox only ever receives real file contents from within the source tree.
 func copyFile(src, dst string) error {
+	info, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return nil
+	}
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return err

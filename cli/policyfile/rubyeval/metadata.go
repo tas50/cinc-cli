@@ -75,6 +75,12 @@ func (e *Engine) EvaluateMetadata(ctx context.Context, source string, opts Optio
 // EvaluateMetadataFile reads a cookbook's metadata.rb from disk and evaluates
 // it, using its directory for sibling resolution (require_relative of version
 // helpers, etc.).
+//
+// Unlike the Policyfile path, cookbook metadata is given NO host environment.
+// metadata.rb has no legitimate need for ENV, and a third-party cookbook's
+// metadata.rb is the primary exfiltration vector (it runs during dependency
+// resolution of any cookbook you depend on), so we deny it the host env
+// entirely. Leaving Options.Env nil makes the guest see an empty ENV.
 func (e *Engine) EvaluateMetadataFile(ctx context.Context, path string) (*Metadata, error) {
 	source, err := os.ReadFile(path)
 	if err != nil {
@@ -83,6 +89,5 @@ func (e *Engine) EvaluateMetadataFile(ctx context.Context, path string) (*Metada
 	return e.EvaluateMetadata(ctx, string(source), Options{
 		Filename: filepath.Base(path),
 		Dir:      filepath.Dir(path),
-		Env:      hostEnv(),
 	})
 }

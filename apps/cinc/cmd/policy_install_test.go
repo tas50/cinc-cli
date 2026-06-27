@@ -61,13 +61,17 @@ func writeCookbook(t *testing.T, dir, name, version string, depends ...string) {
 func TestPolicyInstallResolvesPushReadyLock(t *testing.T) {
 	requireRubyEngine(t)
 
-	t.Setenv("CINC_TEST_WITH_CACHE", "yes")
+	// A benign (non-denylisted) env var drives the dynamic cookbook below.
+	// Note: CINC_*/CHEF_*/AWS_* and other credential-ish names are
+	// deliberately withheld from Policyfile evaluation by the rubyeval
+	// sandbox, so this uses a plain WITH_CACHE flag instead.
+	t.Setenv("WITH_CACHE", "yes")
 	dir, path := writePolicyfile(t, `
 name 'shop'
 run_list(%w[web app].map { |c| "#{c}::default" })
 cookbook 'web', path: 'cookbooks/web'
 cookbook 'app', path: 'cookbooks/app'
-cookbook 'cache', path: 'cookbooks/cache' if ENV['CINC_TEST_WITH_CACHE'] == 'yes'
+cookbook 'cache', path: 'cookbooks/cache' if ENV['WITH_CACHE'] == 'yes'
 default['shop']['port'] = 8080
 `)
 	writeCookbook(t, dir, "web", "1.0.0", "'app', '~> 2.0'")
@@ -118,12 +122,12 @@ default['shop']['port'] = 8080
 // the resolved lock.
 func TestPolicyInstallConditionalCookbookDropped(t *testing.T) {
 	requireRubyEngine(t)
-	t.Setenv("CINC_TEST_WITH_CACHE", "no")
+	t.Setenv("WITH_CACHE", "no")
 	dir, path := writePolicyfile(t, `
 name 'shop'
 run_list 'shop::default'
 cookbook 'shop', path: 'cookbooks/shop'
-cookbook 'cache', path: 'cookbooks/cache' if ENV['CINC_TEST_WITH_CACHE'] == 'yes'
+cookbook 'cache', path: 'cookbooks/cache' if ENV['WITH_CACHE'] == 'yes'
 `)
 	writeCookbook(t, dir, "shop", "1.0.0")
 	writeCookbook(t, dir, "cache", "0.3.0")

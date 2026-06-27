@@ -38,6 +38,13 @@ const (
 	// rubyWasmSHA256 is the verified SHA-256 of rubyWasmAsset. A mismatch is a
 	// hard failure (a corrupted or tampered download is never used).
 	rubyWasmSHA256 = "ccda86a375a4fe09849846d3b03a370172a4902a0c571087f48457388a2762c7"
+	// rubyWasmBinarySHA256 is the SHA-256 of the CRuby wasm module extracted
+	// from the pinned, checksum-verified archive (rubyWasmTreeBinary). It is
+	// re-checked on every cache hit so a cached module tampered-with after
+	// extraction is rejected and re-fetched, not executed. Because it's derived
+	// deterministically from the pinned archive, anyone can reproduce it by
+	// extracting rubyWasmAsset.
+	rubyWasmBinarySHA256 = "ea1ccf46994cd2441812c75fb058136850149f2a472ff4472f7085b086fd1d1a"
 
 	// rubyWasmTreeBinary is the path, within the extracted archive, of the
 	// CRuby wasm module.
@@ -109,7 +116,12 @@ func ensureRuntime(fetch fetcher) (runtimeFiles, error) {
 		usrDir:   filepath.Join(dir, rubyWasmTreeUsr),
 	}
 	if fileExists(rt.wasmPath) && dirExists(rt.usrDir) {
-		return rt, nil // cache hit
+		// Cache hit — but re-verify the cached module hasn't been tampered with
+		// since extraction before we hand it to the wasm runtime. On mismatch,
+		// fall through and re-download/re-extract rather than execute it.
+		if err := verifyFileSHA256(rt.wasmPath, rubyWasmBinarySHA256); err == nil {
+			return rt, nil
+		}
 	}
 	if err := materialize(dir, fetch); err != nil {
 		return runtimeFiles{}, err
@@ -166,6 +178,27 @@ func verifySHA256(data []byte, wantHex string) error {
 	got := hex.EncodeToString(sum[:])
 	if got != wantHex {
 		return fmt.Errorf("policyfile: ruby.wasm checksum mismatch: got %s, want %s", got, wantHex)
+	}
+	return nil
+}
+
+// verifyFileSHA256 streams the file at path and confirms it hashes to wantHex,
+// returning a clear error on a mismatch (or if the file can't be read). Used to
+// re-verify a cached artifact on a cache hit without loading it fully into
+// memory.
+func verifyFileSHA256(path, wantHex string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return err
+	}
+	got := hex.EncodeToString(h.Sum(nil))
+	if got != wantHex {
+		return fmt.Errorf("policyfile: cached ruby.wasm checksum mismatch: got %s, want %s", got, wantHex)
 	}
 	return nil
 }
