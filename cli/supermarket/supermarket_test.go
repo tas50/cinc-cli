@@ -129,6 +129,9 @@ func TestDryRunPackagesCookbookWithoutClient(t *testing.T) {
 	if result.Tarball != "nginx.tgz" {
 		t.Fatalf("tarball = %q, want nginx.tgz", result.Tarball)
 	}
+	if result.Version != "1.2.0" {
+		t.Fatalf("version = %q, want 1.2.0 from metadata", result.Version)
+	}
 	if result.Category != "Other" {
 		t.Fatalf("category = %q, want default Other", result.Category)
 	}
@@ -374,6 +377,42 @@ func TestShareInfersCategoryAndPostsMultipartUpload(t *testing.T) {
 	}
 	if !result.Uploaded || result.Status != http.StatusCreated || result.Category != "Web Servers" {
 		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestShareReportsVersionSiteAndCookbookURL(t *testing.T) {
+	cookbookRoot := writeSupermarketCookbook(t, "nginx")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/cookbooks/nginx":
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, `{"error_code":"NOT_FOUND","error_messages":["Resource not found"]}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/cookbooks":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{}`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := supermarketTestClient(t, srv.URL)
+	result, err := client.Share(context.Background(), ShareOptions{
+		Cookbook: "nginx", Category: "Other", CookbookPath: cookbookRoot,
+	})
+	if err != nil {
+		t.Fatalf("Share: %v", err)
+	}
+	if result.Version != "1.2.0" {
+		t.Fatalf("version = %q, want 1.2.0 from metadata", result.Version)
+	}
+	if result.Site != srv.URL {
+		t.Fatalf("site = %q, want %q", result.Site, srv.URL)
+	}
+	want := srv.URL + "/cookbooks/nginx/versions/1.2.0"
+	if result.URL != want {
+		t.Fatalf("url = %q, want %q", result.URL, want)
 	}
 }
 

@@ -503,14 +503,7 @@ cinc supermarket share nginx 'Web Servers'`,
 			if format == printer.FormatJSON {
 				return printer.New(cmd.OutOrStdout(), format).Value(result)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Making tarball %s\n", result.Tarball)
-			if dryRun {
-				for _, file := range result.Files {
-					fmt.Fprintln(cmd.OutOrStdout(), file)
-				}
-				return nil
-			}
-			fmt.Fprintln(cmd.OutOrStdout(), "Upload complete")
+			renderShareResult(cmd.OutOrStdout(), result, dryRun)
 			return nil
 		},
 	}
@@ -521,4 +514,50 @@ cinc supermarket share nginx 'Web Servers'`,
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "build the cookbook tarball without uploading it")
 	cmd.Flags().BoolVar(&noChefignore, "no-chefignore", false, "do not exclude files matched by the cookbook's chefignore file")
 	return cmd
+}
+
+// renderShareResult writes the friendly, checkmarked summary of a cookbook
+// share to w. A dry run reports the tarball it built and lists its contents;
+// a real upload confirms the Supermarket the cookbook landed on and links to
+// its published version page. The ✓ glyphs are drawn green when w is a
+// terminal (see useColor), and plain otherwise so pipes and tests stay clean.
+func renderShareResult(w io.Writer, result supermarket.ShareResult, dryRun bool) {
+	check := colorize(useColor(w), ansiBoldGreen, "✓")
+
+	// The cookbook always carries a version from its metadata; fall back to the
+	// bare name only if it's somehow missing so the header never reads oddly.
+	name := result.Cookbook
+	if result.Version != "" {
+		name = fmt.Sprintf("%s %s", result.Cookbook, result.Version)
+	}
+
+	if dryRun {
+		fmt.Fprintf(w, "Packaging cookbook %s (dry run — not uploading)\n\n", name)
+		fmt.Fprintf(w, "  %s Built %s (%s)\n\n", check, result.Tarball, humanizeSize(result.TarballSize))
+		fmt.Fprintln(w, "Contents:")
+		for _, file := range result.Files {
+			fmt.Fprintf(w, "  %s\n", file)
+		}
+		return
+	}
+
+	fmt.Fprintf(w, "Releasing cookbook %s\n\n", name)
+	fmt.Fprintf(w, "  %s Built %s (%s)\n", check, result.Tarball, humanizeSize(result.TarballSize))
+	fmt.Fprintf(w, "  %s Uploaded to %s\n\n", check, result.Site)
+	fmt.Fprintf(w, "%s is now live: %s\n", name, result.URL)
+}
+
+// humanizeSize renders a byte count as a compact, human-friendly size such as
+// "734 B" or "4.2 KB" for use in the share summary.
+func humanizeSize(n int) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for v := int64(n) / unit; v >= unit; v /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
 }
