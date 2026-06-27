@@ -34,13 +34,13 @@ import (
 // Sandbox bounds applied to every guest evaluation. The wasm jail itself is
 // enforced by wazero/WASI; these caps bound what an attacker-controlled
 // Policyfile.rb / metadata.rb can cost the host.
-const (
-	// defaultEvalTimeout bounds a single guest evaluation — the ~5s cold wasm
-	// compile on first run plus the actual evaluation. It is generous enough
-	// for legitimate dynamic Policyfiles while still promptly interrupting a
-	// runaway guest (e.g. `loop {}`). Overridable per call via Options.Timeout.
-	defaultEvalTimeout = 60 * time.Second
+// defaultEvalTimeout (which bounds a single guest evaluation — the cold wasm
+// compile on first run plus the actual evaluation) is defined in the build-
+// tagged files timeout.go / timeout_race.go: the production default is tight,
+// but a `-race` test build runs the wasm engine ~30-50x slower, so the bound
+// is scaled up there to avoid false timeouts on legitimate Policyfiles.
 
+const (
 	// maxMemoryPages caps guest linear memory at 512 MiB (8192 * 64 KiB pages),
 	// bounding a memory-bomb guest rather than letting it exhaust host RAM.
 	maxMemoryPages = 8192
