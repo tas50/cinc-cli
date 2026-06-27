@@ -39,11 +39,19 @@ weren't willing to compromise on:
 
 ## Status
 
-Early development. The command surface is being built out one noun
-group at a time. See [`docs/commands/cinc.md`](docs/commands/cinc.md)
-for the current command surface (auto-generated from the cobra command
-tree). The taxonomy and internal architecture are described in
-[`docs/dev/`](docs/dev/).
+Beta. `cinc` has feature parity with the everyday Chef workflows it
+targets, and the major ideas — the noun-verb grammar, the consistent
+core verbs, the config and compatibility model — are settled. What we
+need now is real-world use: point `cinc` at your server, run your
+actual workflows, and [open an issue](https://github.com/tas50/cinc-cli/issues)
+when something doesn't behave the way you expect.
+
+Expect the command surface to keep shifting as we act on that feedback
+— flags, output, and the occasional verb may change before 1.0 — but
+the foundations are stable enough to build on. See
+[`docs/commands/cinc.md`](docs/commands/cinc.md) for the current command
+surface (auto-generated from the cobra command tree); the taxonomy and
+internal architecture are described in [`docs/dev/`](docs/dev/).
 
 ## Install
 
