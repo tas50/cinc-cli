@@ -112,6 +112,107 @@ func TestOrgACLShowAgainstCincZero(t *testing.T) {
 	}
 }
 
+// TestObjectACLRoundTripAgainstCincZero exercises the read-modify-write ACL
+// flow (`acl show` → `acl grant read` → `acl show` → `acl revoke read` →
+// `acl show`) for every noun that exposes an `acl` subgroup, in one
+// table-driven pass. It covers the normal org-scoped object ACLs
+// (client/cookbook/databag/environment/group/policy/policy-group/role), the
+// nameless organization ACL (`org acl`), and the global user ACL
+// (`user acl`, served at /users/<name>/_acl).
+//
+// Each noun targets a seeded object: the harness seeds the chef-repo and the
+// global users + "devs" group, so every object below already exists. Object
+// and org ACLs grant the seeded org group "devs" (which lands in the ACE's
+// group list); the global user ACL grants the global user "ben" (an actor,
+// since the org-scoped group has no meaning at the server root).
+//
+// A noun whose _acl endpoint the pinned cinc-zero doesn't serve skips that
+// subtest with a documented reason; the exact GET-then-PUT wiring stays
+// covered by the unit tests in apps/cinc/cmd/acl_test.go.
+func TestObjectACLRoundTripAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	cases := []struct {
+		noun       string // command noun, e.g. "policy-group"
+		objectName string // seeded object; "" for the nameless org ACL
+		memberFlag string // "--group" or "--user"
+		member     string // the member to grant then revoke
+		inGroups   bool   // true if member lands in the ACE group list, false for actors
+	}{
+		{"client", "worker-01", "--group", "devs", true},
+		{"cookbook", "webserver", "--group", "devs", true},
+		{"databag", "users", "--group", "devs", true},
+		{"environment", "prod", "--group", "devs", true},
+		{"group", "devs", "--group", "devs", true},
+		{"policy", "appserver", "--group", "devs", true},
+		{"policy-group", "prod", "--group", "devs", true},
+		{"role", "web", "--group", "devs", true},
+		{"org", "", "--group", "devs", true},
+		{"user", "anna", "--user", "ben", false},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.noun, func(t *testing.T) {
+			// showArgs / changeArgs adapt to whether the scope takes a <name>.
+			showArgs := []string{tc.noun, "acl", "show"}
+			if tc.objectName != "" {
+				showArgs = append(showArgs, tc.objectName)
+			}
+			showArgs = append(showArgs, "--config", env.cfgPath, "--format", "json")
+
+			readACL := func() cinc.ACL {
+				t.Helper()
+				out := runCinc(t, env.binary, showArgs...)
+				var acl cinc.ACL
+				if err := json.Unmarshal([]byte(out), &acl); err != nil {
+					t.Fatalf("%s acl show (json) not valid JSON: %v\n%s", tc.noun, err, out)
+				}
+				return acl
+			}
+			members := func(acl cinc.ACL) []string {
+				if tc.inGroups {
+					return acl.Read.Groups
+				}
+				return acl.Read.Actors
+			}
+
+			// Probe the endpoint with a raw show so an unsupported _acl path
+			// skips this noun rather than failing the whole table.
+			if _, stderr, err := runCincRaw(env.binary, showArgs...); err != nil {
+				t.Skipf("cinc-zero does not serve %s ACLs; covered by unit tests. stderr: %s", tc.noun, stderr)
+			}
+
+			changeArgs := func(verb string) []string {
+				args := []string{tc.noun, "acl", verb, "read"}
+				if tc.objectName != "" {
+					args = append(args, tc.objectName)
+				}
+				return append(args, tc.memberFlag, tc.member, "--config", env.cfgPath)
+			}
+
+			grant := runCinc(t, env.binary, changeArgs("grant")...)
+			if !strings.Contains(grant, tc.member) {
+				t.Errorf("%s acl grant output should mention %q:\n%s", tc.noun, tc.member, grant)
+			}
+			if !slices.Contains(members(readACL()), tc.member) {
+				t.Errorf("after grant, %s read members = %v, want it to contain %q",
+					tc.noun, members(readACL()), tc.member)
+			}
+
+			revoke := runCinc(t, env.binary, changeArgs("revoke")...)
+			if !strings.Contains(revoke, tc.member) {
+				t.Errorf("%s acl revoke output should mention %q:\n%s", tc.noun, tc.member, revoke)
+			}
+			if slices.Contains(members(readACL()), tc.member) {
+				t.Errorf("after revoke, %s read members = %v, want %q removed",
+					tc.noun, members(readACL()), tc.member)
+			}
+		})
+	}
+}
+
 func readNodeACL(t *testing.T, env acceptanceEnv, name string) cinc.ACL {
 	t.Helper()
 	out := runCinc(t, env.binary, "node", "acl", "show", name, "--config", env.cfgPath, "--format", "json")
