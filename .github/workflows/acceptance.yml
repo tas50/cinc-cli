@@ -22,6 +22,11 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@v1.13.0
+
       - name: Run acceptance tests
         # The harness downloads and caches the pinned cinc-zero release binary.
-        run: go test -tags acceptance -count=1 ./test/...
+        # gotestsum streams each test as it finishes, so these longer-running
+        # cinc-zero tests show live progress instead of one buffered dump.
+        run: gotestsum --format testname -- -tags acceptance -count=1 ./test/...

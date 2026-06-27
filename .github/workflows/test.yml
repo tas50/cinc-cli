@@ -1,4 +1,4 @@
-name: Test
+name: Tests
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test:
-    name: Test
+    name: Unit tests, vet & build
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -34,8 +34,14 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Test
-        run: go test -race ./...
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@v1.13.0
+
+      - name: Run unit tests (race)
+        # gotestsum consumes `go test -json` and prints a line per test as it
+        # finishes — so you see live per-test progress instead of output that's
+        # buffered until each package completes — then a summary at the end.
+        run: gotestsum --format testname -- -race ./...
 
       - name: Build
         run: go build ./apps/cinc
