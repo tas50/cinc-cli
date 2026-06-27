@@ -363,3 +363,128 @@ func TestPolicyCleanCommandDryRun(t *testing.T) {
 		t.Errorf("--dry-run output = %q, want a 'Would delete' report", buf.String())
 	}
 }
+
+// --- clean-cookbooks ----------------------------------------------------
+
+// cleanCookbooksServer serves a two-policy/two-revision world plus a cookbook
+// artifact index. The revisions reference some (cookbook, identifier) pairs;
+// the artifact list adds extra "orphan" identifiers no revision points at. It
+// records every DELETE so tests can assert exactly the orphans were removed.
+func cleanCookbooksServer(t *testing.T, deleted *[]string) *httptest.Server {
+	t.Helper()
+	// referenced identifiers, per cookbook.
+	const (
+		baseRef = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		webRef  = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+		baseOld = "cccccccccccccccccccccccccccccccccccccccc" // orphan
+		webOld  = "dddddddddddddddddddddddddddddddddddddddd" // orphan
+	)
+	revisions := map[string]map[string]cinc.PolicyRevision{
+		"appserver": {
+			"1.0.0": {RevisionID: "1.0.0", CookbookLocks: map[string]cinc.CookbookLock{
+				"base": {Version: "1.0.0", Identifier: baseRef},
+				"web":  {Version: "2.0.0", Identifier: webRef},
+			}},
+		},
+		"db": {
+			"1.0.0": {RevisionID: "1.0.0", CookbookLocks: map[string]cinc.CookbookLock{
+				"base": {Version: "1.0.0", Identifier: baseRef},
+			}},
+		},
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/organizations/acme/policies", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]cinc.PolicyListEntry{
+			"appserver": {Revisions: map[string]json.RawMessage{"1.0.0": json.RawMessage(`{}`)}},
+			"db":        {Revisions: map[string]json.RawMessage{"1.0.0": json.RawMessage(`{}`)}},
+		})
+	})
+	for policy, revs := range revisions {
+		mux.HandleFunc("/organizations/acme/policies/"+policy, func(w http.ResponseWriter, _ *http.Request) {
+			out := cinc.PolicyRevisions{Revisions: map[string]json.RawMessage{}}
+			for rev := range revs {
+				out.Revisions[rev] = json.RawMessage(`{}`)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(out)
+		})
+		mux.HandleFunc("/organizations/acme/policies/"+policy+"/revisions/", func(w http.ResponseWriter, r *http.Request) {
+			rev := strings.TrimPrefix(r.URL.Path, "/organizations/acme/policies/"+policy+"/revisions/")
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(revs[rev])
+		})
+	}
+	mux.HandleFunc("/organizations/acme/cookbook_artifacts", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]cinc.CookbookArtifactListEntry{
+			"base": {Versions: []cinc.CookbookArtifactVersion{{Identifier: baseRef}, {Identifier: baseOld}}},
+			"web":  {Versions: []cinc.CookbookArtifactVersion{{Identifier: webRef}, {Identifier: webOld}}},
+		})
+	})
+	mux.HandleFunc("/organizations/acme/cookbook_artifacts/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			t.Errorf("method = %q on artifact, want DELETE", r.Method)
+		}
+		*deleted = append(*deleted, strings.TrimPrefix(r.URL.Path, "/organizations/acme/cookbook_artifacts/"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestPolicyCleanCookbooksDeletesOrphans(t *testing.T) {
+	var deleted []string
+	srv := cleanCookbooksServer(t, &deleted)
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"policy", "clean-cookbooks", "--config", writePolicyConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc policy clean-cookbooks: %v", err)
+	}
+	slices.Sort(deleted)
+	want := []string{
+		"base/cccccccccccccccccccccccccccccccccccccccc",
+		"web/dddddddddddddddddddddddddddddddddddddddd",
+	}
+	if !slices.Equal(deleted, want) {
+		t.Errorf("deleted = %v, want only the two orphaned artifacts %v", deleted, want)
+	}
+	// Output is sorted by name then identifier and lists only orphans.
+	out := buf.String()
+	if !strings.Contains(out, "base@cccc") || !strings.Contains(out, "web@dddd") {
+		t.Errorf("output missing orphan listing:\n%s", out)
+	}
+	if strings.Contains(out, "@aaaa") || strings.Contains(out, "@bbbb") {
+		t.Errorf("referenced artifacts should not appear in output:\n%s", out)
+	}
+	if i, j := strings.Index(out, "base@"), strings.Index(out, "web@"); i < 0 || j < 0 || i > j {
+		t.Errorf("output not sorted (base should precede web):\n%s", out)
+	}
+}
+
+func TestPolicyCleanCookbooksDryRun(t *testing.T) {
+	var deleted []string
+	srv := cleanCookbooksServer(t, &deleted)
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{"policy", "clean-cookbooks", "--dry-run", "--config", writePolicyConfig(t, srv.URL)})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc policy clean-cookbooks --dry-run: %v", err)
+	}
+	if len(deleted) != 0 {
+		t.Errorf("--dry-run deleted artifacts on the server: %v", deleted)
+	}
+	if !strings.Contains(buf.String(), "Would delete") {
+		t.Errorf("--dry-run output = %q, want a 'Would delete' report", buf.String())
+	}
+}

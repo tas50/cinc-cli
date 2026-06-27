@@ -3,7 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
@@ -117,6 +120,95 @@ cinc policy export Policyfile.lock.json ./bundle --archive`,
 	}
 	cmd.Flags().BoolVarP(&archive, "archive", "a", false, "also write the bundle as a .tar.gz archive")
 	return cmd
+}
+
+// newPolicyPushArchiveCmd builds `cinc policy push-archive <group> [archive]`.
+// It deploys a bundle a previous `policy export` produced: it loads the bundle's
+// Policyfile.lock.json and the cookbooks under its cookbook tree, then uploads
+// each as a cookbook artifact and associates the revision with the named group.
+// This is the inverse of `policy export` and the offline-friendly sibling of
+// `policy push` (which fetches cookbooks from their sources rather than a bundle).
+func newPolicyPushArchiveCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "push-archive <group> [archive]",
+		Short: "Deploy an exported Policyfile bundle to a policy group",
+		Long: "Deploy a bundle produced by `cinc policy export` to a policy group.\n\n" +
+			"The archive may be a .tar.gz (as written by `cinc policy export --archive`)\n" +
+			"or an already-extracted bundle directory. When you don't name one, cinc\n" +
+			"looks in the current directory for an extracted bundle (a\n" +
+			"Policyfile.lock.json beside you) and then for a single .tar.gz archive.",
+		Example: `Deploy a previously exported bundle archive to a policy group.
+cinc policy push-archive prod appserver.tar.gz
+Deploy an extracted bundle directory.
+cinc policy push-archive prod ./appserver`,
+		Args: cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+			group := args[0]
+			archiveArg := ""
+			if len(args) == 2 {
+				archiveArg = args[1]
+			}
+			archivePath, err := resolvePushArchivePath(archiveArg)
+			if err != nil {
+				return err
+			}
+
+			dir, cleanup, err := policyfile.OpenBundle(archivePath)
+			if err != nil {
+				return err
+			}
+			defer cleanup()
+
+			lock, lockJSON, err := cinc.LoadPolicyfileLock(filepath.Join(dir, policyfile.BundleLockName))
+			if err != nil {
+				return err
+			}
+			cookbooks, err := policyfile.LoadBundleCookbooks(dir, lock)
+			if err != nil {
+				return err
+			}
+			rev, _, err := c.Policies.PushRevision(cmd.Context(), lockJSON, group, cookbooks)
+			if err != nil {
+				return err
+			}
+			return emitPushResult(cmd, format, lock.Name, group, rev, len(cookbooks))
+		},
+	}
+	return cmd
+}
+
+// resolvePushArchivePath decides which bundle to deploy. When the user named one
+// we just confirm it exists; otherwise we look in the current directory for an
+// extracted bundle (a Policyfile.lock.json) and then for a single .tar.gz
+// archive, erroring conversationally when there's nothing — or too much — to pick.
+func resolvePushArchivePath(arg string) (string, error) {
+	if arg != "" {
+		if _, err := os.Stat(arg); err != nil {
+			return "", fmt.Errorf("we couldn't find the bundle %q to push. Pass a .tar.gz archive or an extracted bundle directory, or run `cinc policy export --archive` to create one", arg)
+		}
+		return arg, nil
+	}
+	if _, err := os.Stat(defaultLockFile); err == nil {
+		return ".", nil
+	}
+	matches, _ := filepath.Glob("*.tar.gz")
+	slices.Sort(matches)
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("we couldn't find a bundle to push here. Pass the .tar.gz archive (or extracted bundle directory) to deploy, e.g. `cinc policy push-archive GROUP appserver.tar.gz`")
+	case 1:
+		return matches[0], nil
+	default:
+		return "", fmt.Errorf("we found several .tar.gz archives here (%s) and aren't sure which to push. Name the one you mean, e.g. `cinc policy push-archive GROUP %s`", strings.Join(matches, ", "), matches[0])
+	}
 }
 
 // newFetcher builds a policyfile.Fetcher rooted at the default cinc cookbook

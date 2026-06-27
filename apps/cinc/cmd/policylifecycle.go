@@ -453,3 +453,147 @@ func revisionsInUse(ctx context.Context, c *cinc.Client) (map[string]struct{}, e
 	}
 	return inUse, nil
 }
+
+// cookbookArtifactRef names one cookbook artifact version: its cookbook name and
+// the content identifier the artifact is stored under.
+type cookbookArtifactRef struct {
+	Name       string `json:"name"`
+	Identifier string `json:"identifier"`
+}
+
+// newPolicyCleanCookbooksCmd builds `cinc policy clean-cookbooks`. It deletes
+// cookbook artifacts (/cookbook_artifacts/NAME/IDENTIFIER) that no policy
+// revision references — the artifact-level complement to `policy clean`, which
+// prunes unreferenced revisions.
+func newPolicyCleanCookbooksCmd() *cobra.Command {
+	var dryRun bool
+	cmd := &cobra.Command{
+		Use:   "clean-cookbooks",
+		Short: "Delete cookbook artifacts that no policy revision references",
+		Long: "Delete cookbook artifacts (/cookbook_artifacts/NAME/IDENTIFIER) that no\n" +
+			"policy revision references.\n\n" +
+			"Tip: run `cinc policy clean` first. Pruning unreferenced revisions can\n" +
+			"orphan more cookbook artifacts, which this command will then clean up.",
+		Example: `Delete cookbook artifacts no policy revision uses.
+cinc policy clean-cookbooks
+Preview what would be deleted without deleting anything.
+cinc policy clean-cookbooks --dry-run`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			format, err := resolveFormat(cmd)
+			if err != nil {
+				return err
+			}
+			c, err := resolveClient(cmd)
+			if err != nil {
+				return err
+			}
+
+			referenced, err := referencedArtifacts(cmd.Context(), c)
+			if err != nil {
+				return err
+			}
+			orphans, err := orphanedArtifacts(cmd.Context(), c, referenced)
+			if err != nil {
+				return err
+			}
+
+			if !dryRun {
+				for _, o := range orphans {
+					if _, err := c.CookbookArtifacts.Delete(cmd.Context(), o.Name, o.Identifier); err != nil {
+						return err
+					}
+				}
+			}
+			return emitCleanCookbooks(cmd, format, orphans, dryRun)
+		},
+	}
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "report what would be deleted without deleting anything")
+	return cmd
+}
+
+// referencedArtifacts returns the set of "<cookbook>@<identifier>" artifacts
+// pinned by any revision of any policy. It walks every policy, every revision,
+// and every cookbook lock so an artifact is considered orphaned only when no
+// revision anywhere still points at it.
+func referencedArtifacts(ctx context.Context, c *cinc.Client) (map[string]struct{}, error) {
+	index, _, err := c.Policies.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(index))
+	for name := range index {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+
+	referenced := map[string]struct{}{}
+	for _, name := range names {
+		revs, _, err := c.Policies.Get(ctx, name)
+		if err != nil {
+			return nil, err
+		}
+		for revID := range revs.Revisions {
+			rev, _, err := c.Policies.GetRevision(ctx, name, revID)
+			if err != nil {
+				return nil, err
+			}
+			for cookbook, lock := range rev.CookbookLocks {
+				referenced[cookbook+"@"+lock.Identifier] = struct{}{}
+			}
+		}
+	}
+	return referenced, nil
+}
+
+// orphanedArtifacts lists every cookbook artifact version not in referenced,
+// sorted by name then identifier for stable output.
+func orphanedArtifacts(ctx context.Context, c *cinc.Client, referenced map[string]struct{}) ([]cookbookArtifactRef, error) {
+	artifacts, _, err := c.CookbookArtifacts.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var orphans []cookbookArtifactRef
+	for name, entry := range artifacts {
+		for _, v := range entry.Versions {
+			if _, ok := referenced[name+"@"+v.Identifier]; ok {
+				continue
+			}
+			orphans = append(orphans, cookbookArtifactRef{Name: name, Identifier: v.Identifier})
+		}
+	}
+	slices.SortFunc(orphans, func(a, b cookbookArtifactRef) int {
+		if n := cmpString(a.Name, b.Name); n != 0 {
+			return n
+		}
+		return cmpString(a.Identifier, b.Identifier)
+	})
+	return orphans, nil
+}
+
+// emitCleanCookbooks renders the clean-cookbooks result in the chosen format.
+func emitCleanCookbooks(cmd *cobra.Command, format printer.Format, orphans []cookbookArtifactRef, dryRun bool) error {
+	if format == printer.FormatJSON {
+		if orphans == nil {
+			orphans = []cookbookArtifactRef{}
+		}
+		return printer.New(cmd.OutOrStdout(), format).Value(map[string]any{
+			"dry_run": dryRun,
+			"deleted": orphans,
+		})
+	}
+	out := cmd.OutOrStdout()
+	if len(orphans) == 0 {
+		fmt.Fprintln(out, "No orphaned cookbook artifacts to delete.")
+		return nil
+	}
+	verb := "Deleted"
+	if dryRun {
+		verb = "Would delete"
+	}
+	fmt.Fprintf(out, "%s %d orphaned cookbook artifact(s):\n", verb, len(orphans))
+	for _, o := range orphans {
+		fmt.Fprintf(out, "  %s@%s\n", o.Name, o.Identifier)
+	}
+	return nil
+}
