@@ -75,6 +75,13 @@ var notFoundMatrix = []notFoundCommand{
 	{"environment show missing", []string{"environment", "show", "ghost"}},
 	{"client show missing", []string{"client", "show", "ghost"}},
 	{"group show missing", []string{"group", "show", "ghost"}},
+	// Nouns the original matrix omitted: a show of a missing object must
+	// still 404 rather than print an empty success.
+	{"databag show missing", []string{"databag", "show", "ghostbag"}},
+	{"org show missing", []string{"org", "show", "ghostorg"}},
+	{"user show missing", []string{"user", "show", "ghostuser"}},
+	{"policy show missing", []string{"policy", "show", "ghostpolicy"}},
+	{"policy-group show missing", []string{"policy-group", "show", "ghostgroup"}},
 }
 
 // TestNotFoundErrorMatrixAgainstCincZero asserts a show of a missing
