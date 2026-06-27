@@ -75,8 +75,14 @@ client_key      = %q
 	if err != nil {
 		t.Fatalf("expected %s to exist after migration: %v", cincFile, err)
 	}
-	if !strings.Contains(string(cincContents), "chef_server_url") {
-		t.Errorf("migrated credentials should contain a server URL, got:\n%s", cincContents)
+	// Migration modernizes the legacy chef_server_url into the
+	// cinc-canonical cinc_server_url; it must not leave the chef-prefixed
+	// key in the written file.
+	if !strings.Contains(string(cincContents), "cinc_server_url") {
+		t.Errorf("migrated credentials should contain cinc_server_url, got:\n%s", cincContents)
+	}
+	if strings.Contains(string(cincContents), "chef_server_url") {
+		t.Errorf("migration should modernize chef_server_url to cinc_server_url, got:\n%s", cincContents)
 	}
 
 	followUp := exec.Command(binary, "node", "list")

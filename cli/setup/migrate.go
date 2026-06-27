@@ -18,12 +18,15 @@ import (
 // chef-prefixed server URLs are both accepted; when both are set the
 // cinc-prefixed value wins, matching cli/config's precedence rule.
 type chefRawProfile struct {
-	CincServerURL   string `toml:"cinc_server_url"`
-	ChefServerURL   string `toml:"chef_server_url"`
-	SupermarketSite string `toml:"supermarket_site"`
-	ClientName      string `toml:"client_name"`
-	ClientKey       string `toml:"client_key"`
-	SSLVerifyMode   string `toml:"ssl_verify_mode"`
+	CincServerURL         string `toml:"cinc_server_url"`
+	ChefServerURL         string `toml:"chef_server_url"`
+	SupermarketSite       string `toml:"supermarket_site"`
+	ClientName            string `toml:"client_name"`
+	ClientKey             string `toml:"client_key"`
+	SSLVerifyMode         string `toml:"ssl_verify_mode"`
+	SecretFile            string `toml:"secret_file"`
+	SupermarketClientName string `toml:"supermarket_client_name"`
+	SupermarketKey        string `toml:"supermarket_key"`
 }
 
 // MigrateChef reads chefPath and writes the equivalent credentials
@@ -47,6 +50,12 @@ func MigrateChef(chefPath, cincPath string) (int, error) {
 		if err != nil {
 			return 0, fmt.Errorf("setup: profile %q: %w", name, err)
 		}
+		// NewProfile only takes the core connection fields, so carry the
+		// remaining profile keys across by hand. WriteProfile serializes
+		// each of these, so nothing the Chef file held gets dropped.
+		profile.SecretFile = rp.SecretFile
+		profile.SupermarketClientName = rp.SupermarketClientName
+		profile.SupermarketKey = rp.SupermarketKey
 		if err := config.WriteProfile(cincPath, name, profile); err != nil {
 			return 0, err
 		}

@@ -386,8 +386,39 @@ func TestWriteProfileCreatesCredentialsFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "chef_server_url") || !strings.Contains(string(data), "supermarket_site") {
-		t.Fatalf("credentials = %s, want chef_server_url and supermarket_site", data)
+	if !strings.Contains(string(data), "cinc_server_url") || !strings.Contains(string(data), "supermarket_site") {
+		t.Fatalf("credentials = %s, want cinc_server_url and supermarket_site", data)
+	}
+	if strings.Contains(string(data), "chef_server_url") {
+		t.Fatalf("credentials = %s, want the cinc-canonical key, not chef_server_url", data)
+	}
+}
+
+func TestWriteProfileRoundTripsAllKeys(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".cinc", "credentials")
+
+	want := Profile{
+		ServerURL:             "https://cinc.example.com",
+		Org:                   "acme",
+		RawServerURL:          "https://cinc.example.com/organizations/acme",
+		SupermarketSite:       "https://supermarket.example.test",
+		ClientName:            "worker",
+		KeyPath:               "/keys/worker.pem",
+		SSLVerifyMode:         ":verify_none",
+		SecretFile:            "/keys/encrypted_data_bag_secret",
+		SupermarketClientName: "worker-public",
+		SupermarketKey:        "/keys/supermarket.pem",
+	}
+	if err := WriteProfile(path, "worker", want); err != nil {
+		t.Fatalf("WriteProfile: %v", err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load written credentials: %v", err)
+	}
+	got := cfg.Profiles["worker"]
+	if got != want {
+		t.Fatalf("round-tripped profile = %+v, want %+v", got, want)
 	}
 }
 

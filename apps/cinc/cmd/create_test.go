@@ -47,9 +47,9 @@ func TestConfigureCommandWritesTOMLCredentialsProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(data), "client.rb") || !strings.Contains(string(data), "chef_server_url") ||
+	if strings.Contains(string(data), "client.rb") || !strings.Contains(string(data), "cinc_server_url") ||
 		!strings.Contains(string(data), "supermarket_site") {
-		t.Fatalf("credentials = %s, want TOML credentials with chef_server_url, supermarket_site, and no client.rb", data)
+		t.Fatalf("credentials = %s, want TOML credentials with cinc_server_url, supermarket_site, and no client.rb", data)
 	}
 	if got := buf.String(); !strings.Contains(got, `Wrote credentials profile "supermarket"`) {
 		t.Fatalf("stdout = %q", got)
