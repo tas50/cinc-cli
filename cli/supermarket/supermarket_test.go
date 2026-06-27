@@ -210,6 +210,108 @@ func TestNewRejectsProfileMissingIdentity(t *testing.T) {
 	}
 }
 
+func TestNewRejectsProfileWithoutAnySupermarketIdentity(t *testing.T) {
+	// Neither base nor Supermarket-override identity is set, so there's
+	// nothing to sign uploads with.
+	_, err := New(config.Profile{
+		SupermarketSite: "https://supermarket.example.test",
+	}, "")
+	if err == nil {
+		t.Fatal("expected missing Supermarket identity error")
+	}
+	if !strings.Contains(err.Error(), "Supermarket identity") {
+		t.Fatalf("error = %q, want Supermarket identity in message", err)
+	}
+}
+
+// shareCapturedUserID runs a real (signed) Share against a recording server
+// and returns the X-Ops-Userid header the upload was signed with. New
+// loading the key file is exercised on the way: a profile whose effective
+// key path is invalid never reaches this point.
+func shareCapturedUserID(t *testing.T, profile config.Profile) string {
+	t.Helper()
+	cookbookRoot := writeSupermarketCookbook(t, "nginx")
+	var userID string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/cookbooks/nginx":
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, `{"error_code":"NOT_FOUND","error_messages":["Resource not found"]}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/cookbooks":
+			userID = r.Header.Get("X-Ops-Userid")
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{}`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	profile.SupermarketSite = srv.URL
+	client, err := New(profile, "")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if _, err := client.Share(context.Background(), ShareOptions{
+		Cookbook: "nginx", Category: "Other", CookbookPath: cookbookRoot,
+	}); err != nil {
+		t.Fatalf("Share: %v", err)
+	}
+	return userID
+}
+
+func TestNewSignsWithClientIdentityWhenNoOverride(t *testing.T) {
+	got := shareCapturedUserID(t, config.Profile{
+		ClientName: "tim",
+		KeyPath:    writeSupermarketTestKey(t),
+	})
+	if got != "tim" {
+		t.Fatalf("X-Ops-Userid = %q, want client_name tim", got)
+	}
+}
+
+func TestNewSignsWithSupermarketOverrideIdentity(t *testing.T) {
+	// The base client_key points at a missing file; if New loaded it
+	// instead of the override key, the share would fail. A successful,
+	// signed upload proves the override key was the one loaded.
+	got := shareCapturedUserID(t, config.Profile{
+		ClientName:            "tim",
+		KeyPath:               "/keys/does-not-exist.pem",
+		SupermarketClientName: "tim-public",
+		SupermarketKey:        writeSupermarketTestKey(t),
+	})
+	if got != "tim-public" {
+		t.Fatalf("X-Ops-Userid = %q, want supermarket_client_name tim-public", got)
+	}
+}
+
+func TestNewSignsWithUsernameOverrideAndClientKey(t *testing.T) {
+	// Only the username is overridden; the key falls back to client_key.
+	got := shareCapturedUserID(t, config.Profile{
+		ClientName:            "tim",
+		KeyPath:               writeSupermarketTestKey(t),
+		SupermarketClientName: "tim-public",
+	})
+	if got != "tim-public" {
+		t.Fatalf("X-Ops-Userid = %q, want supermarket_client_name tim-public", got)
+	}
+}
+
+func TestNewSignsWithKeyOverrideAndClientName(t *testing.T) {
+	// Only the key is overridden; the username falls back to client_name.
+	// The base client_key is invalid, so a successful upload proves the
+	// override key was loaded.
+	got := shareCapturedUserID(t, config.Profile{
+		ClientName:     "tim",
+		KeyPath:        "/keys/does-not-exist.pem",
+		SupermarketKey: writeSupermarketTestKey(t),
+	})
+	if got != "tim" {
+		t.Fatalf("X-Ops-Userid = %q, want client_name tim", got)
+	}
+}
+
 func TestShareInfersCategoryAndPostsMultipartUpload(t *testing.T) {
 	cookbookRoot := writeSupermarketCookbook(t, "nginx")
 	var sawUpload bool
