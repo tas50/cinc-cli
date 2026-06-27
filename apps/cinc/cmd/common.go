@@ -75,6 +75,53 @@ func resolveFormat(cmd *cobra.Command) (printer.Format, error) {
 	return printer.ParseFormat(name)
 }
 
+// resolveSecret returns the raw bytes of the encrypted data bag secret,
+// used by the `cinc databag secret` commands. Resolution stops at the
+// first hit, in order:
+//
+//  1. the --secret literal flag (its bytes verbatim),
+//  2. the --secret-file flag (the file's contents),
+//  3. $CINC_SECRET_FILE, then $CHEF_SECRET_FILE (cinc wins),
+//  4. the resolved profile's secret_file key.
+//
+// The bytes are returned untouched — the cinc-api codec derives the AES
+// key itself, and a secret file is never trimmed because Chef treats the
+// whole file as the secret. --secret and --secret-file are mutually
+// exclusive.
+func resolveSecret(cmd *cobra.Command, profile config.Profile) ([]byte, error) {
+	literal, _ := cmd.Flags().GetString("secret")
+	file, _ := cmd.Flags().GetString("secret-file")
+	if literal != "" && file != "" {
+		return nil, errors.New("can't use --secret and --secret-file together — pick one")
+	}
+	if literal != "" {
+		return []byte(literal), nil
+	}
+	if file != "" {
+		return readSecretFile(file)
+	}
+	if env := os.Getenv("CINC_SECRET_FILE"); env != "" {
+		return readSecretFile(env)
+	}
+	if env := os.Getenv("CHEF_SECRET_FILE"); env != "" {
+		return readSecretFile(env)
+	}
+	if profile.SecretFile != "" {
+		return readSecretFile(profile.SecretFile)
+	}
+	return nil, errors.New("we need an encrypted data bag secret but couldn't find one. Pass --secret-file <path> (or --secret <literal>), set $CINC_SECRET_FILE, or add a secret_file key to your credentials profile.")
+}
+
+// readSecretFile reads a secret file's full contents as the raw secret
+// bytes, wrapping a read error in a conversational message.
+func readSecretFile(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("can't read the data bag secret at %s: %w", path, err)
+	}
+	return data, nil
+}
+
 // resolveClient builds a server client from the --config and --profile
 // flags. An empty --config falls back to the default config path.
 func resolveClient(cmd *cobra.Command) (*cinc.Client, error) {

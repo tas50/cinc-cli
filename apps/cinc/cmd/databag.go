@@ -26,6 +26,7 @@ func newDataBagCmd() *cobra.Command {
 	cmd.AddCommand(newDataBagCreateCmd())
 	cmd.AddCommand(newDataBagDeleteCmd())
 	cmd.AddCommand(newDataBagItemCmd())
+	cmd.AddCommand(newDataBagSecretCmd())
 	return cmd
 }
 
