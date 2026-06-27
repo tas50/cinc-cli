@@ -23,7 +23,9 @@ func newPolicyCmd() *cobra.Command {
 	cmd.AddCommand(newPolicyCreateCmd())
 	cmd.AddCommand(newPolicyDiffCmd())
 	cmd.AddCommand(newPolicyCleanCmd())
+	cmd.AddCommand(newPolicyCleanCookbooksCmd())
 	cmd.AddCommand(newPolicyPushCmd())
+	cmd.AddCommand(newPolicyPushArchiveCmd())
 	cmd.AddCommand(newPolicyExportCmd())
 	cmd.AddCommand(newACLCmd("policy", "policies"))
 	return cmd

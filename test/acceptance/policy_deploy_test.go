@@ -165,3 +165,48 @@ func TestPolicyExportAgainstCincZero(t *testing.T) {
 		t.Errorf("archive missing: %v", err)
 	}
 }
+
+// TestPolicyPushArchiveAgainstCincZero exports path-sourced locks to bundles and
+// deploys both the directory and the .tar.gz form with push-archive, each to a
+// fresh policy group, confirming the policy and its group association land on the
+// server — the full export -> push-archive round trip.
+//
+// The two pushes use distinct policies/identifiers because cinc-zero rejects
+// re-uploading an existing cookbook-artifact identifier with 409 (a real Chef
+// server treats identical-content uploads as idempotent), so pushing the same
+// bundle twice would collide.
+func TestPolicyPushArchiveAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	// Directory form -> group "archiveqa".
+	dirLock := writeDeployFixture(t, "archivetest", "fedcba9876543210fedcba9876543210fedcba98")
+	dirBundle := filepath.Join(t.TempDir(), "archivebundle")
+	if out := runCinc(t, env.binary, "policy", "export", dirLock, dirBundle, "--config", env.cfgPath); !strings.Contains(out, "Exported policy \"archivetest\"") {
+		t.Fatalf("policy export (dir) output = %q", out)
+	}
+	out := runCinc(t, env.binary, "policy", "push-archive", "archiveqa", dirBundle, "--config", env.cfgPath)
+	if !strings.Contains(out, "Pushed policy \"archivetest\"") || !strings.Contains(out, "group \"archiveqa\"") {
+		t.Fatalf("push-archive (dir) output = %q", out)
+	}
+	if list := runCinc(t, env.binary, "policy", "list", "--config", env.cfgPath); !strings.Contains(list, "archivetest") {
+		t.Errorf("policy list after push-archive missing archivetest:\n%s", list)
+	}
+	if group := runCinc(t, env.binary, "policy-group", "show", "archiveqa", "--config", env.cfgPath, "--format", "json"); !strings.Contains(group, "archivetest") {
+		t.Errorf("policy-group show archiveqa missing archivetest:\n%s", group)
+	}
+
+	// Tarball form (a different policy + identifier) -> group "archiveqa2".
+	tarLock := writeDeployFixture(t, "archivetar", "0011223344556677889900112233445566778899")
+	tarBundle := filepath.Join(t.TempDir(), "archivetarbundle")
+	if out := runCinc(t, env.binary, "policy", "export", tarLock, tarBundle, "--archive", "--config", env.cfgPath); !strings.Contains(out, "Exported policy \"archivetar\"") {
+		t.Fatalf("policy export (tarball) output = %q", out)
+	}
+	out = runCinc(t, env.binary, "policy", "push-archive", "archiveqa2", tarBundle+".tar.gz", "--config", env.cfgPath)
+	if !strings.Contains(out, "Pushed policy \"archivetar\"") || !strings.Contains(out, "group \"archiveqa2\"") {
+		t.Fatalf("push-archive (tarball) output = %q", out)
+	}
+	if group := runCinc(t, env.binary, "policy-group", "show", "archiveqa2", "--config", env.cfgPath, "--format", "json"); !strings.Contains(group, "archivetar") {
+		t.Errorf("policy-group show archiveqa2 missing archivetar:\n%s", group)
+	}
+}

@@ -159,6 +159,55 @@ func TestPolicyCleanAgainstCincZero(t *testing.T) {
 	}
 }
 
+// TestPolicyCleanCookbooksAgainstCincZero uploads a cookbook artifact that no
+// policy revision references, then asserts clean-cookbooks reports it on a dry
+// run and deletes it on a real run.
+func TestPolicyCleanCookbooksAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	c := acceptanceClient(t, env)
+
+	// Build a throwaway cookbook on disk and upload it as an unreferenced
+	// artifact under a known identifier.
+	const identifier = "1234567890abcdef1234567890abcdef12345678"
+	cbDir := filepath.Join(t.TempDir(), "orphancb")
+	if err := os.MkdirAll(filepath.Join(cbDir, "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cbDir, "metadata.rb"), []byte("name 'orphancb'\nversion '1.0.0'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cbDir, "recipes", "default.rb"), []byte("log 'orphan'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cb, err := cinc.LocalCookbookFromDir(cbDir, "1.0.0")
+	if err != nil {
+		t.Fatalf("load orphan cookbook: %v", err)
+	}
+	if err := c.CookbookArtifacts.Upload(context.Background(), cb, identifier); err != nil {
+		t.Fatalf("upload orphan artifact: %v", err)
+	}
+
+	// Dry run names the orphan but must not delete it.
+	dry := runCinc(t, env.binary, "policy", "clean-cookbooks", "--dry-run", "--config", env.cfgPath)
+	if !strings.Contains(dry, "Would delete") || !strings.Contains(dry, "orphancb@"+identifier) {
+		t.Errorf("dry-run output = %q, want it to name the orphaned artifact", dry)
+	}
+	if _, _, err := c.CookbookArtifacts.Get(context.Background(), "orphancb", identifier); err != nil {
+		t.Errorf("dry-run deleted the artifact: %v", err)
+	}
+
+	// Real run deletes the orphan.
+	out := runCinc(t, env.binary, "policy", "clean-cookbooks", "--config", env.cfgPath)
+	if !strings.Contains(out, "Deleted") || !strings.Contains(out, "orphancb@"+identifier) {
+		t.Errorf("clean-cookbooks output = %q", out)
+	}
+	if _, _, err := c.CookbookArtifacts.Get(context.Background(), "orphancb", identifier); err == nil {
+		t.Errorf("orphaned artifact orphancb@%s survived clean-cookbooks", identifier)
+	}
+}
+
 func contains(s []string, want string) bool {
 	for _, v := range s {
 		if v == want {
