@@ -25,6 +25,7 @@ cinc [flags]
 * [cinc explore](cinc_explore.md)	 - Browse and edit the Cinc Server in a terminal UI
 * [cinc group](cinc_group.md)	 - Manage groups on the Cinc Server
 * [cinc node](cinc_node.md)	 - Manage nodes on the Cinc Server
+* [cinc org](cinc_org.md)	 - Manage organizations on the Cinc Server
 * [cinc policy](cinc_policy.md)	 - Manage Policyfile policies on the Cinc Server
 * [cinc policy-group](cinc_policy-group.md)	 - Manage policy groups on the Cinc Server
 * [cinc role](cinc_role.md)	 - Manage roles on the Cinc Server
