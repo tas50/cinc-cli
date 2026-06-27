@@ -1,0 +1,51 @@
+name: Update README version on release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  update-readme:
+    name: Bump README install version
+    # Skip prereleases — the README should advertise the latest stable
+    # install, not a -rc/-beta tag.
+    if: ${{ !github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # Update main itself, not the release tag's commit.
+          ref: main
+          # DOCS_BOT_TOKEN is a PAT (or GitHub App token) whose owner is on
+          # main's branch-protection bypass list — the same token docs.yml
+          # uses, because the default GITHUB_TOKEN cannot push to main.
+          token: ${{ secrets.DOCS_BOT_TOKEN }}
+
+      - name: Update CINC_VERSION in README
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          # Rewrite the pinned CINC_VERSION in the GitHub Actions install
+          # snippet to the just-released tag. The anchor (`^<spaces>CINC_VERSION:`)
+          # only matches the env: line, never the ${CINC_VERSION} usages below it.
+          sed -i -E "s/^([[:space:]]*CINC_VERSION:[[:space:]]*).*/\1${VERSION}/" README.md
+
+      - name: Commit if changed
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          # No-op when the README already advertises this version, so a
+          # re-run (or a release with no version change) never pushes.
+          if [[ -z "$(git status --porcelain README.md)" ]]; then
+            echo "README install version already ${VERSION}"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: update README install version to ${VERSION}"
+          git push
