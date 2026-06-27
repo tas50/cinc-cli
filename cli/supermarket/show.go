@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	sm "github.com/tas50/cinc-supermarket"
+	sm "github.com/tas50/cinc-supermarket-api"
 )
 
 // ShowOptions controls a show operation. When Version is empty the

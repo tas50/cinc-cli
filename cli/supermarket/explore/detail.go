@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	sm "github.com/tas50/cinc-supermarket"
+	sm "github.com/tas50/cinc-supermarket-api"
 )
 
 func updateDetail(m model, msg tea.Msg) (tea.Model, tea.Cmd) {

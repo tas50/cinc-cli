@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	sm "github.com/tas50/cinc-supermarket"
+	sm "github.com/tas50/cinc-supermarket-api"
 )
 
 func TestShowReturnsCookbookWhenNoVersion(t *testing.T) {

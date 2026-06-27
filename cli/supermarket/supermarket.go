@@ -14,7 +14,7 @@ import (
 	"net/url"
 	"strings"
 
-	sm "github.com/tas50/cinc-supermarket"
+	sm "github.com/tas50/cinc-supermarket-api"
 
 	"github.com/tas50/cinc-cli/cli/config"
 	localcookbook "github.com/tas50/cinc-cli/cli/cookbook"

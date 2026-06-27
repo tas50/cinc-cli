@@ -14,7 +14,7 @@ require (
 	github.com/mattn/go-isatty v0.0.22
 	github.com/spf13/cobra v1.10.2
 	github.com/tas50/cinc-api v0.11.0
-	github.com/tas50/cinc-supermarket v0.3.0
+	github.com/tas50/cinc-supermarket-api v0.4.0
 	github.com/tetratelabs/wazero v1.12.0
 	golang.org/x/crypto v0.53.0
 	golang.org/x/term v0.44.0

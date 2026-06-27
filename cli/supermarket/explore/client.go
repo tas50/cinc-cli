@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 
-	sm "github.com/tas50/cinc-supermarket"
+	sm "github.com/tas50/cinc-supermarket-api"
 )
 
 // sortOrder identifies one of the three sort modes the TUI exposes.
