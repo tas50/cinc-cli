@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest a new command, flag, or behavior for cinc.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! cinc aims to be cinc-first and
+        chef-compatible, so if there's a `knife`/`chef` equivalent,
+        noting it below helps us match the expected behavior.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the use case, not just the solution. What are you trying to get done?
+      placeholder: I want to manage encrypted data bag secrets without dropping back to knife.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like cinc to do?
+      description: The command, flag, or behavior you have in mind.
+      placeholder: A `cinc databag secret` subgroup that encrypts/decrypts items client-side.
+    validations:
+      required: true
+  - type: input
+    id: knife-equivalent
+    attributes:
+      label: knife / chef equivalent
+      description: If this mirrors an existing knife or chef command, name it here.
+      placeholder: knife data bag create --secret-file
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      placeholder: Shelling out to knife; a wrapper script; etc.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched the existing issues and didn't find a duplicate request.
+          required: true
