@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -11,10 +10,6 @@ import (
 
 	"github.com/tas50/cinc-cli/cli/printer"
 )
-
-// aclPerms are the five standard Chef permissions, in the order Chef lists
-// them. "all" on the command line expands to this whole set.
-var aclPerms = []string{"create", "read", "update", "delete", "grant"}
 
 // aclScope captures what differs between a normal org-scoped object ACL, the
 // organization's own ACL, and a global user ACL: how to read and write the
@@ -196,7 +191,7 @@ func newACLChangeCmd(scope aclScope, grant bool) *cobra.Command {
 		Example: aclExample(scope, verb),
 		Args:    args,
 		RunE: func(cmd *cobra.Command, cmdArgs []string) error {
-			perms, err := aclPermsFor(cmdArgs[0])
+			perms, err := cinc.ExpandPerm(cmdArgs[0])
 			if err != nil {
 				return err
 			}
@@ -216,10 +211,17 @@ func newACLChangeCmd(scope aclScope, grant bool) *cobra.Command {
 
 			var changed []string
 			for _, perm := range perms {
-				ace := aclACE(acl, perm)
-				actorsChanged := aclApply(&ace.Actors, actors, grant)
-				groupsChanged := aclApply(&ace.Groups, groups, grant)
-				if !actorsChanged && !groupsChanged {
+				ace, err := acl.ACEFor(perm)
+				if err != nil {
+					return err
+				}
+				var aceChanged bool
+				if grant {
+					aceChanged = ace.AddMembers(actors, groups)
+				} else {
+					aceChanged = ace.RemoveMembers(actors, groups)
+				}
+				if !aceChanged {
 					continue
 				}
 				if err := scope.set(cmd.Context(), c, name, perm, ace); err != nil {
@@ -255,55 +257,6 @@ func aclName(scope aclScope, args []string) string {
 		return ""
 	}
 	return args[len(args)-1]
-}
-
-// aclPermsFor expands a <perm> argument into the permissions to touch:
-// "all" is every permission, otherwise the single named one.
-func aclPermsFor(perm string) ([]string, error) {
-	if perm == "all" {
-		return aclPerms, nil
-	}
-	if slices.Contains(aclPerms, perm) {
-		return []string{perm}, nil
-	}
-	return nil, fmt.Errorf("unknown permission %q — want one of create, read, update, delete, grant, or all", perm)
-}
-
-// aclACE returns a pointer to the ACE field of acl for one permission so the
-// caller can mutate it in place. perm is assumed valid (aclPermsFor checked).
-func aclACE(acl *cinc.ACL, perm string) *cinc.ACE {
-	switch perm {
-	case "create":
-		return &acl.Create
-	case "read":
-		return &acl.Read
-	case "update":
-		return &acl.Update
-	case "delete":
-		return &acl.Delete
-	default: // "grant"
-		return &acl.Grant
-	}
-}
-
-// aclApply adds (grant) or removes (revoke) each member from list in place,
-// deduping on add, and reports whether the list changed.
-func aclApply(list *[]string, members []string, grant bool) bool {
-	changed := false
-	for _, m := range members {
-		if grant {
-			if !slices.Contains(*list, m) {
-				*list = append(*list, m)
-				changed = true
-			}
-			continue
-		}
-		if i := slices.Index(*list, m); i >= 0 {
-			*list = slices.Delete(*list, i, i+1)
-			changed = true
-		}
-	}
-	return changed
 }
 
 // aclExample renders a copy-pasteable example line for one verb, adapting to

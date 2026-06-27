@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	cinc "github.com/tas50/cinc-api"
 )
 
 // cookbookFile is one file that contributes to a cookbook's content identifier:
@@ -62,7 +64,7 @@ const uploadedCookbookSentinel = ".uploaded-cookbook-version.json"
 // cookbookFiles returns the cookbook's content files (path + MD5) following
 // Chef::Cookbook::CookbookVersionLoader#load_all_files and #remove_ignored_files.
 func cookbookFiles(dir string) ([]cookbookFile, error) {
-	ignore, err := loadChefignore(dir)
+	ignore, err := cinc.LoadChefignore(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +101,7 @@ func cookbookFiles(dir string) ([]cookbookFile, error) {
 				return err
 			}
 			rel = filepath.ToSlash(rel)
-			if ignore.ignored(rel) {
+			if ignore.Ignores(rel) {
 				return nil
 			}
 			data, err := os.ReadFile(path)
