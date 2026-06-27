@@ -77,11 +77,24 @@ all flags are documented in `docs/commands.md`.
 ## Build & test
 
 - `make build` — compile the binary; version metadata is injected via `-ldflags`.
+  The binary lands at `./cinc` in the repo root (not `./bin/`).
 - `make test` / `go test ./...` — run the test suite.
 - `make vet`, `make fmt` — `go vet` and `gofmt`.
 - `make docs` — regenerate the per-command Markdown reference under
   `docs/commands/` from the live cobra command tree.
 - `make help` — list all targets.
+
+While iterating, scope `go test` to the packages you touched (e.g.
+`go test ./cli/supermarket/ ./apps/cinc/cmd/`). A full `go test ./...`
+is dominated by `cli/policyfile/rubyeval` (~25s) and
+`cli/policyfile/resolver` (~10s), which shell out to Ruby — only run
+those when you're changing policyfile code.
+
+For styled human output (indented steps, ✓/✗, colored tags), reuse the
+`useColor`/`colorize`/`mark` helpers and `ansi*` constants in
+`apps/cinc/cmd/config_checks.go` — they already handle `NO_COLOR` and
+TTY detection, so output stays plain when piped or under tests. Render
+structured data through `cli/printer`.
 
 Acceptance tests live under `test/acceptance/` and run the real binary
 against a live [`cinc-zero`](https://github.com/tas50/cinc-zero) server
