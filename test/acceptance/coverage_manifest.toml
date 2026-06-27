@@ -523,7 +523,7 @@ tests = ["TestPolicyExportAgainstCincZero"]
 [[command]]
 path = "policy install"
 status = "covered"
-tests = ["TestPolicyInstallEvaluatesDynamicPolicyfile", "TestPolicyInstallThenPushRoundTrips"]
+tests = ["TestPolicyInstallResolvesPushReadyLock", "TestPolicyInstallThenPushRoundTrips"]
 
 [[command]]
 path = "policy list"
