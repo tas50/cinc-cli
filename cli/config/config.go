@@ -213,7 +213,10 @@ func WriteProfile(path, name string, p Profile) error {
 		return fmt.Errorf("config: stat %s: %w", path, err)
 	}
 	raw[name] = rawProfile{
-		ChefServerURL:         profileServerURL(p),
+		// Write the cinc-canonical key. Reads still accept chef_server_url
+		// (cinc wins when both appear), so existing chef-prefixed and
+		// knife-shared files keep loading unchanged.
+		CincServerURL:         profileServerURL(p),
 		SupermarketSite:       p.SupermarketSite,
 		ClientName:            p.ClientName,
 		ClientKey:             p.KeyPath,

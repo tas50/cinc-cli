@@ -38,12 +38,15 @@ Want us to migrate it to /home/tim/.cinc/credentials for you? [Y/n]
 ```
 
 Say yes and `cinc` reads every profile from your Chef file and writes
-the equivalent `~/.cinc/credentials`. It carries over each profile's
-server URL, `client_name`, `client_key`, `ssl_verify_mode`, and
-`supermarket_site`. Your `~/.chef/credentials` is left untouched.
+the equivalent `~/.cinc/credentials`. It carries over **every** key in
+each profile — `client_name`, `client_key`, `ssl_verify_mode`,
+`supermarket_site`, `secret_file`, and the `supermarket_client_name` /
+`supermarket_key` overrides — so nothing gets dropped. As part of the
+copy it **modernizes** a legacy `chef_server_url` into the
+cinc-canonical `cinc_server_url`; everything else keeps its name. Your
+`~/.chef/credentials` is left untouched.
 
-A few things to be precise about, because the migration copies the
-profile fields it knows and nothing else:
+A couple of things to be precise about:
 
 - It's **a one-time copy, not a live fallback.** After migration, `cinc`
   reads `~/.cinc/credentials`; it does not transparently fall back to
@@ -54,10 +57,6 @@ profile fields it knows and nothing else:
   the default cinc file is missing and you didn't pass `--config`. In a
   script or CI (no TTY), nothing is migrated automatically — set the
   file up ahead of time, or point `--config` at an existing one.
-- `secret_file` and the cinc-only `supermarket_client_name` /
-  `supermarket_key` keys are **not** copied by migration. If you relied
-  on them, re-add them to `~/.cinc/credentials` afterward (it's plain
-  TOML), or just keep pointing `--config` at your original file.
 
 If there's no Chef file to migrate, the first-run flow drops into the
 same interactive setup as [`cinc config create`](configuration.md#cinc-config-create).
@@ -78,10 +77,15 @@ trying `cinc` out without committing to a new file yet.
 
 `cinc` is cinc-first but chef-compatible. **Every** chef-prefixed config
 key and environment variable has a cinc-prefixed equivalent, and both
-are accepted. When both are set in the same profile or environment, the
-`cinc_`/`CINC_` form wins. That means your existing Chef keys keep
-working untouched, and you can override individual settings with the
-cinc form without rewriting the whole file.
+are accepted on read. When both are set in the same profile or
+environment, the `cinc_`/`CINC_` form wins. That means your existing
+Chef keys keep working untouched, and you can override individual
+settings with the cinc form without rewriting the whole file.
+
+When `cinc` **writes** a credentials file — through migration or `cinc
+config create` — it emits the cinc-canonical `cinc_server_url`. It still
+**reads** `chef_server_url` happily, so a file you share with knife (or
+keep pointing `--config` at) keeps working both ways.
 
 | Chef-prefixed | Cinc-prefixed | Where |
 | --- | --- | --- |

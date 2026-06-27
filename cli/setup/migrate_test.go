@@ -90,6 +90,45 @@ client_key       = "/keys/tim.pem"
 	}
 }
 
+func TestMigrateChefModernizesURLAndCarriesAllKeys(t *testing.T) {
+	chefPath := writeChefCredentials(t, `
+[default]
+chef_server_url         = "https://chef.example.com/organizations/acme"
+client_name             = "tim"
+client_key              = "/keys/tim.pem"
+ssl_verify_mode         = ":verify_none"
+secret_file             = "/keys/encrypted_data_bag_secret"
+supermarket_client_name = "tim-public"
+supermarket_key         = "/keys/supermarket.pem"
+`)
+	cincPath := filepath.Join(t.TempDir(), ".cinc", "credentials")
+
+	if _, err := MigrateChef(chefPath, cincPath); err != nil {
+		t.Fatalf("MigrateChef: %v", err)
+	}
+	body := readFile(t, cincPath)
+
+	// The legacy chef_server_url is modernized to the cinc-canonical key.
+	if !strings.Contains(body, "cinc_server_url") {
+		t.Errorf("migrated file should write cinc_server_url, got:\n%s", body)
+	}
+	if strings.Contains(body, "chef_server_url") {
+		t.Errorf("migrated file should not keep the legacy chef_server_url, got:\n%s", body)
+	}
+
+	// Nothing the Chef file held gets dropped.
+	for _, want := range []string{
+		"/keys/encrypted_data_bag_secret", // secret_file
+		"tim-public",                      // supermarket_client_name
+		"/keys/supermarket.pem",           // supermarket_key
+		`ssl_verify_mode = ":verify_none"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("migrated file should carry %q, got:\n%s", want, body)
+		}
+	}
+}
+
 func TestMigrateChefReturnsErrorOnUnparseableFile(t *testing.T) {
 	chefPath := writeChefCredentials(t, "this is not = valid = toml [[")
 	cincPath := filepath.Join(t.TempDir(), "credentials")
