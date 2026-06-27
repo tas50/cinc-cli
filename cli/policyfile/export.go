@@ -28,10 +28,10 @@ type ExportResult struct {
 // also written as <dir>.tar.gz. Cookbooks are sourced through the fetcher
 // (cache or fresh fetch).
 func Export(ctx context.Context, fetcher *Fetcher, lock *cinc.PolicyRevision, lockJSON []byte, destDir string, archive bool) (ExportResult, error) {
-	if err := os.MkdirAll(filepath.Join(destDir, "cookbooks"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(destDir, "cookbooks"), extractDirMode); err != nil {
 		return ExportResult{}, err
 	}
-	if err := os.MkdirAll(filepath.Join(destDir, "policies"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(destDir, "policies"), extractDirMode); err != nil {
 		return ExportResult{}, err
 	}
 
@@ -64,13 +64,13 @@ func Export(ctx context.Context, fetcher *Fetcher, lock *cinc.PolicyRevision, lo
 	if err != nil {
 		return ExportResult{}, fmt.Errorf("policyfile: %w", err)
 	}
-	if err := os.WriteFile(policyFile, lockJSON, 0o644); err != nil {
+	if err := os.WriteFile(policyFile, lockJSON, extractFileMode); err != nil {
 		return ExportResult{}, err
 	}
-	if err := os.WriteFile(filepath.Join(destDir, "Policyfile.lock.json"), lockJSON, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(destDir, "Policyfile.lock.json"), lockJSON, extractFileMode); err != nil {
 		return ExportResult{}, err
 	}
-	if err := os.WriteFile(filepath.Join(destDir, "client.rb"), []byte(clientRB(lock.Name)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(destDir, "client.rb"), []byte(clientRB(lock.Name)), extractFileMode); err != nil {
 		return ExportResult{}, err
 	}
 
@@ -120,9 +120,9 @@ func copyTree(src, dst string) error {
 		}
 		target := filepath.Join(dst, rel)
 		if info.IsDir() {
-			return os.MkdirAll(target, 0o755)
+			return os.MkdirAll(target, extractDirMode)
 		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(target), extractDirMode); err != nil {
 			return err
 		}
 		in, err := os.Open(path)
@@ -130,7 +130,8 @@ func copyTree(src, dst string) error {
 			return err
 		}
 		defer in.Close()
-		out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, info.Mode().Perm())
+		// Clamp to a safe mode rather than trusting the source file's bits.
+		out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, extractFileMode)
 		if err != nil {
 			return err
 		}

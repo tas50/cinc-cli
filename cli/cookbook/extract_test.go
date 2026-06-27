@@ -137,3 +137,61 @@ func TestExtractArchiveRejectsPathTraversal(t *testing.T) {
 		t.Fatal("path-traversal entry escaped destDir")
 	}
 }
+
+// buildCookbookTarball gzips a tarball from the given entries (name -> body).
+func buildCookbookTarball(t *testing.T, files map[string]string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+	for name, body := range files {
+		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o777, Typeflag: tar.TypeReg, Size: int64(len(body))}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tw.Write([]byte(body)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// TestExtractArchiveRejectsOversizedEntry confirms an entry larger than the
+// per-file cap is refused rather than written wholesale to disk.
+func TestExtractArchiveRejectsOversizedEntry(t *testing.T) {
+	// Shrink the caps so we don't have to materialize 512 MiB in a test.
+	defer func(f, a int64) { maxExtractedFileBytes, maxExtractedArchiveBytes = f, a }(maxExtractedFileBytes, maxExtractedArchiveBytes)
+	maxExtractedFileBytes, maxExtractedArchiveBytes = 16, 64
+
+	archive := buildCookbookTarball(t, map[string]string{
+		"nginx/metadata.rb": "this body is definitely longer than sixteen bytes",
+	})
+	dest := t.TempDir()
+	if _, err := ExtractArchive(bytes.NewReader(archive), dest); err == nil {
+		t.Fatal("expected ExtractArchive to reject an over-cap entry")
+	}
+}
+
+// TestExtractArchiveClampsFileMode confirms extracted files land at 0640 even
+// when the tar entry advertised world-writable/exec bits.
+func TestExtractArchiveClampsFileMode(t *testing.T) {
+	archive := buildCookbookTarball(t, map[string]string{
+		"nginx/metadata.rb": "name 'nginx'\n",
+	})
+	dest := t.TempDir()
+	if _, err := ExtractArchive(bytes.NewReader(archive), dest); err != nil {
+		t.Fatalf("ExtractArchive: %v", err)
+	}
+	info, err := os.Stat(filepath.Join(dest, "nginx", "metadata.rb"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != extractFileMode {
+		t.Errorf("extracted file mode = %o, want %o", got, extractFileMode)
+	}
+}

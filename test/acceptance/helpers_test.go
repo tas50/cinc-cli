@@ -32,6 +32,22 @@ const cincPackage = "github.com/tas50/cinc-cli/apps/cinc"
 // at https://github.com/tas50/cinc-zero/releases.
 const cincZeroVersion = "v0.6.3"
 
+// cincZeroChecksums pins the expected SHA-256 of each release asset in source,
+// so a compromised or swapped upstream release is caught even if its
+// SHA256SUMS file is rewritten to match (the fetched sums only prove transport
+// integrity, not authenticity). To bump: change cincZeroVersion above, then
+// replace every digest here with the new release's values, e.g.
+//
+//	curl -sL https://github.com/tas50/cinc-zero/releases/download/<version>/SHA256SUMS
+//
+// A platform absent from this map fails closed (we won't run unverified).
+var cincZeroChecksums = map[string]string{
+	"darwin_amd64": "3632b679d3257effbe36b5de5daf7cdd28b36bb0fd52cc75a8e8937508ec6b55",
+	"darwin_arm64": "a5b3feb558885e2debeeb421b867a8987ae263f9a30926fec7232f81a76421a6",
+	"linux_amd64":  "e69d97a51bb778482ef20cda0c07671e77d3b90bdb3aae9b101f6acb66f2da85",
+	"linux_arm64":  "90519cc8fb7ff59bfb6d02bb9b714450ea9a358834480ea8360dc539048006f3",
+}
+
 // cincZeroPlatforms lists the GOOS_GOARCH targets cinc-zero publishes a binary
 // for. The suite skips on anything else rather than failing.
 var cincZeroPlatforms = map[string]bool{
@@ -102,11 +118,22 @@ func ensureCincZero(platform string) (string, error) {
 		return "", err
 	}
 
+	pinned, ok := cincZeroChecksums[platform]
+	if !ok {
+		return "", fmt.Errorf("no pinned cinc-zero %s checksum for %s — add one to cincZeroChecksums", cincZeroVersion, platform)
+	}
+
 	asset := fmt.Sprintf("cinc-zero_%s_%s.tar.gz", cincZeroVersion, platform)
 	base := "https://github.com/tas50/cinc-zero/releases/download/" + cincZeroVersion
 	archive, err := httpGet(base + "/" + asset)
 	if err != nil {
 		return "", err
+	}
+	// Verify against the source-pinned digest first (authenticity), then
+	// against the release's own SHA256SUMS (transport integrity / catches a
+	// stale pin). Both must agree.
+	if got := sha256.Sum256(archive); hex.EncodeToString(got[:]) != pinned {
+		return "", fmt.Errorf("cinc-zero %s checksum mismatch for %s: got %x, want pinned %s", cincZeroVersion, asset, got, pinned)
 	}
 	sums, err := httpGet(base + "/SHA256SUMS")
 	if err != nil {

@@ -264,7 +264,24 @@ cinc %[1]s key delete %[2]s rotation`, owner.noun, owner.sample),
 // reregister.
 func writePrivateKey(out io.Writer, priv, keyFile, fileMsg string) error {
 	if keyFile != "" {
-		if err := os.WriteFile(keyFile, []byte(priv), 0o600); err != nil {
+		// Open with O_TRUNC (not O_EXCL) so reregister and friends can
+		// overwrite an existing key, then force 0600 explicitly: a
+		// pre-existing file would otherwise keep its looser mode, and the
+		// create mode is masked by umask. A private key must never be
+		// group- or world-readable.
+		f, err := os.OpenFile(keyFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+		if err != nil {
+			return fmt.Errorf("cinc: write key file: %w", err)
+		}
+		if err := f.Chmod(0o600); err != nil {
+			f.Close()
+			return fmt.Errorf("cinc: write key file: %w", err)
+		}
+		if _, err := f.WriteString(priv); err != nil {
+			f.Close()
+			return fmt.Errorf("cinc: write key file: %w", err)
+		}
+		if err := f.Close(); err != nil {
 			return fmt.Errorf("cinc: write key file: %w", err)
 		}
 		fmt.Fprintln(out, fileMsg)
