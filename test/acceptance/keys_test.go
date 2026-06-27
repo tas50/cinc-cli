@@ -3,8 +3,11 @@
 package acceptance
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
+
+	cinc "github.com/tas50/cinc-api"
 )
 
 // TestClientKeyLifecycleAgainstCincZero adds a second key to a seeded
@@ -63,6 +66,69 @@ func TestUserKeyLifecycleAgainstCincZero(t *testing.T) {
 	del := runCinc(t, env.binary, "user", "key", "delete", "anna", "laptop", "--config", env.cfgPath)
 	if del != "Deleted key \"laptop\" from user \"anna\"\n" {
 		t.Errorf("user key delete output = %q", del)
+	}
+}
+
+// editKeyExpiration fetches a key as JSON, rewrites its expiration date to a
+// fixed future timestamp, edits it back via `--file`, and returns the new
+// expiration so the caller can assert the round trip stuck. It drives both
+// `<owner> key show` (to read) and `<owner> key edit --file` (to write).
+func editKeyExpiration(t *testing.T, env acceptanceEnv, noun, owner, keyName string) string {
+	t.Helper()
+	const newExpiry = "2040-12-31T00:00:00Z"
+
+	shown := runCinc(t, env.binary, noun, "key", "show", owner, keyName,
+		"--config", env.cfgPath, "--format", "json")
+	var key cinc.Key
+	if err := json.Unmarshal([]byte(shown), &key); err != nil {
+		t.Fatalf("%s key show output not valid JSON: %v\n%s", noun, err, shown)
+	}
+	if key.Name != keyName {
+		t.Errorf("%s key show name = %q, want %q", noun, key.Name, keyName)
+	}
+
+	key.ExpirationDate = newExpiry
+	key.PrivateKey, key.URI, key.Expired = "", "", false // request-only fields
+	edited := runCinc(t, env.binary, noun, "key", "edit", owner, keyName,
+		"--file", writeJSONFile(t, key), "--config", env.cfgPath)
+	if edited != "Updated key \""+keyName+"\" on "+noun+" \""+owner+"\"\n" {
+		t.Errorf("%s key edit output = %q", noun, edited)
+	}
+	return newExpiry
+}
+
+// TestClientKeyEditAgainstCincZero adds a key to a seeded client, edits its
+// expiration date via --file, and confirms the change took.
+func TestClientKeyEditAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	runCinc(t, env.binary, "client", "key", "create", "worker-01", "editable", "--config", env.cfgPath)
+
+	want := editKeyExpiration(t, env, "client", "worker-01", "editable")
+
+	after := runCinc(t, env.binary, "client", "key", "show", "worker-01", "editable",
+		"--config", env.cfgPath, "--format", "json")
+	if !strings.Contains(after, want) {
+		t.Errorf("client key show after edit missing new expiration %q:\n%s", want, after)
+	}
+}
+
+// TestUserKeyEditShowAgainstCincZero exercises the global (per-user) key show
+// and edit verbs: it adds a key to a seeded user, reads it back with `key
+// show`, edits its expiration via --file, and confirms the change took.
+func TestUserKeyEditShowAgainstCincZero(t *testing.T) {
+	env, stop := startAcceptance(t)
+	defer stop()
+
+	runCinc(t, env.binary, "user", "key", "create", "anna", "editable", "--config", env.cfgPath)
+
+	want := editKeyExpiration(t, env, "user", "anna", "editable")
+
+	after := runCinc(t, env.binary, "user", "key", "show", "anna", "editable",
+		"--config", env.cfgPath, "--format", "json")
+	if !strings.Contains(after, want) {
+		t.Errorf("user key show after edit missing new expiration %q:\n%s", want, after)
 	}
 }
 
