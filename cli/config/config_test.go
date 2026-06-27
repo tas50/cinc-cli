@@ -95,6 +95,107 @@ func TestWriteProfileRoundTripsSecretFile(t *testing.T) {
 	}
 }
 
+func TestLoadParsesSupermarketCredentials(t *testing.T) {
+	const cfg = `
+[default]
+client_name             = "tim"
+client_key              = "/keys/tim.pem"
+cinc_server_url         = "https://cinc.example.com/organizations/acme"
+supermarket_client_name = "tim-public"
+supermarket_key         = "/keys/supermarket.pem"
+`
+	c, err := Load(writeConfig(t, cfg))
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	p := c.Profiles["default"]
+	if p.SupermarketClientName != "tim-public" || p.SupermarketKey != "/keys/supermarket.pem" {
+		t.Fatalf("supermarket creds = %q/%q, want tim-public//keys/supermarket.pem", p.SupermarketClientName, p.SupermarketKey)
+	}
+}
+
+func TestWriteProfileRoundTripsSupermarketCredentials(t *testing.T) {
+	path := writeConfig(t, "")
+	if err := WriteProfile(path, "worker", Profile{
+		ServerURL:             "https://cinc.example.com",
+		Org:                   "acme",
+		ClientName:            "worker",
+		KeyPath:               "/keys/worker.pem",
+		SupermarketClientName: "worker-public",
+		SupermarketKey:        "/keys/supermarket.pem",
+	}); err != nil {
+		t.Fatalf("WriteProfile: %v", err)
+	}
+	c, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	p := c.Profiles["worker"]
+	if p.SupermarketClientName != "worker-public" || p.SupermarketKey != "/keys/supermarket.pem" {
+		t.Fatalf("round-tripped supermarket creds = %q/%q, want worker-public//keys/supermarket.pem", p.SupermarketClientName, p.SupermarketKey)
+	}
+}
+
+func TestSupermarketIdentityFallsBackPerField(t *testing.T) {
+	cases := []struct {
+		name        string
+		profile     Profile
+		wantName    string
+		wantKey     string
+		wantInvalid bool
+	}{
+		{
+			name:     "no override falls back to client identity",
+			profile:  Profile{ClientName: "tim", KeyPath: "/keys/tim.pem"},
+			wantName: "tim", wantKey: "/keys/tim.pem",
+		},
+		{
+			name: "both overrides win",
+			profile: Profile{
+				ClientName: "tim", KeyPath: "/keys/tim.pem",
+				SupermarketClientName: "tim-public", SupermarketKey: "/keys/super.pem",
+			},
+			wantName: "tim-public", wantKey: "/keys/super.pem",
+		},
+		{
+			name: "only username override, key falls back",
+			profile: Profile{
+				ClientName: "tim", KeyPath: "/keys/tim.pem",
+				SupermarketClientName: "tim-public",
+			},
+			wantName: "tim-public", wantKey: "/keys/tim.pem",
+		},
+		{
+			name: "only key override, username falls back",
+			profile: Profile{
+				ClientName: "tim", KeyPath: "/keys/tim.pem",
+				SupermarketKey: "/keys/super.pem",
+			},
+			wantName: "tim", wantKey: "/keys/super.pem",
+		},
+		{
+			name:        "neither base nor override identity is invalid",
+			profile:     Profile{},
+			wantInvalid: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotName, gotKey := tc.profile.SupermarketIdentity()
+			if !tc.wantInvalid && (gotName != tc.wantName || gotKey != tc.wantKey) {
+				t.Fatalf("SupermarketIdentity() = %q/%q, want %q/%q", gotName, gotKey, tc.wantName, tc.wantKey)
+			}
+			err := tc.profile.ValidateSupermarketIdentity()
+			if tc.wantInvalid && err == nil {
+				t.Fatal("ValidateSupermarketIdentity() = nil, want error")
+			}
+			if !tc.wantInvalid && err != nil {
+				t.Fatalf("ValidateSupermarketIdentity() = %v, want nil", err)
+			}
+		})
+	}
+}
+
 func TestConfigProfileResolvesDefaultWhenNameEmpty(t *testing.T) {
 	t.Setenv("CHEF_PROFILE", "")
 	cfg, _ := Load(writeConfig(t, sampleConfig))

@@ -51,11 +51,17 @@ type ShareResult struct {
 	Files       []string `json:"files,omitempty"`
 }
 
-// New builds a Supermarket client using the configured profile identity.
+// New builds a Supermarket client using the profile's Supermarket identity.
+//
+// The signing identity is resolved through Profile.SupermarketIdentity, so a
+// profile can override the username and/or key used for uploads via
+// supermarket_client_name/supermarket_key while falling back to
+// client_name/client_key for whichever override is unset.
 func New(profile config.Profile, site string) (*Client, error) {
-	if err := profile.ValidateIdentity(); err != nil {
+	if err := profile.ValidateSupermarketIdentity(); err != nil {
 		return nil, err
 	}
+	username, keyPath := profile.SupermarketIdentity()
 	if site == "" {
 		site = profile.SupermarketSite
 	}
@@ -66,13 +72,13 @@ func New(profile config.Profile, site string) (*Client, error) {
 	if err != nil || base.Scheme == "" || base.Host == "" {
 		return nil, fmt.Errorf("supermarket: invalid site URL %q", site)
 	}
-	key, err := sm.LoadKeyFile(profile.KeyPath)
+	key, err := sm.LoadKeyFile(keyPath)
 	if err != nil {
 		return nil, fmt.Errorf("supermarket: load key: %w", err)
 	}
 	api, err := sm.NewClient(sm.Config{
 		BaseURL:  base.String(),
-		Username: profile.ClientName,
+		Username: username,
 		Key:      key,
 	}, sm.WithUserAgent("cinc-cli"))
 	if err != nil {

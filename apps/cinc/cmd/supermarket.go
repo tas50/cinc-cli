@@ -459,6 +459,14 @@ func newSupermarketShareCmd() *cobra.Command {
 		Short: "Share a cookbook on Chef Supermarket",
 		Example: `Share a local cookbook to Supermarket (requires credentials).
 cinc supermarket share nginx 'Web Servers'`,
+		Long: "Packages a local cookbook and uploads it to Chef Supermarket.\n" +
+			"Uploads are signed with the profile's identity. By default that's\n" +
+			"client_name/client_key — the same identity used against your Cinc\n" +
+			"Server. To publish to the public Supermarket under a different\n" +
+			"identity, set supermarket_client_name and/or supermarket_key in the\n" +
+			"profile; each falls back independently to client_name/client_key\n" +
+			"when unset, so you can override just the username, just the key, or\n" +
+			"both.",
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, err := resolveFormat(cmd)
@@ -508,6 +516,8 @@ cinc supermarket share nginx 'Web Servers'`,
 	}
 	cmd.Flags().StringVar(&cookbookPath, "cookbook-path", "", "directory or path list containing cookbooks (default current directory)")
 	cmd.Flags().StringVar(&site, "supermarket-site", "", "URL of the Chef Supermarket site (default: profile supermarket_site, then https://supermarket.chef.io)")
+	// Uploads sign with supermarket_client_name/supermarket_key when set,
+	// falling back per-field to client_name/client_key.
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "build the cookbook tarball without uploading it")
 	cmd.Flags().BoolVar(&noChefignore, "no-chefignore", false, "do not exclude files matched by the cookbook's chefignore file")
 	return cmd

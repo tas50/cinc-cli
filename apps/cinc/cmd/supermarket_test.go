@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -126,6 +129,58 @@ func writeCommandSupermarketCookbookWithChefignore(t *testing.T, name string) st
 		}
 	}
 	return root
+}
+
+func TestSupermarketShareUsesSupermarketOverrideIdentity(t *testing.T) {
+	cookbookPath := writeCommandSupermarketCookbook(t, "nginx")
+	var userID string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/cookbooks/nginx":
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, `{"error_code":"NOT_FOUND","error_messages":["Resource not found"]}`)
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/cookbooks":
+			userID = r.Header.Get("X-Ops-Userid")
+			w.WriteHeader(http.StatusCreated)
+			_, _ = io.WriteString(w, `{}`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	cfgPath := filepath.Join(t.TempDir(), "credentials")
+	// The base client_key is bogus on purpose: a successful, signed upload
+	// proves the share path loaded supermarket_key, not client_key.
+	cfg := fmt.Sprintf(`[default]
+cinc_server_url         = "https://chef.example.test/organizations/acme"
+client_name             = "tim"
+client_key              = "/keys/does-not-exist.pem"
+supermarket_client_name = "tim-public"
+supermarket_key         = %q
+supermarket_site        = %q
+`, writeTestKey(t), srv.URL)
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetArgs([]string{
+		"supermarket", "share", "nginx", "Other",
+		"--cookbook-path", cookbookPath, "--config", cfgPath,
+	})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("cinc supermarket share: %v", err)
+	}
+	if userID != "tim-public" {
+		t.Fatalf("X-Ops-Userid = %q, want supermarket_client_name tim-public", userID)
+	}
+	if !strings.Contains(buf.String(), "Upload complete") {
+		t.Fatalf("output = %q, want upload confirmation", buf.String())
+	}
 }
 
 func TestSupermarketExploreCommandRegistered(t *testing.T) {

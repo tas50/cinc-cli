@@ -25,6 +25,17 @@ type Profile struct {
 	KeyPath         string
 	SSLVerifyMode   string
 
+	// SupermarketClientName and SupermarketKey optionally override the
+	// identity used to sign Chef Supermarket uploads, so a user can
+	// publish to the public Supermarket under a different username or key
+	// than the one they use against their Cinc Server. Each field falls
+	// back independently: the effective Supermarket username is
+	// SupermarketClientName or, when empty, ClientName; the effective key
+	// is SupermarketKey or, when empty, KeyPath. These are cinc-only keys
+	// (knife has no equivalent). See SupermarketIdentity.
+	SupermarketClientName string
+	SupermarketKey        string
+
 	// SecretFile is the path to the encrypted data bag secret used to
 	// encrypt and decrypt `cinc databag secret` items. The on-disk key
 	// is `secret_file`, matching knife's `knife[:secret_file]`, so the
@@ -43,13 +54,15 @@ type Profile struct {
 // are accepted; when both appear in the same profile the cinc_-prefixed
 // value wins.
 type rawProfile struct {
-	CincServerURL   string `toml:"cinc_server_url,omitempty"`
-	ChefServerURL   string `toml:"chef_server_url,omitempty"`
-	SupermarketSite string `toml:"supermarket_site,omitempty"`
-	ClientName      string `toml:"client_name,omitempty"`
-	ClientKey       string `toml:"client_key,omitempty"`
-	SSLVerifyMode   string `toml:"ssl_verify_mode,omitempty"`
-	SecretFile      string `toml:"secret_file,omitempty"`
+	CincServerURL         string `toml:"cinc_server_url,omitempty"`
+	ChefServerURL         string `toml:"chef_server_url,omitempty"`
+	SupermarketSite       string `toml:"supermarket_site,omitempty"`
+	ClientName            string `toml:"client_name,omitempty"`
+	ClientKey             string `toml:"client_key,omitempty"`
+	SupermarketClientName string `toml:"supermarket_client_name,omitempty"`
+	SupermarketKey        string `toml:"supermarket_key,omitempty"`
+	SSLVerifyMode         string `toml:"ssl_verify_mode,omitempty"`
+	SecretFile            string `toml:"secret_file,omitempty"`
 }
 
 // serverURL returns the configured server URL, preferring the
@@ -83,14 +96,43 @@ func (p Profile) Validate() error {
 }
 
 // ValidateIdentity reports whether the profile has the fields needed to sign
-// requests that do not target a Cinc Server organization, such as
-// Supermarket uploads.
+// requests that target a Cinc Server organization.
 func (p Profile) ValidateIdentity() error {
 	switch {
 	case p.ClientName == "":
 		return fmt.Errorf("config: profile is missing client_name")
 	case p.KeyPath == "":
 		return fmt.Errorf("config: profile is missing client_key")
+	}
+	return nil
+}
+
+// SupermarketIdentity returns the username and key path used to sign Chef
+// Supermarket uploads. Each field falls back independently: the username is
+// supermarket_client_name or, when unset, client_name; the key is
+// supermarket_key or, when unset, client_key. This lets a user publish to
+// the public Supermarket under a different identity than their Cinc Server
+// client while overriding only the field that differs.
+func (p Profile) SupermarketIdentity() (name, keyPath string) {
+	name = p.SupermarketClientName
+	if name == "" {
+		name = p.ClientName
+	}
+	keyPath = p.SupermarketKey
+	if keyPath == "" {
+		keyPath = p.KeyPath
+	}
+	return name, keyPath
+}
+
+// ValidateSupermarketIdentity reports whether the profile resolves to an
+// identity that can sign Supermarket uploads, accounting for the
+// supermarket_client_name/supermarket_key overrides and their fallback to
+// client_name/client_key.
+func (p Profile) ValidateSupermarketIdentity() error {
+	name, keyPath := p.SupermarketIdentity()
+	if name == "" || keyPath == "" {
+		return fmt.Errorf("config: we need a Supermarket identity to share — set client_name/client_key, or supermarket_client_name/supermarket_key, in your profile")
 	}
 	return nil
 }
@@ -171,12 +213,14 @@ func WriteProfile(path, name string, p Profile) error {
 		return fmt.Errorf("config: stat %s: %w", path, err)
 	}
 	raw[name] = rawProfile{
-		ChefServerURL:   profileServerURL(p),
-		SupermarketSite: p.SupermarketSite,
-		ClientName:      p.ClientName,
-		ClientKey:       p.KeyPath,
-		SSLVerifyMode:   p.SSLVerifyMode,
-		SecretFile:      p.SecretFile,
+		ChefServerURL:         profileServerURL(p),
+		SupermarketSite:       p.SupermarketSite,
+		ClientName:            p.ClientName,
+		ClientKey:             p.KeyPath,
+		SupermarketClientName: p.SupermarketClientName,
+		SupermarketKey:        p.SupermarketKey,
+		SSLVerifyMode:         p.SSLVerifyMode,
+		SecretFile:            p.SecretFile,
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return fmt.Errorf("config: create credentials directory: %w", err)
@@ -213,6 +257,12 @@ func tomlProfiles(raw map[string]rawProfile) map[string]map[string]string {
 		}
 		if profile.ClientKey != "" {
 			values["client_key"] = profile.ClientKey
+		}
+		if profile.SupermarketClientName != "" {
+			values["supermarket_client_name"] = profile.SupermarketClientName
+		}
+		if profile.SupermarketKey != "" {
+			values["supermarket_key"] = profile.SupermarketKey
 		}
 		if profile.SSLVerifyMode != "" {
 			values["ssl_verify_mode"] = profile.SSLVerifyMode
@@ -268,11 +318,13 @@ func profileServerURL(p Profile) string {
 // the configured server URL into a server URL and an organization name.
 func resolveProfile(rp rawProfile) (Profile, error) {
 	p := Profile{
-		SupermarketSite: rp.SupermarketSite,
-		ClientName:      rp.ClientName,
-		KeyPath:         rp.ClientKey,
-		SSLVerifyMode:   rp.SSLVerifyMode,
-		SecretFile:      rp.SecretFile,
+		SupermarketSite:       rp.SupermarketSite,
+		ClientName:            rp.ClientName,
+		KeyPath:               rp.ClientKey,
+		SupermarketClientName: rp.SupermarketClientName,
+		SupermarketKey:        rp.SupermarketKey,
+		SSLVerifyMode:         rp.SSLVerifyMode,
+		SecretFile:            rp.SecretFile,
 	}
 	if raw := rp.serverURL(); raw != "" {
 		// Preserve the raw URL even when it doesn't parse, so validation can

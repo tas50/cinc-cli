@@ -107,6 +107,32 @@ default for that profile; a command can always override it with
 key name matches knife's `knife[:secret_file]`, so an existing
 `encrypted_data_bag_secret` works unchanged.
 
+The optional `supermarket_site` key sets the Supermarket instance the
+`cinc supermarket` commands target (default `https://supermarket.chef.io`).
+Two further optional keys override the identity used to **sign Supermarket
+uploads** (`cinc supermarket share`), so you can publish to the public
+Supermarket under a different account than the one you use against your Cinc
+Server:
+
+```toml
+[default]
+cinc_server_url         = "https://cinc.example.com/organizations/acme"
+client_name             = "tim"
+client_key              = "/keys/tim.pem"
+supermarket_client_name = "tim-public"
+supermarket_key         = "/keys/supermarket.pem"
+```
+
+- `supermarket_client_name` — the Supermarket username uploads are signed as.
+- `supermarket_key` — path to the private key used to sign uploads.
+
+Each falls back **independently**: the effective username is
+`supermarket_client_name` or, when unset, `client_name`; the effective key is
+`supermarket_key` or, when unset, `client_key`. Override just the key, just
+the username, or both. When neither is set, uploads use `client_name`/
+`client_key` exactly as before. These are **cinc-only** keys — knife has no
+equivalent, so there's no chef-prefixed pairing.
+
 Persistent flags on every command:
 
 | Flag | Description |
