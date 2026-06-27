@@ -68,7 +68,7 @@ the Linux AMD64 binary without installing Go:
 ```yaml
 - name: Install cinc
   env:
-    CINC_VERSION: v0.20.0
+    CINC_VERSION: v0.21.0
   run: |
     archive="cinc_${CINC_VERSION}_linux_amd64.tar.gz"
     curl -fsSL -o "$archive" "https://github.com/tas50/cinc-cli/releases/download/${CINC_VERSION}/${archive}"
