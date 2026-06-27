@@ -54,6 +54,9 @@ func BootstrapCommand(opts BootstrapOptions) (string, error) {
 	}
 	commands := []string{
 		"set -e",
+		// Trust assumption: this pipes the installer script straight into a
+		// shell, so the target trusts opts.BootstrapURL (HTTPS omnitruck by
+		// default) and its TLS chain — standard Chef/Cinc bootstrap behavior.
 		"curl -L " + shellQuote(opts.BootstrapURL) + " | " + prefix + "bash -s --" + installArgs,
 		prefix + "mkdir -p /etc/cinc",
 		// Create the private key 0600 *before* writing, so it is never

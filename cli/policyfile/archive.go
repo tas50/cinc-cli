@@ -94,6 +94,7 @@ func extractBundleTarball(archivePath, dest string) error {
 	defer gz.Close()
 
 	tr := tar.NewReader(gz)
+	var total int64
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -109,20 +110,20 @@ func extractBundleTarball(archivePath, dest string) error {
 		}
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, 0o755); err != nil {
+			if err := os.MkdirAll(target, extractDirMode); err != nil {
 				return err
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(target), extractDirMode); err != nil {
 				return err
 			}
-			out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(hdr.Mode)&0o777|0o600)
+			out, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, extractFileMode)
 			if err != nil {
 				return err
 			}
-			if _, err := io.Copy(out, tr); err != nil { //nolint:gosec // bounded by withinDir + temp dir
+			if err := boundedCopy(out, tr, hdr.Name, &total); err != nil {
 				out.Close()
-				return err
+				return fmt.Errorf("policyfile: %w", err)
 			}
 			if err := out.Close(); err != nil {
 				return err

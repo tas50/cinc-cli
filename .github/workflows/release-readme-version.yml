@@ -23,6 +23,11 @@ jobs:
           # DOCS_BOT_TOKEN is a PAT (or GitHub App token) whose owner is on
           # main's branch-protection bypass list — the same token docs.yml
           # uses, because the default GITHUB_TOKEN cannot push to main.
+          # SECURITY FOLLOW-UP: migrate this branch-protection-bypass
+          # credential to a repo-scoped GitHub App installation token
+          # (short-lived, least-privilege) instead of a long-lived PAT.
+          # Needs a maintainer to provision the App; kept as-is for now so
+          # CI keeps working until that's in place.
           token: ${{ secrets.DOCS_BOT_TOKEN }}
 
       - name: Update CINC_VERSION in README

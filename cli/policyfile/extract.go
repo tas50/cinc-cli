@@ -15,6 +15,45 @@ import (
 	"strings"
 )
 
+// Extraction modes deliberately ignore the tar entry's own bits (which we
+// don't trust) and clamp to owner-plus-group-readable, never world-writable.
+const (
+	extractDirMode  = 0o750
+	extractFileMode = 0o640
+)
+
+// Extraction byte caps guard against a zip-bomb / disk-fill DoS: a tiny gzip
+// stream can otherwise expand into enormous output. They're vars (not consts)
+// only so tests can shrink them; production never reassigns them.
+var (
+	maxExtractedFileBytes    int64 = 512 << 20 // 512 MiB per file
+	maxExtractedArchiveBytes int64 = 2 << 30   // 2 GiB per archive total
+)
+
+// boundedCopy copies the current tar entry into dst, failing if the entry
+// exceeds the per-file cap or pushes the running archive total past the
+// whole-archive cap. total accumulates across every entry in one archive.
+func boundedCopy(dst io.Writer, src io.Reader, name string, total *int64) error {
+	// Apply the tighter of the per-file cap and the archive's remaining budget.
+	limit := maxExtractedFileBytes
+	if remaining := maxExtractedArchiveBytes - *total; remaining < limit {
+		limit = remaining
+	}
+	if limit < 0 {
+		limit = 0
+	}
+	// Read one byte past the limit so we can tell when an entry overflows it.
+	n, err := io.Copy(dst, io.LimitReader(src, limit+1))
+	*total += n
+	if err != nil {
+		return err
+	}
+	if n > limit {
+		return fmt.Errorf("archive entry %q is too large: extraction is capped at %d MiB per file and %d MiB per archive", name, maxExtractedFileBytes>>20, maxExtractedArchiveBytes>>20)
+	}
+	return nil
+}
+
 // extractCookbookTarball reads a gzip-compressed tar stream and writes its
 // entries under dest, stripping the single leading path segment that
 // Supermarket tarballs wrap a cookbook in (e.g. "nginx/metadata.rb" lands at
@@ -28,6 +67,7 @@ func extractCookbookTarball(r io.Reader, dest string) error {
 	defer gz.Close()
 
 	tr := tar.NewReader(gz)
+	var total int64
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -46,20 +86,20 @@ func extractCookbookTarball(r io.Reader, dest string) error {
 		}
 		switch hdr.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(target, 0o755); err != nil {
+			if err := os.MkdirAll(target, extractDirMode); err != nil {
 				return err
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(target), extractDirMode); err != nil {
 				return err
 			}
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(hdr.Mode)&0o777|0o600)
+			f, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, extractFileMode)
 			if err != nil {
 				return err
 			}
-			if _, err := io.Copy(f, tr); err != nil {
+			if err := boundedCopy(f, tr, hdr.Name, &total); err != nil {
 				f.Close()
-				return err
+				return fmt.Errorf("supermarket: %w", err)
 			}
 			if err := f.Close(); err != nil {
 				return err

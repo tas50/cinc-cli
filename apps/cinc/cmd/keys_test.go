@@ -337,6 +337,37 @@ func TestKeyEditCommandReadsFromFile(t *testing.T) {
 	}
 }
 
+// TestWritePrivateKeyForces0600 confirms the written key is mode 0600 even
+// when a looser-permissioned file already exists at the path (the
+// os.WriteFile-with-mode approach would have preserved the old 0644).
+func TestWritePrivateKeyForces0600(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "client.pem")
+	// Pre-create a world/group-readable file at the destination.
+	if err := os.WriteFile(path, []byte("stale"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	if err := writePrivateKey(&out, "-----BEGIN KEY-----\nabc\n-----END KEY-----\n", path, "wrote it"); err != nil {
+		t.Fatalf("writePrivateKey: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Errorf("key file mode = %o, want 600", got)
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "BEGIN KEY") {
+		t.Errorf("key file body = %q, want the new private key", body)
+	}
+}
+
 func TestKeyDeleteCommand(t *testing.T) {
 	var deleted string
 	mux := http.NewServeMux()
