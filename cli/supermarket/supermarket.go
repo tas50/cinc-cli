@@ -131,7 +131,7 @@ func packageCookbook(opts ShareOptions, category string, includeFiles bool) (Sha
 	}
 	md := metadata.Metadata
 	if md.Name != opts.Cookbook {
-		return ShareResult{}, localcookbook.Archive{}, fmt.Errorf("metadata.json name %q does not match requested cookbook %q", md.Name, opts.Cookbook)
+		return ShareResult{}, localcookbook.Archive{}, fmt.Errorf("metadata name %q does not match requested cookbook %q", md.Name, opts.Cookbook)
 	}
 	if category == "" {
 		category = "Other"

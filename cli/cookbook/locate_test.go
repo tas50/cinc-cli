@@ -85,6 +85,83 @@ func TestLocateRejectsDirectoryMissingMetadata(t *testing.T) {
 	}
 }
 
+func TestLocateFindsCookbookByMetadataNameFromInsideDir(t *testing.T) {
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "chef-mondoo")
+	writeNamedCookbookRB(t, dir, "mondoo", "1.0.0")
+	pushdir(t, dir)
+
+	got, err := Locate("mondoo", "")
+	if err != nil {
+		t.Fatalf("Locate: %v", err)
+	}
+	abs, err := filepath.Abs(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(abs) != "chef-mondoo" {
+		t.Fatalf("located %q, want the chef-mondoo directory", got)
+	}
+}
+
+func TestLocateFindsCookbookByMetadataNameWithMetadataJSON(t *testing.T) {
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "chef-mondoo")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "metadata.json"), []byte(`{"name":"mondoo","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pushdir(t, dir)
+
+	got, err := Locate("mondoo", "")
+	if err != nil {
+		t.Fatalf("Locate: %v", err)
+	}
+	abs, err := filepath.Abs(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(abs) != "chef-mondoo" {
+		t.Fatalf("located %q, want the chef-mondoo directory", got)
+	}
+}
+
+func TestLocateFromParentMatchesDirNameNotMetadataName(t *testing.T) {
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "chef-mondoo")
+	writeNamedCookbookRB(t, dir, "mondoo", "1.0.0")
+
+	// From the parent we can't find the cookbook by its metadata name, because
+	// there is no ./mondoo subdirectory — that's the expected, sane behavior.
+	if _, err := Locate("mondoo", tmp); err == nil {
+		t.Fatal("expected not-found locating by metadata name from the parent dir")
+	}
+	// By directory name it still resolves through the base/name subdir check.
+	got, err := Locate("chef-mondoo", tmp)
+	if err != nil {
+		t.Fatalf("Locate: %v", err)
+	}
+	if got != dir {
+		t.Fatalf("located %q, want %q", got, dir)
+	}
+}
+
+func writeNamedCookbookRB(t *testing.T, dir, name, version string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(dir, "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rb := "name '" + name + "'\nversion '" + version + "'\n"
+	if err := os.WriteFile(filepath.Join(dir, "metadata.rb"), []byte(rb), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "recipes", "default.rb"), []byte("package 'mondoo'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func writeCookbookDir(t *testing.T, dir string) {
 	t.Helper()
 	if err := os.MkdirAll(dir, 0o755); err != nil {

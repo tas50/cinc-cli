@@ -416,6 +416,90 @@ func TestNewUsesSupermarketSiteFromProfileWithoutServerURL(t *testing.T) {
 	}
 }
 
+func TestShareDryRunSharesByMetadataNameFromMismatchedDir(t *testing.T) {
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "chef-mondoo")
+	writeNamedSupermarketCookbookRB(t, dir, "mondoo")
+	supermarketPushdir(t, dir)
+
+	result, err := DryRun(ShareOptions{Cookbook: "mondoo"})
+	if err != nil {
+		t.Fatalf("DryRun: %v", err)
+	}
+	if result.Cookbook != "mondoo" {
+		t.Fatalf("cookbook = %q, want mondoo", result.Cookbook)
+	}
+	if result.Tarball != "mondoo.tgz" {
+		t.Fatalf("tarball = %q, want mondoo.tgz", result.Tarball)
+	}
+	if len(result.Files) == 0 || result.TarballSize == 0 {
+		t.Fatalf("expected a built tarball, got %+v", result)
+	}
+	for _, f := range result.Files {
+		if !strings.HasPrefix(f, "mondoo/") {
+			t.Fatalf("archive entry %q is not rooted at mondoo/", f)
+		}
+	}
+}
+
+func TestShareDryRunSharesByMetadataNameViaCookbookPath(t *testing.T) {
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "chef-mondoo")
+	writeNamedSupermarketCookbookRB(t, dir, "mondoo")
+
+	result, err := DryRun(ShareOptions{Cookbook: "mondoo", CookbookPath: dir})
+	if err != nil {
+		t.Fatalf("DryRun: %v", err)
+	}
+	if result.Cookbook != "mondoo" || result.Tarball != "mondoo.tgz" {
+		t.Fatalf("result = %+v, want cookbook/tarball named mondoo", result)
+	}
+	if len(result.Files) == 0 {
+		t.Fatal("expected a built tarball")
+	}
+}
+
+func TestShareRejectsSharingByDirectoryNameWhenMetadataDiffers(t *testing.T) {
+	tmp := t.TempDir()
+	dir := filepath.Join(tmp, "chef-mondoo")
+	writeNamedSupermarketCookbookRB(t, dir, "mondoo")
+
+	_, err := DryRun(ShareOptions{Cookbook: "chef-mondoo", CookbookPath: dir})
+	if err == nil {
+		t.Fatal("expected a guard error sharing by the directory name")
+	}
+	want := `metadata name "mondoo" does not match requested cookbook "chef-mondoo"`
+	if !strings.Contains(err.Error(), want) {
+		t.Fatalf("error = %q, want it to contain %q", err, want)
+	}
+}
+
+func writeNamedSupermarketCookbookRB(t *testing.T, dir, name string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(dir, "recipes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rb := "name '" + name + "'\nversion '1.0.0'\n"
+	if err := os.WriteFile(filepath.Join(dir, "metadata.rb"), []byte(rb), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "recipes", "default.rb"), []byte("package 'mondoo'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func supermarketPushdir(t *testing.T, dir string) {
+	t.Helper()
+	prev, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prev) })
+}
+
 func writeSupermarketCookbook(t *testing.T, name string) string {
 	t.Helper()
 	root := t.TempDir()
