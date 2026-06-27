@@ -1,17 +1,13 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
-	"sort"
-	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/tas50/cinc-cli/cli/policyfile"
+	"github.com/tas50/cinc-cli/cli/policyfile/resolver"
 	"github.com/tas50/cinc-cli/cli/policyfile/rubyeval"
 	"github.com/tas50/cinc-cli/cli/printer"
 )
@@ -24,24 +20,26 @@ func newPolicyInstallCmd() *cobra.Command {
 	var outFile string
 	cmd := &cobra.Command{
 		Use:   "install [Policyfile.rb]",
-		Short: "Evaluate a Policyfile.rb and write the evaluated lock",
-		Long: "Evaluate a Policyfile.rb and write the evaluated lock.\n\n" +
+		Short: "Resolve a Policyfile.rb and write a push-ready lock",
+		Long: "Resolve a Policyfile.rb into a push-ready Policyfile.lock.json.\n\n" +
 			"cinc runs your Policyfile through an embedded CRuby engine (CRuby\n" +
 			"compiled to WebAssembly, run with no system Ruby and no CGo), so any\n" +
 			"valid Ruby works: loops, conditionals, helper methods, ENV, string\n" +
 			"interpolation, and require_relative of sibling files all behave just\n" +
 			"as they do with chef. The first run downloads a pinned ruby.wasm and\n" +
 			"caches it; later runs are offline.\n\n" +
-			"What it resolves: this command performs evaluation only. It captures\n" +
-			"your name, run_list, named run lists, attributes, and each cookbook's\n" +
-			"declared source, and writes them to Policyfile.lock.json. It does NOT\n" +
-			"yet solve cookbook versions, fetch cookbooks, or compute cookbook\n" +
-			"identifiers — so the lock is not a fully-resolved, push-ready lock.\n" +
-			"Those resolution steps are a separate, larger feature.",
-		Example: `Evaluate ./Policyfile.rb and write ./Policyfile.lock.json.
+			"cinc then resolves your cookbooks: it reads each cookbook's metadata,\n" +
+			"solves versions against every `depends` and the constraints in your\n" +
+			"Policyfile, and computes the same content identifiers chef does. The\n" +
+			"resulting Policyfile.lock.json is byte-for-byte compatible with what\n" +
+			"`chef install` writes, so you can `cinc policy push` it straight to a\n" +
+			"Cinc/Chef Infra Server.\n\n" +
+			"Today path: cookbooks are the fully supported source. git:,\n" +
+			"Supermarket, and chef server sources aren't resolved yet.",
+		Example: `Resolve ./Policyfile.rb and write ./Policyfile.lock.json.
 cinc policy install
 
-Evaluate a specific Policyfile and print the evaluation as JSON.
+Resolve a specific Policyfile and print a summary as JSON.
 cinc policy install path/to/Policyfile.rb --format json`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -58,7 +56,8 @@ cinc policy install path/to/Policyfile.rb --format json`,
 				return fmt.Errorf("we couldn't find a Policyfile at %s. Pass its path, or run `cinc policy create <name>` to scaffold one", pfPath)
 			}
 
-			eval, err := rubyeval.NewEngine().EvaluateFile(cmd.Context(), pfPath)
+			eng := rubyeval.NewEngine()
+			eval, raw, err := eng.EvaluateFileWithRaw(cmd.Context(), pfPath)
 			if rubyeval.IsUnavailable(err) {
 				return fmt.Errorf("cinc needs the embedded Ruby engine (ruby.wasm) to evaluate a Policyfile, but we couldn't download it: %w.\nOnce you have network access the first run will cache it and later runs work offline", err)
 			}
@@ -69,23 +68,23 @@ cinc policy install path/to/Policyfile.rb --format json`,
 				return fmt.Errorf("we couldn't evaluate %s:\n%w", pfPath, err)
 			}
 
-			lock := policyfile.EvaluationLock(eval)
+			result, err := resolver.Resolve(cmd.Context(), eng, eval, raw, filepath.Dir(pfPath))
+			if err != nil {
+				return fmt.Errorf("we couldn't resolve %s:\n%w", pfPath, err)
+			}
+
 			lockPath := outFile
 			if lockPath == "" {
 				lockPath = filepath.Join(filepath.Dir(pfPath), "Policyfile.lock.json")
 			}
-			lockJSON, err := json.MarshalIndent(lock, "", "  ")
-			if err != nil {
-				return err
-			}
-			if err := os.WriteFile(lockPath, append(lockJSON, '\n'), 0o644); err != nil {
+			if err := os.WriteFile(lockPath, result.LockJSON, 0o644); err != nil {
 				return fmt.Errorf("cinc: write %s: %w", lockPath, err)
 			}
 
 			if format == printer.FormatJSON {
-				return printer.New(cmd.OutOrStdout(), format).Value(eval)
+				return printer.New(cmd.OutOrStdout(), format).Value(installSummary(eval.Name, lockPath, result))
 			}
-			renderInstall(cmd, pfPath, lockPath, eval)
+			renderInstall(cmd, pfPath, lockPath, eval.Name, result)
 			return nil
 		},
 	}
@@ -93,97 +92,52 @@ cinc policy install path/to/Policyfile.rb --format json`,
 	return cmd
 }
 
-// renderInstall prints the human summary of an evaluated Policyfile, leading
-// with what was captured and ending with an honest note about the
-// evaluation-vs-resolution boundary.
-func renderInstall(cmd *cobra.Command, pfPath, lockPath string, eval *rubyeval.EvaluatedPolicy) {
+// installSummary is the JSON shape printed for `--format json`: the resolved
+// policy name, revision id, lock path, and per-cookbook locks.
+func installSummary(name, lockPath string, result *resolver.Result) map[string]any {
+	cookbooks := make([]map[string]any, 0, len(result.Cookbooks))
+	for _, cb := range result.Cookbooks {
+		cookbooks = append(cookbooks, map[string]any{
+			"name":       cb.Name,
+			"version":    cb.Version,
+			"identifier": cb.Identifier,
+			"source":     cb.Source,
+		})
+	}
+	return map[string]any{
+		"name":        name,
+		"revision_id": result.RevisionID,
+		"lock":        lockPath,
+		"cookbooks":   cookbooks,
+	}
+}
+
+// renderInstall prints the human summary of a resolved Policyfile: the policy
+// name, its revision id, and each cookbook lock it pins, ending with the lock
+// path so the next step (`cinc policy push`) is obvious.
+func renderInstall(cmd *cobra.Command, pfPath, lockPath, name string, result *resolver.Result) {
 	out := cmd.OutOrStdout()
-	name := eval.Name
 	if name == "" {
 		name = "(unnamed)"
 	}
-	fmt.Fprintf(out, "Evaluated %s (policy %q)\n\n", pfPath, name)
+	fmt.Fprintf(out, "Resolved %s (policy %q)\n\n", pfPath, name)
 
-	if len(eval.RunList) > 0 {
-		fmt.Fprintln(out, "  run_list:")
-		for _, item := range eval.RunList {
-			fmt.Fprintf(out, "    %s\n", item)
+	if len(result.Cookbooks) > 0 {
+		fmt.Fprintln(out, "  cookbook locks:")
+		for _, cb := range result.Cookbooks {
+			fmt.Fprintf(out, "    %-20s %-10s %s\n", cb.Name, cb.Version, shortID(cb.Identifier))
 		}
-	}
-	if len(eval.NamedRunLists) > 0 {
-		fmt.Fprintln(out, "  named run lists:")
-		for _, n := range sortedKeys(eval.NamedRunLists) {
-			fmt.Fprintf(out, "    %s: %s\n", n, strings.Join(eval.NamedRunLists[n], ", "))
-		}
-	}
-	if len(eval.Cookbooks) > 0 {
-		fmt.Fprintln(out, "  cookbooks:")
-		for _, n := range sortedCookbookNames(eval.Cookbooks) {
-			spec := eval.Cookbooks[n]
-			fmt.Fprintf(out, "    %-20s %-12s %s\n", n, spec.VersionConstraint, cookbookSource(spec.SourceOptions))
-		}
-	}
-	if len(eval.DefaultAttributes) > 0 {
-		fmt.Fprintf(out, "  default attributes:  %d top-level key(s)\n", len(eval.DefaultAttributes))
-	}
-	if len(eval.OverrideAttributes) > 0 {
-		fmt.Fprintf(out, "  override attributes: %d top-level key(s)\n", len(eval.OverrideAttributes))
+		fmt.Fprintln(out)
 	}
 
-	fmt.Fprintf(out, "\nWrote %s.\n", lockPath)
-	if unresolved := policyfile.UnresolvedCookbooks(eval); len(unresolved) > 0 {
-		slices.Sort(unresolved)
-		fmt.Fprintf(out, "\nHeads up: this is an evaluation-only lock. cinc captured your run_list,\n"+
-			"attributes, and cookbook sources, but it has not resolved cookbook\n"+
-			"versions or identifiers or fetched any cookbooks (%s), so the lock\n"+
-			"isn't ready to `cinc policy push` yet. Full dependency resolution is a\n"+
-			"separate feature still in progress.\n", strings.Join(unresolved, ", "))
-	}
+	fmt.Fprintf(out, "  revision id: %s\n", result.RevisionID)
+	fmt.Fprintf(out, "\nWrote %s.\nReady to deploy with `cinc policy push <group>`.\n", lockPath)
 }
 
-// cookbookSource describes where a cookbook comes from, for the human summary.
-func cookbookSource(opts map[string]any) string {
-	if opts == nil {
-		return "(default source)"
+// shortID abbreviates a content identifier for the human summary.
+func shortID(id string) string {
+	if len(id) > 12 {
+		return id[:12]
 	}
-	if p, ok := opts["path"].(string); ok {
-		return "path " + p
-	}
-	if g, ok := opts["git"].(string); ok {
-		if ref := firstString(opts, "ref", "branch", "tag"); ref != "" {
-			return "git " + g + " @ " + ref
-		}
-		return "git " + g
-	}
-	if len(opts) == 0 {
-		return "(default source)"
-	}
-	return "(custom source)"
-}
-
-func firstString(opts map[string]any, keys ...string) string {
-	for _, k := range keys {
-		if v, ok := opts[k].(string); ok {
-			return v
-		}
-	}
-	return ""
-}
-
-func sortedKeys(m map[string][]string) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
-}
-
-func sortedCookbookNames(m map[string]rubyeval.CookbookSpec) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
+	return id
 }

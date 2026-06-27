@@ -156,6 +156,35 @@ func (e *Engine) prepare(ctx context.Context) error {
 // be obtained (e.g. offline); callers should skip/degrade rather than treat it
 // as a Policyfile problem.
 func (e *Engine) Evaluate(ctx context.Context, source string, opts Options) (*EvaluatedPolicy, error) {
+	policy, _, err := e.evaluateRaw(ctx, source, opts)
+	return policy, err
+}
+
+// evaluateRaw runs the Policyfile shim and returns both the decoded
+// EvaluatedPolicy and the raw canonical JSON bytes the shim emitted. The raw
+// bytes preserve attribute key ordering exactly as chef wrote them, which the
+// resolver needs to reproduce a byte-identical lock (Go maps would otherwise
+// lose that order).
+func (e *Engine) evaluateRaw(ctx context.Context, source string, opts Options) (*EvaluatedPolicy, []byte, error) {
+	raw, err := e.run(ctx, shimSource, source, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	var policy EvaluatedPolicy
+	if err := json.Unmarshal(raw, &policy); err != nil {
+		return nil, nil, fmt.Errorf("policyfile: decode engine output: %w", err)
+	}
+	if len(policy.Errors) > 0 {
+		return &policy, raw, fmt.Errorf("policyfile: %s", strings.Join(policy.Errors, "; "))
+	}
+	return &policy, raw, nil
+}
+
+// run lays down shimSrc and the user's source in a scratch work dir, runs the
+// shim inside ruby.wasm, and returns the raw bytes the shim wrote to out.json.
+// Both the Policyfile shim and the metadata shim share this machinery; they
+// differ only in the shim source and the schema of the JSON they emit.
+func (e *Engine) run(ctx context.Context, shimSrc, source string, opts Options) ([]byte, error) {
 	if err := e.prepare(ctx); err != nil {
 		return nil, err
 	}
@@ -189,7 +218,7 @@ func (e *Engine) Evaluate(ctx context.Context, source string, opts Options) (*Ev
 	}
 
 	// Lay down the shim and its vendored Ruby libraries.
-	if err := os.WriteFile(filepath.Join(engineDir, "shim.rb"), []byte(shimSource), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(engineDir, "shim.rb"), []byte(shimSrc), 0o644); err != nil {
 		return nil, err
 	}
 	rubyLibDir := filepath.Join(engineDir, "rubylib")
@@ -243,15 +272,7 @@ func (e *Engine) Evaluate(ctx context.Context, source string, opts Options) (*Ev
 		return nil, fmt.Errorf("policyfile: engine produced no result%s: %w",
 			stderrSuffix(stderr.String()), err)
 	}
-
-	var policy EvaluatedPolicy
-	if err := json.Unmarshal(raw, &policy); err != nil {
-		return nil, fmt.Errorf("policyfile: decode engine output: %w", err)
-	}
-	if len(policy.Errors) > 0 {
-		return &policy, fmt.Errorf("policyfile: %s", strings.Join(policy.Errors, "; "))
-	}
-	return &policy, nil
+	return raw, nil
 }
 
 // EvaluateFile reads a Policyfile.rb from disk and evaluates it, using its
@@ -263,6 +284,21 @@ func (e *Engine) EvaluateFile(ctx context.Context, path string) (*EvaluatedPolic
 		return nil, err
 	}
 	return e.Evaluate(ctx, string(source), Options{
+		Filename: filepath.Base(path),
+		Dir:      filepath.Dir(path),
+		Env:      hostEnv(),
+	})
+}
+
+// EvaluateFileWithRaw is EvaluateFile but also returns the raw canonical JSON
+// the shim emitted. The resolver uses the raw bytes to reproduce chef's exact
+// attribute key ordering in the lock.
+func (e *Engine) EvaluateFileWithRaw(ctx context.Context, path string) (*EvaluatedPolicy, []byte, error) {
+	source, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, err
+	}
+	return e.evaluateRaw(ctx, string(source), Options{
 		Filename: filepath.Base(path),
 		Dir:      filepath.Dir(path),
 		Env:      hostEnv(),

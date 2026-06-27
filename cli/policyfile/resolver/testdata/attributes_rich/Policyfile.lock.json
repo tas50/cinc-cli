@@ -1,0 +1,62 @@
+{
+  "revision_id": "dfc034634b331a30f4fe5d379c119c52ece9746aed214e70c0f042c93dc0eaa8",
+  "name": "attributes_rich",
+  "run_list": [
+    "recipe[base::default]"
+  ],
+  "included_policy_locks": [
+
+  ],
+  "cookbook_locks": {
+    "base": {
+      "version": "1.0.0",
+      "identifier": "f6a4452f73b8235f2b9de515015f705affd559d5",
+      "dotted_decimal_identifier": "69423461326632995.26788079940731231.123536141539797",
+      "source": "cookbooks/base",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/base"
+      }
+    }
+  },
+  "default_attributes": {
+    "zeta": "last",
+    "alpha": {
+      "enabled": true,
+      "count": 3,
+      "names": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    "middle": {
+      "nested": {
+        "deep": "value"
+      }
+    }
+  },
+  "override_attributes": {
+    "security": {
+      "level": 5,
+      "flags": [
+        "a",
+        "b"
+      ]
+    }
+  },
+  "solution_dependencies": {
+    "Policyfile": [
+      [
+        "base",
+        ">= 0.0.0"
+      ]
+    ],
+    "dependencies": {
+      "base (1.0.0)": [
+
+      ]
+    }
+  }
+}

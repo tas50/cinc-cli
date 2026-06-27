@@ -1,0 +1,63 @@
+{
+  "revision_id": "2f7d71a0232fee6fe4dc776e6433d0b5cb884dbbd2b177e71f3d5a50fadacc3b",
+  "name": "metadata_json",
+  "run_list": [
+    "recipe[web::default]"
+  ],
+  "included_policy_locks": [
+
+  ],
+  "cookbook_locks": {
+    "util": {
+      "version": "1.2.0",
+      "identifier": "bc3be7773a7b1a62e8b728f438078fbd688e8f13",
+      "dotted_decimal_identifier": "52983160945408794.27840421081397255.158043665764115",
+      "source": "cookbooks/util",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/util"
+      }
+    },
+    "web": {
+      "version": "3.1.0",
+      "identifier": "5399a3e8e16fdde153ff91bce16110adb2cd68b1",
+      "dotted_decimal_identifier": "23531352332791773.63424226886738273.18338215192753",
+      "source": "cookbooks/web",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/web"
+      }
+    }
+  },
+  "default_attributes": {
+
+  },
+  "override_attributes": {
+
+  },
+  "solution_dependencies": {
+    "Policyfile": [
+      [
+        "util",
+        ">= 0.0.0"
+      ],
+      [
+        "web",
+        ">= 0.0.0"
+      ]
+    ],
+    "dependencies": {
+      "util (1.2.0)": [
+
+      ],
+      "web (3.1.0)": [
+        [
+          "util",
+          ">= 1.0.0"
+        ]
+      ]
+    }
+  }
+}

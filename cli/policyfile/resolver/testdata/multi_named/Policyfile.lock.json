@@ -1,0 +1,72 @@
+{
+  "revision_id": "1e9a7d14672d252ab1d3cc51b8e15fbe8694db259456e11d43e9a53c854afafa",
+  "name": "multi_named",
+  "run_list": [
+    "recipe[svc::default]"
+  ],
+  "named_run_lists": {
+    "setup": [
+      "recipe[svc::install]",
+      "recipe[helper::default]"
+    ],
+    "teardown": [
+      "recipe[svc::remove]"
+    ]
+  },
+  "included_policy_locks": [
+
+  ],
+  "cookbook_locks": {
+    "helper": {
+      "version": "2.0.0",
+      "identifier": "df06bfecdd0a949282aaa08facf685cd9ea9fa21",
+      "dotted_decimal_identifier": "62776341188905620.41239015949577462.147118176729633",
+      "source": "cookbooks/helper",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/helper"
+      }
+    },
+    "svc": {
+      "version": "1.0.0",
+      "identifier": "f9998bb4e720f24a955d2ceea1d05840f9c4b738",
+      "dotted_decimal_identifier": "70256094515503346.20993375694922192.97036091569976",
+      "source": "cookbooks/svc",
+      "cache_key": null,
+      "scm_info": null,
+      "source_options": {
+        "path": "cookbooks/svc"
+      }
+    }
+  },
+  "default_attributes": {
+
+  },
+  "override_attributes": {
+
+  },
+  "solution_dependencies": {
+    "Policyfile": [
+      [
+        "helper",
+        ">= 0.0.0"
+      ],
+      [
+        "svc",
+        ">= 0.0.0"
+      ]
+    ],
+    "dependencies": {
+      "helper (2.0.0)": [
+
+      ],
+      "svc (1.0.0)": [
+        [
+          "helper",
+          ">= 0.0.0"
+        ]
+      ]
+    }
+  }
+}
