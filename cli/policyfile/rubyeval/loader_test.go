@@ -43,6 +43,54 @@ func TestVerifySHA256(t *testing.T) {
 	}
 }
 
+// TestVerifyFileSHA256 proves the cache-hit re-verification helper accepts a
+// file whose contents hash to the expected value and rejects a corrupted one —
+// this is what guards against a cached ruby.wasm tampered-with after extraction
+// (finding 5). It exercises the helper directly, no network or real blob.
+func TestVerifyFileSHA256(t *testing.T) {
+	content := []byte("\x00asm pretend this is the cached module")
+	sum := sha256.Sum256(content)
+	want := hex.EncodeToString(sum[:])
+
+	path := filepath.Join(t.TempDir(), "ruby")
+	if err := os.WriteFile(path, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := verifyFileSHA256(path, want); err != nil {
+		t.Errorf("a matching cached file should verify: %v", err)
+	}
+
+	// Corrupt the cached file in place; re-verification must now fail so the
+	// caller re-downloads instead of executing a tampered module.
+	if err := os.WriteFile(path, []byte("tampered"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := verifyFileSHA256(path, want)
+	if err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
+		t.Fatalf("expected checksum mismatch on a corrupted cache, got %v", err)
+	}
+
+	// A missing file is an error (so ensureRuntime falls through to re-fetch).
+	if err := verifyFileSHA256(filepath.Join(t.TempDir(), "nope"), want); err == nil {
+		t.Error("verifying a missing file should error")
+	}
+}
+
+// TestPinnedBinaryChecksum guards the pinned module checksum is a well-formed
+// SHA-256, distinct from the archive checksum.
+func TestPinnedBinaryChecksum(t *testing.T) {
+	if len(rubyWasmBinarySHA256) != 64 {
+		t.Errorf("rubyWasmBinarySHA256 must be 64 hex chars, got %d", len(rubyWasmBinarySHA256))
+	}
+	if _, err := hex.DecodeString(rubyWasmBinarySHA256); err != nil {
+		t.Errorf("rubyWasmBinarySHA256 is not valid hex: %v", err)
+	}
+	if rubyWasmBinarySHA256 == rubyWasmSHA256 {
+		t.Error("rubyWasmBinarySHA256 (extracted module) must differ from rubyWasmSHA256 (archive)")
+	}
+}
+
 // TestMaterializeRejectsBadChecksum proves a download whose bytes do not match
 // the expected SHA is rejected and nothing is written into the cache dir — all
 // without touching the network (the fetcher is injected).
