@@ -47,14 +47,14 @@ optional.
 
 | Key | Meaning | Required? | Default | Chef-compat equivalent | Related flag / env |
 | --- | --- | --- | --- | --- | --- |
-| `cinc_server_url` | Server URL, including the `/organizations/<org>` segment | Yes (or a Supermarket site) | none | `chef_server_url` | `--server-url` / `--cinc-server-url` |
-| `client_name` | Client/user name requests are signed as | Yes | none | (same key) | `--client-name` |
-| `client_key` | Path to the RSA private key (PEM) used to sign requests | Yes | none | (same key) | `--client-key` |
+| `cinc_server_url` | Server URL, including the `/organizations/<org>` segment | Yes (or a Supermarket site) | — | `chef_server_url` | `--server-url` / `--cinc-server-url` |
+| `client_name` | Client/user name requests are signed as | Yes | — | (same key) | `--client-name` |
+| `client_key` | Path to the RSA private key (PEM) used to sign requests | Yes | — | (same key) | `--client-key` |
 | `ssl_verify_mode` | TLS verification: `:verify_peer` or `:verify_none` | No | `:verify_peer` | (same key) | `--ssl-verify-mode` |
-| `secret_file` | Path to the default encrypted data bag secret | No | none | (same key) | `--secret-file`, `$CINC_SECRET_FILE` / `$CHEF_SECRET_FILE` |
+| `secret_file` | Path to the default encrypted data bag secret | No | — | (same key) | `--secret-file`, `$CINC_SECRET_FILE` / `$CHEF_SECRET_FILE` |
 | `supermarket_site` | Supermarket instance the `cinc supermarket` commands target | No | `https://supermarket.chef.io` | (same key) | `--supermarket-site` |
-| `supermarket_client_name` | Username used to sign Supermarket uploads | No | falls back to `client_name` | none (cinc-only) | none |
-| `supermarket_key` | Path to the key used to sign Supermarket uploads | No | falls back to `client_key` | none (cinc-only) | none |
+| `supermarket_client_name` | Username used to sign Supermarket uploads | No | falls back to `client_name` | none (cinc-only) | — |
+| `supermarket_key` | Path to the key used to sign Supermarket uploads | No | falls back to `client_key` | none (cinc-only) | — |
 
 > The chef-prefixed `chef_server_url` is accepted everywhere
 > `cinc_server_url` is. When both appear in the same profile, the
@@ -176,10 +176,10 @@ wins, the same cinc-over-chef rule that applies to the config keys.
 | Variable | Effect | Cinc wins over |
 | --- | --- | --- |
 | `CINC_PROFILE` | Selects the active profile | `CHEF_PROFILE` |
-| `CHEF_PROFILE` | Selects the active profile (chef-compat) | nothing |
+| `CHEF_PROFILE` | Selects the active profile (chef-compat) | — |
 | `CINC_SECRET_FILE` | Default encrypted data bag secret path | `CHEF_SECRET_FILE` |
-| `CHEF_SECRET_FILE` | Default encrypted data bag secret path (chef-compat) | nothing |
-| `NO_COLOR` | Disables bold/colored terminal styling | nothing |
+| `CHEF_SECRET_FILE` | Default encrypted data bag secret path (chef-compat) | — |
+| `NO_COLOR` | Disables bold/colored terminal styling | — |
 
 ## Global flags
 

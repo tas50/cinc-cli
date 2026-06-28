@@ -133,7 +133,9 @@ release, bump `cincZeroVersion` in `test/acceptance/helpers_test.go`.
   colon, parentheses, or two sentences instead. The em-dash separators the
   doc generator (`tools/gendocs`) emits count too: keep them out of its
   output. This is both a house style and a way to keep generated docs from
-  reading as machine-written.
+  reading as machine-written. One exception: a lone em dash as a placeholder
+  in a table cell, meaning "none" or "not applicable", is fine, since that's
+  a conventional table notation rather than prose.
 - **Test-driven development.** Write a failing test first, watch it fail for the
   expected reason, then write the minimal code to pass.
 - **Every command needs both unit and acceptance tests.** Adding or
