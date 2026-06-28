@@ -17,7 +17,7 @@ cinc search <index> <query> [flags]
 
 ### Examples
 
-Search an index — node, role, environment, client, or a data bag name.
+Search an index: node, role, environment, client, or a data bag name.
 
 ```bash
 cinc search node 'role:web'

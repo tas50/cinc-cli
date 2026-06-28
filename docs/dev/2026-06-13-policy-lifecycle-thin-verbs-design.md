@@ -1,4 +1,4 @@
-# `cinc policy` lifecycle — thin verbs design
+# `cinc policy` lifecycle: thin verbs design
 
 - **Date:** 2026-06-13
 - **Status:** Approved
@@ -20,11 +20,11 @@ two tiers:
 - **Thin (this design):** `create` (scaffold a `Policyfile.rb` on disk),
   `diff` (compare revisions already on the server), `clean` (delete policy
   revisions no policy group references). Each is either pure local file I/O
-  or thin `cinc-api` calls — the same shape as the existing CRUD verbs.
+  or thin `cinc-api` calls, the same shape as the existing CRUD verbs.
 - **Heavy (deferred to a separate design):** `install`, `update`, `push`,
   `export`. All four hinge on compiling `Policyfile.rb` and solving cookbook
   dependencies into a `Policyfile.lock.json`. Design decision #6 bans a Ruby
-  runtime, so these require a pure-Go Policyfile evaluator + depsolver — a
+  runtime, so these require a pure-Go Policyfile evaluator + depsolver: a
   major subsystem out of scope here.
 
 ## `cinc policy create <name>`
@@ -78,10 +78,10 @@ are accepted; without it, exactly two group names are required.
 
 The delta covers:
 
-- **cookbook_locks** — added / removed / changed. A change reports the version
+- **cookbook_locks**: added / removed / changed. A change reports the version
   when versions differ, otherwise the identifier.
-- **run_list** — entries added / removed (order-insensitive set diff).
-- **attributes** — `default_attributes` and `override_attributes` compared by
+- **run_list**: entries added / removed (order-insensitive set diff).
+- **attributes**: `default_attributes` and `override_attributes` compared by
   flattened leaf path; reports added / removed / changed leaves.
 
 Human output (text):
@@ -135,7 +135,7 @@ many were kept because a group still uses them.
 - New command file `apps/cinc/cmd/policylifecycle.go` holds the three
   constructors, registered in `newPolicyCmd()` in `policy.go`. (Keeping them
   out of `policy.go` keeps that file focused on the CRUD verbs.)
-- `create` is pure `os` file I/O plus a template constant — no client.
+- `create` is pure `os` file I/O plus a template constant, with no client.
 - `diff` and `clean` go through `resolveClient`/`resolveFormat` and render via
   `cli/printer` (`diff` uses `Value` for the JSON delta and a small text
   renderer for the human form; `clean` uses `fmt.Fprintf` lines like the other
@@ -158,7 +158,7 @@ Per CLAUDE.md, every verb gets unit + acceptance coverage.
   - `diff` / `clean`: the seed has a single in-use revision, so these tests
     create the extra state they need at runtime through a `cinc-api` client
     built from the acceptance profile (`Policies.CreateRevision`, and for the
-    group form, `PolicyGroups.PutPolicy`) — no changes to the shared seed,
+    group form, `PolicyGroups.PutPolicy`), with no changes to the shared seed,
     which other tests depend on. `clean` asserts the orphaned revision is
     deleted and the in-use one is kept; `diff` asserts the rendered delta.
 - `make docs` regenerates the per-command reference.

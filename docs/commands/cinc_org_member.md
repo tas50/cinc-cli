@@ -6,7 +6,7 @@ List, add, or remove members of the current org
 
 Manage the membership of the organization your profile points at.
 
-These verbs are organization-scoped — they act on whichever org the current
+These verbs are organization-scoped: they act on whichever org the current
 profile's server URL targets, not on an org named on the command line. To
 manage a different org, switch profiles with --profile.
 

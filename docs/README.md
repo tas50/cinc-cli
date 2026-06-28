@@ -26,8 +26,8 @@ If you have a Go toolchain handy, `make build` (or `make install`)
 from a checkout works too.
 
 **2. Point cinc at your server.** Already have a Chef
-`~/.chef/credentials`? See [Migrating from Chef](migrating-from-chef.md)
-— `cinc` can migrate it for you on first run, or read it in place with
+`~/.chef/credentials`? See [Migrating from Chef](migrating-from-chef.md).
+`cinc` can migrate it for you on first run, or read it in place with
 `--config ~/.chef/credentials`. Otherwise, run the interactive
 configurator:
 
@@ -56,49 +56,50 @@ noun-verb grammar described below.
 
 ## Where to find what
 
-- **[`configuration.md`](configuration.md)** — the definitive
-  configuration reference: every credentials key, multiple profiles,
-  profile selection, encrypted data bag secrets, Supermarket upload
-  identities, and the `cinc config` commands.
-- **[`migrating-from-chef.md`](migrating-from-chef.md)** — for knife and
-  Chef Workstation users: reusing your existing `~/.chef/credentials`,
-  the chef/cinc key duality, and how knife commands map onto cinc.
-- **[`commands/`](commands/)** — auto-generated reference for every
+- **[`configuration.md`](configuration.md)**: the definitive
+  configuration reference covering every credentials key, multiple
+  profiles, profile selection, encrypted data bag secrets, Supermarket
+  upload identities, and the `cinc config` commands.
+- **[`migrating-from-chef.md`](migrating-from-chef.md)**: for knife and
+  Chef Workstation users, covering how to reuse your existing
+  `~/.chef/credentials`, the chef/cinc key duality, and how knife
+  commands map onto cinc.
+- **[`commands/`](commands/)**: auto-generated reference for every
   command and flag, regenerated from the live cobra command tree on
   every push to `main`. Start at [`commands/cinc.md`](commands/cinc.md)
   for the root command, or jump straight to a resource:
-  - [`cinc client`](commands/cinc_client.md) — API clients
+  - [`cinc client`](commands/cinc_client.md): API clients
     (`create`, `delete`, `edit`, `list`, `show`)
-  - [`cinc config`](commands/cinc_config.md) — local configuration
+  - [`cinc config`](commands/cinc_config.md): local configuration
     (`create`, `validate`)
-  - [`cinc cookbook`](commands/cinc_cookbook.md) — cookbooks
+  - [`cinc cookbook`](commands/cinc_cookbook.md): cookbooks
     (`delete`, `list`, `show`, `upload`)
-  - [`cinc databag`](commands/cinc_databag.md) — data bags
+  - [`cinc databag`](commands/cinc_databag.md): data bags
     (`create`, `delete`, `list`, `show`, `item delete`, `item edit`,
     `item list`, `item show`)
-  - [`cinc environment`](commands/cinc_environment.md) — environments
+  - [`cinc environment`](commands/cinc_environment.md): environments
     (`create`, `delete`, `edit`, `list`, `show`)
-  - [`cinc explore`](commands/cinc_explore.md) — a k9s-style terminal UI
+  - [`cinc explore`](commands/cinc_explore.md): a k9s-style terminal UI
     for the whole server (browse, view, edit, create, delete, download)
-  - [`cinc group`](commands/cinc_group.md) — ACL groups
+  - [`cinc group`](commands/cinc_group.md): ACL groups
     (`create`, `delete`, `edit`, `list`, `member add`, `member remove`, `show`)
-  - [`cinc node`](commands/cinc_node.md) — nodes
+  - [`cinc node`](commands/cinc_node.md): nodes
     (`bootstrap`, `delete`, `list`, `show`, `ssh`)
-  - [`cinc policy`](commands/cinc_policy.md) — Policyfile policies
+  - [`cinc policy`](commands/cinc_policy.md): Policyfile policies
     (`clean`, `create`, `delete`, `diff`, `list`, `show`)
-  - [`cinc policy-group`](commands/cinc_policy-group.md) — policy groups
+  - [`cinc policy-group`](commands/cinc_policy-group.md): policy groups
     (`delete`, `list`, `show`)
-  - [`cinc role`](commands/cinc_role.md) — roles
+  - [`cinc role`](commands/cinc_role.md): roles
     (`create`, `delete`, `edit`, `list`, `show`)
-  - [`cinc search`](commands/cinc_search.md) — search the server for
+  - [`cinc search`](commands/cinc_search.md): search the server for
     nodes, roles, environments, clients, or data bag items
-  - [`cinc supermarket`](commands/cinc_supermarket.md) — cookbooks on
+  - [`cinc supermarket`](commands/cinc_supermarket.md): cookbooks on
     Chef Supermarket (`download`, `explore`, `list`, `search`, `share`,
     `show`)
-  - [`cinc user`](commands/cinc_user.md) — global users
+  - [`cinc user`](commands/cinc_user.md): global users
     (`create`, `delete`, `edit`, `list`, `password`, `show`)
-  - [`cinc version`](commands/cinc_version.md) — version info
-- **[`dev/`](dev/)** — design background: the command taxonomy and
+  - [`cinc version`](commands/cinc_version.md): version info
+- **[`dev/`](dev/)**: design background covering the command taxonomy and
   internal architecture. Read these when changing the shape of the
   CLI, not when learning to use it.
 
@@ -111,8 +112,8 @@ cinc <noun> <verb> [args] [flags]
 ```
 
 The **noun** is the resource type (`node`, `role`, `cookbook`, …) and
-the **verb** is the action you want to take on it. The core verbs —
-`list`, `create`, `delete` (and eventually `show`, `edit`) — mean the
+the **verb** is the action you want to take on it. The core verbs
+(`list`, `create`, `delete`, and eventually `show`, `edit`) mean the
 same thing on every noun, so learning one resource teaches you the
 others:
 
@@ -125,7 +126,7 @@ cinc cookbook list
 all return the names of that resource type on the server, sorted.
 
 A handful of commands take additional arguments or flags that don't
-generalize — `cinc client create` returns a freshly generated private
+generalize: `cinc client create` returns a freshly generated private
 key, `cinc cookbook delete` requires both a name and a version because
 the server identifies a cookbook by both. Those quirks are documented
 on each command's reference page under [`commands/`](commands/).
@@ -209,7 +210,7 @@ cinc client create worker-01 --key-file ./worker-01.pem
 
 The server generates the RSA key pair; `cinc` writes the private key
 to the file you name (mode `0600`) and prints a confirmation. With no
-`--key-file`, the key streams to stdout instead — handy for piping:
+`--key-file`, the key streams to stdout instead, handy for piping:
 
 ```sh
 cinc client create worker-02 > worker-02.pem
@@ -231,6 +232,6 @@ server identifies a cookbook by both.
 
 ## Need more detail?
 
-Each command's exhaustive reference — every flag, every default, every
-inherited option — is in [`commands/`](commands/). The pages there are
+Each command's exhaustive reference (every flag, every default, every
+inherited option) is in [`commands/`](commands/). The pages there are
 the source of truth; this overview is intentionally selective.

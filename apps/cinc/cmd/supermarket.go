@@ -361,7 +361,7 @@ Install a specific version.
 cinc supermarket install nginx 1.2.0`,
 		Long: "Downloads a cookbook from Chef Supermarket and uploads it to your\n" +
 			"configured Cinc Server in one step. The version defaults to the\n" +
-			"latest published version. Only the named cookbook is installed —\n" +
+			"latest published version. Only the named cookbook is installed;\n" +
 			"its dependencies are not resolved.",
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -461,7 +461,7 @@ func newSupermarketShareCmd() *cobra.Command {
 cinc supermarket share nginx 'Web Servers'`,
 		Long: "Packages a local cookbook and uploads it to Chef Supermarket.\n" +
 			"Uploads are signed with the profile's identity. By default that's\n" +
-			"client_name/client_key — the same identity used against your Cinc\n" +
+			"client_name/client_key, the same identity used against your Cinc\n" +
 			"Server. To publish to the public Supermarket under a different\n" +
 			"identity, set supermarket_client_name and/or supermarket_key in the\n" +
 			"profile; each falls back independently to client_name/client_key\n" +

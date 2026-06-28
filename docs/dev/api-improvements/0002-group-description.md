@@ -1,6 +1,6 @@
-# 0002 — Carry a human-readable description on groups
+# 0002: Carry a human-readable description on groups
 
-- **Status:** Proposed — needs validation against server capabilities (the
+- **Status:** Proposed, needs validation against server capabilities (the
   Chef/Cinc Server may not persist a group description today)
 - **Affects:** `cinc-api` (`Group` model), Cinc/Chef Server
 - **CLI surface that wants it:** the explorer group summary pane
@@ -10,7 +10,7 @@
 
 A group has no place to say what it's *for*. The `Group` object is just a name
 plus three membership lists, so the CLI can describe a group only by its
-members — never by its purpose. Roles and environments both carry a free-form
+members, never by its purpose. Roles and environments both carry a free-form
 `description`; groups are the odd one out. We'd like the API to carry a
 `description` on the group object so the CLI can show it in the summary pane and
 let operators edit it.
@@ -63,8 +63,8 @@ create/edit flow has nothing to prompt for either.
 
 ## Why it matters
 
-1. **A group's purpose is invisible.** `admins`, `deployers`, `readonly-prod`
-   — the intent lives only in the name and in tribal knowledge. An operator
+1. **A group's purpose is invisible.** For `admins`, `deployers`, and
+   `readonly-prod`, the intent lives only in the name and in tribal knowledge. An operator
    browsing groups in the explorer can't tell what a group is for without
    inspecting its membership and guessing.
 2. **Inconsistent with peer objects.** Roles and environments both have a
@@ -85,7 +85,7 @@ In rough order of preference:
    `GET/PUT /organizations/{org}/groups/{name}`, and expose it as
    `Group.Description string` in `cinc-api`. The CLI then renders it in the
    summary pane (leading the panel, as roles and environments do) and prompts
-   for it on create/edit — no other CLI changes needed. This is the clean fix
+   for it on create/edit, with no other CLI changes needed. This is the clean fix
    and matches how `Role`/`Environment` already work.
 
 2. **A general group metadata bag.** If a bare `description` is too narrow,
@@ -106,5 +106,5 @@ group summary pane shows membership counts only, and that is the honest ceiling
 until the object itself can hold a description.
 
 Before pursuing this, confirm whether the Cinc/Chef Server group object can
-carry (or be extended to carry) a description at all — this entry assumes a
+carry (or be extended to carry) a description at all; this entry assumes a
 server change is in scope, not just a `cinc-api` model addition.

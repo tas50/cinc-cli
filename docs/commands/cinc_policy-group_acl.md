@@ -6,7 +6,7 @@ Manage the ACL of a policy-group
 
 Manage the access-control list (ACL) of this object.
 
-A Chef ACL grants five permissions — create, read, update, delete, and grant —
+A Chef ACL grants five permissions (create, read, update, delete, and grant)
 to actors (users and clients) and to groups. Editing an ACL requires an
 identity that already holds the grant permission on the object.
 

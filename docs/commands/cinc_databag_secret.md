@@ -12,7 +12,7 @@ with --secret-file, --secret, $CINC_SECRET_FILE, or a secret_file key in
 your profile.
 
 To list or delete encrypted items use the regular "cinc databag item list"
-and "cinc databag item delete" commands — neither needs the secret.
+and "cinc databag item delete" commands; neither needs the secret.
 
 ### Options
 

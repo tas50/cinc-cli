@@ -6,7 +6,7 @@ Install a Supermarket cookbook onto the Cinc Server
 
 Downloads a cookbook from Chef Supermarket and uploads it to your
 configured Cinc Server in one step. The version defaults to the
-latest published version. Only the named cookbook is installed —
+latest published version. Only the named cookbook is installed;
 its dependencies are not resolved.
 
 ```

@@ -7,7 +7,7 @@ Create an organization on the server
 Create an organization on the server.
 
 The server provisions a validator client and returns its private key exactly
-once, right here. Capture it now — it can't be retrieved later. Use --filename
+once, right here. Capture it now; it can't be retrieved later. Use --filename
 to write it straight to disk.
 
 This hits the server root, so it needs a pivotal (superuser) identity.

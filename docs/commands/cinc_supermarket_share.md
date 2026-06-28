@@ -6,7 +6,7 @@ Share a cookbook on Chef Supermarket
 
 Packages a local cookbook and uploads it to Chef Supermarket.
 Uploads are signed with the profile's identity. By default that's
-client_name/client_key — the same identity used against your Cinc
+client_name/client_key, the same identity used against your Cinc
 Server. To publish to the public Supermarket under a different
 identity, set supermarket_client_name and/or supermarket_key in the
 profile; each falls back independently to client_name/client_key

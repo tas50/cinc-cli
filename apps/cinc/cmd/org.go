@@ -32,7 +32,7 @@ func newOrgCmd() *cobra.Command {
 		Long: `Manage organizations on the Cinc Server.
 
 The list, show, create, edit, and delete verbs talk to the server root
-(/organizations), so they need a pivotal (superuser) identity — the kind of
+(/organizations), so they need a pivotal (superuser) identity, the kind of
 account that signs the server's own administrative requests. Point a profile at
 such an identity to use them.
 
@@ -138,7 +138,7 @@ func newOrgCreateCmd() *cobra.Command {
 		Long: `Create an organization on the server.
 
 The server provisions a validator client and returns its private key exactly
-once, right here. Capture it now — it can't be retrieved later. Use --filename
+once, right here. Capture it now; it can't be retrieved later. Use --filename
 to write it straight to disk.
 
 This hits the server root, so it needs a pivotal (superuser) identity.`,
@@ -281,7 +281,7 @@ func newOrgMemberCmd() *cobra.Command {
 		Short: "List, add, or remove members of the current org",
 		Long: `Manage the membership of the organization your profile points at.
 
-These verbs are organization-scoped — they act on whichever org the current
+These verbs are organization-scoped: they act on whichever org the current
 profile's server URL targets, not on an org named on the command line. To
 manage a different org, switch profiles with --profile.`,
 	}

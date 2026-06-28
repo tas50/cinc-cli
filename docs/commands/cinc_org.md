@@ -7,7 +7,7 @@ Manage organizations on the Cinc Server
 Manage organizations on the Cinc Server.
 
 The list, show, create, edit, and delete verbs talk to the server root
-(/organizations), so they need a pivotal (superuser) identity — the kind of
+(/organizations), so they need a pivotal (superuser) identity, the kind of
 account that signs the server's own administrative requests. Point a profile at
 such an identity to use them.
 

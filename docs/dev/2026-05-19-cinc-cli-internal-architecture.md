@@ -1,8 +1,8 @@
-# `cinc` CLI — Internal Architecture Design
+# `cinc` CLI: Internal Architecture Design
 
 - **Date:** 2026-05-19
-- **Status:** Draft — for review
-- **Scope:** Internal architecture and code organization of the `cinc` CLI — how
+- **Status:** Draft (for review)
+- **Scope:** Internal architecture and code organization of the `cinc` CLI: how
   the tool is built. The user-facing command taxonomy (verbs, nouns, grouping)
   is covered separately in `2026-05-19-cinc-cli-command-taxonomy.md`.
 
@@ -22,7 +22,7 @@ through the `github.com/tas50/cinc-api` library.**
 
 - Request signing and authentication (the server's API auth protocol).
 - HTTP transport, TLS configuration, retries, and error decoding.
-- The API object model — nodes, roles, environments, cookbooks, data bags,
+- The API object model: nodes, roles, environments, cookbooks, data bags,
   clients, search, and the associated CRUD operations.
 
 The CLI owns everything else, and never:
@@ -33,7 +33,7 @@ The CLI owns everything else, and never:
 The seam between the two is a single `cli/client` package, which converts
 resolved CLI configuration and credentials into a configured `cinc-api` client.
 Command code depends on `cinc-api` types for data and on `cli/client` to obtain a
-client — nothing else in the CLI imports transport or auth concerns.
+client. Nothing else in the CLI imports transport or auth concerns.
 
 This keeps the server API surface swappable and independently versioned, and
 keeps command code focused purely on user experience.
@@ -88,10 +88,10 @@ cinc-cli/
 
 There are two top-level source trees:
 
-- **`apps/cinc/`** — the binary and its command definitions. `cinc.go` is a thin
+- **`apps/cinc/`**: the binary and its command definitions. `cinc.go` is a thin
   `main()` that calls `cmd.Execute()`; the `cmd` package holds the entire cobra
   command tree.
-- **`cli/`** — reusable infrastructure, each package with one clear purpose,
+- **`cli/`**: reusable infrastructure, each package with one clear purpose,
   importable and testable on its own.
 
 ## Command Layer (`apps/cinc/cmd`)
@@ -112,30 +112,30 @@ the same thing on every noun. `crud.go` exposes a builder that, given a resource
 binding to `cinc-api`, produces those five verb commands with identical behavior.
 
 Each noun file calls the builder for its core verbs and hand-writes only its
-resource-specific verbs — `cinc cookbook upload`, `cinc node bootstrap`,
+resource-specific verbs: `cinc cookbook upload`, `cinc node bootstrap`,
 `cinc policy push`, and so on. This removes boilerplate and guarantees the five
 core verbs behave identically across all nouns.
 
 ## CLI Infrastructure (`cli/`)
 
-- **`cli/config`** — loads and writes the config/credentials file, resolves the
+- **`cli/config`**: loads and writes the config/credentials file, resolves the
   active profile and server, computes config paths, and backs the `cinc config`
   commands.
-- **`cli/client`** — the `cinc-api` seam: turns resolved config and credentials
+- **`cli/client`**: the `cinc-api` seam that turns resolved config and credentials
   into a configured client. The only package that wires CLI state to the API
   library.
-- **`cli/printer`** — renders command output. One renderer per format —
-  human-readable text/tables and JSON — selected by `--format`. Commands hand the
+- **`cli/printer`**: renders command output. One renderer per format
+  (human-readable text/tables and JSON) selected by `--format`. Commands hand the
   printer typed `cinc-api` objects and never format output inline.
-- **`cli/errors`** — a `CommandError` type carrying a message and a process exit
+- **`cli/errors`**: a `CommandError` type carrying a message and a process exit
   code, so command failures map to meaningful, documented exit statuses.
-- **`cli/theme`** — terminal color and styling, OS-aware, with a no-color
+- **`cli/theme`**: terminal color and styling, OS-aware, with a no-color
   fallback.
-- **`cli/components`** — interactive components: confirmation prompts, selectors,
-  and the `$EDITOR` integration used by `edit` verbs.
+- **`cli/components`**: interactive components, including confirmation prompts,
+  selectors, and the `$EDITOR` integration used by `edit` verbs.
 
 Each package depends only on the standard library, `cinc-api` types, and a small
-set of well-supported third-party libraries — and is unit-tested in isolation.
+set of well-supported third-party libraries, and is unit-tested in isolation.
 
 ## Configuration & Credentials
 
@@ -146,7 +146,7 @@ set of well-supported third-party libraries — and is unit-tested in isolation.
 - The `cinc config` commands (`list`, `show`, `use`, `edit`, `path`) operate on
   this file through `cli/config`.
 - Credentials (signing keys) are referenced by path. The CLI passes them to
-  `cinc-api`, which performs the actual request signing — the CLI never touches
+  `cinc-api`, which performs the actual request signing. The CLI never touches
   the signing algorithm.
 
 ## Output & Rendering
@@ -160,23 +160,23 @@ set of well-supported third-party libraries — and is unit-tested in isolation.
 
 - Commands return errors; `cmd.Execute()` inspects them at the top level.
 - `cli/errors.CommandError` distinguishes user-facing failures and assigns
-  process exit codes — success, generic failure, and a distinct code for
-  configuration errors — so scripts and CI can branch on the outcome.
+  process exit codes (success, generic failure, and a distinct code for
+  configuration errors) so scripts and CI can branch on the outcome.
 - Errors surfaced by `cinc-api` are wrapped with CLI context, never leaked raw.
 
 ## Cross-Cutting Concerns
 
 - **Logging** uses `zerolog`, initialized once in the root command's
   `PersistentPreRun`; `--verbose` raises the level.
-- The command layer is kept deliberately thin so that most logic lives — and is
-  tested — in the `cli/*` packages.
+- The command layer is kept deliberately thin so that most logic lives (and is
+  tested) in the `cli/*` packages.
 
 ## Out of Scope / Open Questions
 
 - The final Go module path (`github.com/tas50/cinc-cli` is assumed).
-- A **plugin model** for third-party commands (cloud provisioning and similar) —
+- A **plugin model** for third-party commands (cloud provisioning and similar) is
   deferred; the cobra tree can accept externally-registered commands once
   designed.
-- **Self-update** and CI-environment detection — useful later, not required for
+- **Self-update** and CI-environment detection: useful later, not required for
   a first release.
-- An **interactive shell mode** — not planned for the first release.
+- An **interactive shell mode**: not planned for the first release.
