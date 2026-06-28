@@ -39,9 +39,9 @@ Want us to migrate it to /home/tim/.cinc/credentials for you? [Y/n]
 
 Say yes and `cinc` reads every profile from your Chef file and writes
 the equivalent `~/.cinc/credentials`. It carries over **every** key in
-each profile — `client_name`, `client_key`, `ssl_verify_mode`,
+each profile (`client_name`, `client_key`, `ssl_verify_mode`,
 `supermarket_site`, `secret_file`, and the `supermarket_client_name` /
-`supermarket_key` overrides — so nothing gets dropped. As part of the
+`supermarket_key` overrides), so nothing gets dropped. As part of the
 copy it **modernizes** a legacy `chef_server_url` into the
 cinc-canonical `cinc_server_url`; everything else keeps its name. Your
 `~/.chef/credentials` is left untouched.
@@ -55,7 +55,7 @@ A couple of things to be precise about:
   cinc file.
 - The migration prompt only appears in an **interactive terminal** when
   the default cinc file is missing and you didn't pass `--config`. In a
-  script or CI (no TTY), nothing is migrated automatically — set the
+  script or CI (no TTY), nothing is migrated automatically: set the
   file up ahead of time, or point `--config` at an existing one.
 
 If there's no Chef file to migrate, the first-run flow drops into the
@@ -82,8 +82,8 @@ environment, the `cinc_`/`CINC_` form wins. That means your existing
 Chef keys keep working untouched, and you can override individual
 settings with the cinc form without rewriting the whole file.
 
-When `cinc` **writes** a credentials file — through migration or `cinc
-config create` — it emits the cinc-canonical `cinc_server_url`. It still
+When `cinc` **writes** a credentials file (through migration or `cinc
+config create`), it emits the cinc-canonical `cinc_server_url`. It still
 **reads** `chef_server_url` happily, so a file you share with knife (or
 keep pointing `--config` at) keeps working both ways.
 
@@ -93,8 +93,8 @@ keep pointing `--config` at) keeps working both ways.
 | `CHEF_PROFILE` | `CINC_PROFILE` | env var |
 | `CHEF_SECRET_FILE` | `CINC_SECRET_FILE` | env var |
 
-Most credential keys — `client_name`, `client_key`, `ssl_verify_mode`,
-`secret_file` — are spelled the same in both worlds; only the ones above
+Most credential keys (`client_name`, `client_key`, `ssl_verify_mode`,
+`secret_file`) are spelled the same in both worlds; only the ones above
 have a distinct chef/cinc spelling. As with knife, the server URL must
 include the `/organizations/<org>` segment.
 
@@ -104,7 +104,7 @@ include the `/organizations/<org>` segment.
 
 This is the one most likely to trip up an existing user. `cinc
 supermarket share` signs uploads with your profile's `client_name` and
-`client_key` — the same identity it uses against your Chef server. But
+`client_key`, the same identity it uses against your Chef server. But
 the **public** Supermarket (`https://supermarket.chef.io`) usually wants
 a *different* identity: your Supermarket account, not your Chef client.
 
@@ -120,8 +120,8 @@ supermarket_client_name = "tim-public"
 supermarket_key         = "/keys/supermarket.pem"
 ```
 
-Each falls back independently — set just the username, just the key, or
-both — and when neither is set, uploads use `client_name`/`client_key`.
+Each falls back independently (set just the username, just the key, or
+both), and when neither is set, uploads use `client_name`/`client_key`.
 See [the configuration reference](configuration.md#supermarket_site-and-the-upload-identity)
 for the full story.
 
@@ -142,7 +142,7 @@ lab server with a self-signed cert.
 
 ## Command mapping
 
-`cinc` is **noun-verb** — `cinc <noun> <verb>` — and the core verbs
+`cinc` is **noun-verb** (`cinc <noun> <verb>`), and the core verbs
 (`list`, `show`, `create`, `edit`, `delete`) mean the same thing on
 every noun. Most knife commands map naturally:
 
@@ -155,7 +155,7 @@ every noun. Most knife commands map naturally:
 | `knife supermarket share my_cookbook` | `cinc supermarket share my_cookbook` |
 | `knife ssl check` | `cinc config validate` (validates config and pings the server) |
 
-This is **not a 1:1 translation, nor a definitive list** — the grammar
+This is **not a 1:1 translation, nor a definitive list**: the grammar
 is more regular than knife's, some commands take different flags, and a
 few knife subcommands have no cinc equivalent (and vice versa). For the
 exact verbs, flags, and behavior of any command, always check the
@@ -164,8 +164,8 @@ command tree and can't drift from the binary.
 
 ## Where to go next
 
-- [Configuring cinc](configuration.md) — the definitive reference for
+- [Configuring cinc](configuration.md): the definitive reference for
   every credentials key, profile selection, and `cinc config`.
-- [Using cinc](README.md) — a guided tour of the noun-verb grammar,
+- [Using cinc](README.md): a guided tour of the noun-verb grammar,
   output formats, and common workflows.
-- [Command reference](commands/) — every command, subcommand, and flag.
+- [Command reference](commands/): every command, subcommand, and flag.

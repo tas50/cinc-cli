@@ -97,7 +97,7 @@ func newUserACLCmd() *cobra.Command {
 func newACLGroup(scope aclScope) *cobra.Command {
 	long := `Manage the access-control list (ACL) of this object.
 
-A Chef ACL grants five permissions — create, read, update, delete, and grant —
+A Chef ACL grants five permissions (create, read, update, delete, and grant)
 to actors (users and clients) and to groups. Editing an ACL requires an
 identity that already holds the grant permission on the object.`
 	switch scope.noun {
@@ -105,7 +105,7 @@ identity that already holds the grant permission on the object.`
 		long += "\n\nThe org ACL is the organization object's own ACL. It applies to whichever " +
 			"org the current profile's server URL points at; switch --profile to manage another."
 	case "user":
-		long += "\n\nUser ACLs are global, not org-scoped — they live at the server root, so they " +
+		long += "\n\nUser ACLs are global, not org-scoped: they live at the server root, so they " +
 			"need an identity with grant permission on the user object itself."
 	}
 	cmd := &cobra.Command{

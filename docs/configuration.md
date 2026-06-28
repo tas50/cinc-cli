@@ -35,8 +35,8 @@ client_key      = "/keys/staging.pem"
 ssl_verify_mode = ":verify_none"
 ```
 
-You can keep as many profiles as you like in one file — a default, a
-staging server, a Supermarket-only identity — and choose between them
+You can keep as many profiles as you like in one file (a default, a
+staging server, a Supermarket-only identity) and choose between them
 per command. See [Selecting a profile](#selecting-a-profile) below.
 
 ## Every configuration key
@@ -47,19 +47,19 @@ optional.
 
 | Key | Meaning | Required? | Default | Chef-compat equivalent | Related flag / env |
 | --- | --- | --- | --- | --- | --- |
-| `cinc_server_url` | Server URL, including the `/organizations/<org>` segment | Yes (or a Supermarket site) | — | `chef_server_url` | `--server-url` / `--cinc-server-url` |
-| `client_name` | Client/user name requests are signed as | Yes | — | (same key) | `--client-name` |
-| `client_key` | Path to the RSA private key (PEM) used to sign requests | Yes | — | (same key) | `--client-key` |
+| `cinc_server_url` | Server URL, including the `/organizations/<org>` segment | Yes (or a Supermarket site) | none | `chef_server_url` | `--server-url` / `--cinc-server-url` |
+| `client_name` | Client/user name requests are signed as | Yes | none | (same key) | `--client-name` |
+| `client_key` | Path to the RSA private key (PEM) used to sign requests | Yes | none | (same key) | `--client-key` |
 | `ssl_verify_mode` | TLS verification: `:verify_peer` or `:verify_none` | No | `:verify_peer` | (same key) | `--ssl-verify-mode` |
-| `secret_file` | Path to the default encrypted data bag secret | No | — | (same key) | `--secret-file`, `$CINC_SECRET_FILE` / `$CHEF_SECRET_FILE` |
+| `secret_file` | Path to the default encrypted data bag secret | No | none | (same key) | `--secret-file`, `$CINC_SECRET_FILE` / `$CHEF_SECRET_FILE` |
 | `supermarket_site` | Supermarket instance the `cinc supermarket` commands target | No | `https://supermarket.chef.io` | (same key) | `--supermarket-site` |
-| `supermarket_client_name` | Username used to sign Supermarket uploads | No | falls back to `client_name` | none (cinc-only) | — |
-| `supermarket_key` | Path to the key used to sign Supermarket uploads | No | falls back to `client_key` | none (cinc-only) | — |
+| `supermarket_client_name` | Username used to sign Supermarket uploads | No | falls back to `client_name` | none (cinc-only) | none |
+| `supermarket_key` | Path to the key used to sign Supermarket uploads | No | falls back to `client_key` | none (cinc-only) | none |
 
 > The chef-prefixed `chef_server_url` is accepted everywhere
 > `cinc_server_url` is. When both appear in the same profile, the
-> cinc-prefixed value wins. When `cinc` writes a profile — via `cinc
-> config create` or first-run migration — it emits the cinc-canonical
+> cinc-prefixed value wins. When `cinc` writes a profile (via `cinc
+> config create` or first-run migration), it emits the cinc-canonical
 > `cinc_server_url`, but it keeps reading `chef_server_url`, so existing
 > and knife-shared files load unchanged. See
 > [Migrating from Chef](migrating-from-chef.md#chef--and-cinc-prefixed-keys)
@@ -75,19 +75,19 @@ cinc_server_url = "https://cinc.example.com/organizations/acme"
 ```
 
 `cinc` splits that into a bare server URL (`https://cinc.example.com`)
-and an organization (`acme`) internally — you never configure the two
+and an organization (`acme`) internally; you never configure the two
 separately. A URL without the `/organizations/<org>` segment is
 reported as an error by `cinc config validate` (see
 [Validating a profile](#cinc-config-validate)).
 
-A profile that only talks to Supermarket — never to a Cinc Server — can
+A profile that only talks to Supermarket, never to a Cinc Server, can
 omit the server URL entirely and set `supermarket_site` instead.
 
 ### `client_name` and `client_key`
 
 `client_name` is the identity the server knows you by; `client_key` is
 the path to that identity's RSA private key in PEM form. `cinc` reads
-the key to sign every request — it's never uploaded. A leading `~` in
+the key to sign every request; it's never uploaded. A leading `~` in
 the path is expanded to your home directory. If the key file is missing
 or unreadable, `cinc` tells you which path it tried and which profile
 pointed there.
@@ -97,9 +97,9 @@ pointed there.
 Controls TLS certificate verification when talking to the server. Two
 values are accepted:
 
-- `:verify_peer` (the default) — verify the server's certificate, as
+- `:verify_peer` (the default): verify the server's certificate, as
   you'd want in production.
-- `:verify_none` — skip verification. Handy against a lab server with a
+- `:verify_none`: skip verification. Handy against a lab server with a
   self-signed certificate, but don't ship it.
 
 Any other value is rejected by `cinc config validate`. The leading
@@ -113,13 +113,13 @@ per-profile default; an individual command can always override it. When
 a `cinc databag secret` command needs the secret, it resolves one from
 the first source that's set, in this order:
 
-1. `--secret <literal>` — the flag value is the secret, used verbatim.
-2. `--secret-file <path>` — the file's full contents are the secret.
+1. `--secret <literal>`: the flag value is the secret, used verbatim.
+2. `--secret-file <path>`: the file's full contents are the secret.
 3. `$CINC_SECRET_FILE`, then `$CHEF_SECRET_FILE` (cinc wins).
 4. the profile's `secret_file` key.
 
 `--secret` and `--secret-file` can't be combined. The file's bytes are
-used exactly as written — never trimmed — because Chef treats the whole
+used exactly as written, never trimmed, because Chef treats the whole
 file as the key, so an existing `encrypted_data_bag_secret` works
 unchanged. The on-disk key name matches knife's `knife[:secret_file]`.
 
@@ -130,20 +130,20 @@ supermarket` commands talk to. It defaults to the public
 `https://supermarket.chef.io`; set it to point at a private Supermarket.
 
 By default, `cinc supermarket share` signs uploads with the profile's
-own `client_name` and `client_key` — the same identity it uses against
+own `client_name` and `client_key`, the same identity it uses against
 your Cinc Server. The public Supermarket usually wants a *different*
 identity (your Supermarket account, not your Chef client), so two
 optional keys let you override it:
 
-- `supermarket_client_name` — the Supermarket username uploads are
+- `supermarket_client_name`: the Supermarket username uploads are
   signed as.
-- `supermarket_key` — path to the private key used to sign uploads.
+- `supermarket_key`: path to the private key used to sign uploads.
 
 Each falls back **independently**: the effective username is
 `supermarket_client_name` or, when unset, `client_name`; the effective
 key is `supermarket_key` or, when unset, `client_key`. So you can
 override just the username, just the key, or both. When neither is set,
-uploads use `client_name`/`client_key`. These are **cinc-only** keys —
+uploads use `client_name`/`client_key`. These are **cinc-only** keys:
 knife has no equivalent, so there's no chef-prefixed pairing.
 
 ## Selecting a profile
@@ -163,7 +163,7 @@ CINC_PROFILE=staging cinc role list # sticky for the shell
 ```
 
 When both `$CINC_PROFILE` and `$CHEF_PROFILE` are set, `CINC_PROFILE`
-wins — the same cinc-over-chef rule that applies to the config keys.
+wins, the same cinc-over-chef rule that applies to the config keys.
 
 > The `cinc supermarket` commands resolve a profile slightly
 > differently: with no `--profile` or profile env var, they prefer a
@@ -176,10 +176,10 @@ wins — the same cinc-over-chef rule that applies to the config keys.
 | Variable | Effect | Cinc wins over |
 | --- | --- | --- |
 | `CINC_PROFILE` | Selects the active profile | `CHEF_PROFILE` |
-| `CHEF_PROFILE` | Selects the active profile (chef-compat) | — |
+| `CHEF_PROFILE` | Selects the active profile (chef-compat) | nothing |
 | `CINC_SECRET_FILE` | Default encrypted data bag secret path | `CHEF_SECRET_FILE` |
-| `CHEF_SECRET_FILE` | Default encrypted data bag secret path (chef-compat) | — |
-| `NO_COLOR` | Disables bold/colored terminal styling | — |
+| `CHEF_SECRET_FILE` | Default encrypted data bag secret path (chef-compat) | nothing |
+| `NO_COLOR` | Disables bold/colored terminal styling | nothing |
 
 ## Global flags
 
@@ -231,12 +231,12 @@ The available flags are:
 | `--ssl-verify-mode` | `ssl_verify_mode` |
 
 In non-interactive mode `--client-name` and `--client-key` are
-required. `config create` writes TOML only — `cinc` never emits Ruby
+required. `config create` writes TOML only; `cinc` never emits Ruby
 `config.rb`/`client.rb` files.
 
 > `config create` does **not** have flags for `secret_file`,
 > `supermarket_client_name`, or `supermarket_key`. Add those by editing
-> the credentials file directly — it's plain TOML. Note also that
+> the credentials file directly; it's plain TOML. Note also that
 > rewriting a profile through `config create` does not preserve comments
 > or the original key ordering in the file.
 
@@ -262,7 +262,7 @@ cinc config validate ./creds    # checks a specific file
 cinc config validate --format json
 ```
 
-It's local-and-reachability only — it never modifies your config. If a
+It's local-and-reachability only; it never modifies your config. If a
 check fails, `cinc config create` will let you fix the profile.
 
 ## Worked examples

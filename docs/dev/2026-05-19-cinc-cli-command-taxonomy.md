@@ -1,9 +1,9 @@
-# `cinc` CLI — Command Taxonomy Design
+# `cinc` CLI: Command Taxonomy Design
 
 - **Date:** 2026-05-19
-- **Status:** Draft — for review
+- **Status:** Draft (for review)
 - **Scope:** Command taxonomy only (verbs, nouns, grouping, UX). Implementation
-  architecture — language, plugin model, server API layer, config format — is
+  architecture (language, plugin model, server API layer, config format) is
   explicitly out of scope for this document.
 
 ## Background
@@ -36,7 +36,7 @@ The taxonomy was settled through the following decisions:
 4. **Cookbook-internal scaffolding uses `cinc cookbook add <part>`.**
 5. **A short, documented set of global utility verbs** is allowed at the top
    level for commands that have no natural noun.
-6. **`exec` is dropped** — no "run inside the Cinc/Chef Ruby runtime" escape
+6. **`exec` is dropped**: no "run inside the Cinc/Chef Ruby runtime" escape
    hatch.
 
 ## Command Grammar & Conventions
@@ -54,7 +54,7 @@ cinc <verb> [args] [--flags]               # global utilities (short, fixed list
 - **`create` is overloaded by design.** `cinc role create` hits the server;
   `cinc cookbook create` scaffolds local files. Same word, same intent ("bring
   this into being"); each noun's help disambiguates.
-- **Global utility verbs are a deliberate, documented short list** — not an open
+- **Global utility verbs are a deliberate, documented short list**, not an open
   category.
 
 ## Command Reference
@@ -126,10 +126,10 @@ cinc help                        Help system
 These are deliberately deferred and not decided by this document:
 
 - **Implementation language** and runtime.
-- **Plugin model** — how third-party commands (notably cloud provisioning) extend
+- **Plugin model**: how third-party commands (notably cloud provisioning) extend
   `cinc`.
 - **Config file format** for `cinc config` and credential/profile storage.
 - **Whether a local in-memory server mode** should return under a future
   `cinc local` or `cinc server` namespace.
-- **`exec`/`gem` replacements** — if a future need arises for running tooling in a
+- **`exec`/`gem` replacements**: if a future need arises for running tooling in a
   managed environment, it would need a fresh design rather than reviving `exec`.

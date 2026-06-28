@@ -1,6 +1,6 @@
-# 0001 — Resolve a user's admin status without a second `groups/admins` call
+# 0001: Resolve a user's admin status without a second `groups/admins` call
 
-- **Status:** Proposed — not yet validated against server capabilities
+- **Status:** Proposed, not yet validated against server capabilities
 - **Affects:** `cinc-api` (`UsersService`, `Group` model), Cinc/Chef Server
 - **CLI surface that wants it:** the explorer user summary pane (`cinc explore` → Users)
 
@@ -70,13 +70,13 @@ type Group struct {
    we hand-roll caching.
 2. **Needs read access to the group.** Determining admin status requires
    permission to read the `admins` group. A signed-in user who can list users
-   but not read that group gets `Unknown` — the data is there, just gated behind
+   but not read that group gets `Unknown`: the data is there, just gated behind
    a different object's ACL than the one being viewed.
 3. **Direct membership only.** `Group.Users` is the literal member list. A user
    who is an admin *via a nested group* (the `admins` group containing another
    group that contains them) is not detected. Correct effective-membership
-   resolution would have to expand `Group.Groups` recursively — more calls, more
-   complexity — which the CLI does not attempt today.
+   resolution would have to expand `Group.Groups` recursively (more calls, more
+   complexity), which the CLI does not attempt today.
 4. **`admin` is org-scoped but `User` is global.** The global user object can't
    carry an org-specific admin flag; the answer only makes sense relative to the
    org the client is pointed at, which is exactly the context the explorer
@@ -88,8 +88,8 @@ In rough order of preference:
 
 1. **Return effective roles on the org-scoped user association.** Have
    `GET /organizations/{org}/users/{name}` (the org-scoped view, which *does*
-   know the org) include the user's effective roles — at minimum an `admin`
-   boolean, ideally a small `roles`/`memberships` list — computed server-side
+   know the org) include the user's effective roles (at minimum an `admin`
+   boolean, ideally a small `roles`/`memberships` list) computed server-side
    with nested groups expanded. `cinc-api` would expose this as a field on the
    association result, and `userType` collapses to a single fetch with no group
    call and correct nested handling.
@@ -103,7 +103,7 @@ In rough order of preference:
 
 3. **Server-side expanded group membership.** If the full group must be fetched,
    let the server optionally return *effective* membership (nested groups
-   flattened) — e.g. `GET .../groups/admins?expand=members` populating an
+   flattened): e.g. `GET .../groups/admins?expand=members` populating an
    `ExpandedUsers` field. This fixes correctness (#3 above) even if it doesn't
    remove the second call.
 
@@ -119,7 +119,7 @@ Within the CLI, without any API change:
   across user summaries instead of re-fetching per selection. Cuts the calls to
   one per session but keeps the permission and nested-membership limitations.
 - **Keep `Unknown` as the honest fallback** when the group can't be read, as the
-  explorer does today — better than asserting `User` for someone we simply
+  explorer does today: better than asserting `User` for someone we simply
   couldn't classify.
 
 These are mitigations, not fixes; the underlying ask is for the API to make a

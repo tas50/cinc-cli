@@ -1,7 +1,7 @@
 # cinc
 
 `cinc` is a single, unified command-line tool for Cinc Infra (with full
-Chef Infra compatibility) — one command with one consistent grammar. It
+Chef Infra compatibility): one command with one consistent grammar. It
 is a Go binary built with
 [Cobra](https://github.com/spf13/cobra) on top of the
 [`cinc-api`](https://github.com/tas50/cinc-api) client library, which owns
@@ -19,18 +19,18 @@ weren't willing to compromise on:
 - **Ease of installation.** A single static binary with no runtime
   dependencies. Nothing to break when the system Ruby is upgraded,
   no gem environment to babysit, and no multi-step bootstrap in your
-  CI pipelines — drop the binary in and go.
+  CI pipelines. Drop the binary in and go.
 - **Ease of setup.** `cinc config create` walks you through credentials,
   server URL, and SSL settings interactively, so a new user (or an
   existing Chef user pointing at a new server) is productive in
   minutes instead of losing an afternoon to troubleshooting.
 - **Focused experience.** Scoped to day-to-day node and cookbook
   management against a Cinc/Chef server. No migration helpers, no
-  one-off subcommands for legacy workflows — just the verbs you
+  one-off subcommands for legacy workflows, just the verbs you
   reach for every day, kept consistent across every noun.
 - **Well documented.** Every command, subcommand, and flag has a
   generated Markdown reference under [`docs/commands/`](docs/commands/),
-  rebuilt from the live cobra command tree on every change — so the
+  rebuilt from the live cobra command tree on every change, so the
   docs can't drift from what the binary actually does.
 - **Fully tested.** Every command ships with both unit tests against
   an in-process HTTP server and acceptance tests that run the real
@@ -40,14 +40,14 @@ weren't willing to compromise on:
 ## Status
 
 Beta. `cinc` has feature parity with the everyday Chef workflows it
-targets, and the major ideas — the noun-verb grammar, the consistent
-core verbs, the config and compatibility model — are settled. What we
+targets, and the major ideas (the noun-verb grammar, the consistent
+core verbs, the config and compatibility model) are settled. What we
 need now is real-world use: point `cinc` at your server, run your
 actual workflows, and [open an issue](https://github.com/tas50/cinc-cli/issues)
 when something doesn't behave the way you expect.
 
 Expect the command surface to keep shifting as we act on that feedback
-— flags, output, and the occasional verb may change before 1.0 — but
+(flags, output, and the occasional verb may change before 1.0), but
 the foundations are stable enough to build on. See
 [`docs/commands/cinc.md`](docs/commands/cinc.md) for the current command
 surface (auto-generated from the cobra command tree); the taxonomy and
@@ -114,12 +114,12 @@ Every chef-prefixed key and environment variable has a cinc-prefixed
 equivalent (the `cinc_`/`CINC_` form wins when both are set), so an
 existing Chef setup works unchanged.
 
-- **[`docs/configuration.md`](docs/configuration.md)** — the complete
-  reference: every config key, multi-profile setups, profile selection,
-  encrypted data bag secrets, Supermarket upload identities, and the
-  `cinc config create` / `cinc config validate` commands.
-- **[`docs/migrating-from-chef.md`](docs/migrating-from-chef.md)** — for
-  knife and Chef Workstation users: reusing your existing
+- **[`docs/configuration.md`](docs/configuration.md)**: the complete
+  reference covering every config key, multi-profile setups, profile
+  selection, encrypted data bag secrets, Supermarket upload identities,
+  and the `cinc config create` / `cinc config validate` commands.
+- **[`docs/migrating-from-chef.md`](docs/migrating-from-chef.md)**: for
+  knife and Chef Workstation users, covering how to reuse your existing
   `~/.chef/credentials`, the chef/cinc key duality, and how knife
   commands map onto cinc's noun-verb grammar.
 
@@ -127,7 +127,7 @@ existing Chef setup works unchanged.
 
 Commands are noun-verb. The core verbs (`list`, `show`, `create`,
 `edit`, `delete`) mean the same thing on every noun. For a guided
-walkthrough — profiles, output formats, common workflows — see
+walkthrough (profiles, output formats, common workflows), see
 [`docs/README.md`](docs/README.md). For the exhaustive per-command
 reference (every flag, every default), see
 [`docs/commands/`](docs/commands/). The reference pages are
@@ -146,19 +146,19 @@ make help            # list all targets
 
 Repository layout:
 
-- `apps/cinc/` — the binary. `cinc.go` is a thin `main()`; `cmd/` holds
+- `apps/cinc/`: the binary. `cinc.go` is a thin `main()`; `cmd/` holds
   the Cobra command tree (one file per noun group, plus `root.go` and
   flag-resolution helpers in `common.go`).
-- `cli/config` — TOML config parsing and profile resolution.
-- `cli/client` — builds a `cinc-api` client from a resolved profile. This
+- `cli/config`: TOML config parsing and profile resolution.
+- `cli/client`: builds a `cinc-api` client from a resolved profile. This
   is the single seam between CLI state and the API library; the CLI
   itself never builds or signs an HTTP request.
-- `cli/printer` — renders command output as human text or JSON.
-- `docs/` — auto-generated per-command reference under `commands/`
+- `cli/printer`: renders command output as human text or JSON.
+- `docs/`: auto-generated per-command reference under `commands/`
   (regenerated by `make docs`) and design docs under `dev/`.
-- `tools/gendocs/` — small Go program that walks the cobra command
+- `tools/gendocs/`: small Go program that walks the cobra command
   tree and writes the Markdown reference. Invoked by `make docs`.
-- `test/` — acceptance tests, gated behind the `acceptance` build tag.
+- `test/`: acceptance tests, gated behind the `acceptance` build tag.
 
 See [`CLAUDE.md`](CLAUDE.md) for conventions followed when developing
 with Claude Code.

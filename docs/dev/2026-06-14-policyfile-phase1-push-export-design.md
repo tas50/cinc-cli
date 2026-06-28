@@ -1,11 +1,11 @@
-# Policyfile support — Phase 1: `push` + `export` over an existing lock
+# Policyfile support, Phase 1: `push` + `export` over an existing lock
 
 - **Date:** 2026-06-14
-- **Status:** Approved — ready for implementation planning
+- **Status:** Approved, ready for implementation planning
 - **Scope:** Deploying an existing `Policyfile.lock.json` to a Cinc/Chef
   Server (`push`) and assembling a standalone bundle from it (`export`),
   including fetching+caching the cookbooks the lock names. **Out of scope:**
-  the Policyfile compiler (`install`/`update` — DSL evaluation + dependency
+  the Policyfile compiler (`install`/`update`: DSL evaluation + dependency
   solving). That is a separate, later phase.
 
 ## Background
@@ -21,13 +21,13 @@ A `Policyfile.lock.json` is self-describing: each `cookbook_locks` entry records
 the cookbook's pinned `version`, content `identifier`, `dotted_decimal_identifier`,
 `cache_key`, and `source_options` (where the cookbook came from). Because the
 lock pins exact versions and sources, deploying it requires **no dependency
-resolution** — only *fetching* the named cookbooks and uploading them. That is
+resolution**: only *fetching* the named cookbooks and uploading them. That is
 what makes Phase 1 tractable without the solver.
 
 ## Key decisions
 
 1. **cinc fetches and caches cookbooks itself**, from the sources the lock
-   records — not from Chef Workstation's cache, and not requiring the user to
+   records, not from Chef Workstation's cache, and not requiring the user to
    pre-assemble cookbooks. Given only a lock, cinc retrieves everything. No Ruby
    / chef-cli dependency.
 2. **Four source types** are supported: `artifactserver` (Supermarket, via
@@ -57,7 +57,7 @@ what makes Phase 1 tractable without the solver.
   (Name, RevisionID, RunList, NamedRunLists, CookbookLocks, attributes,
   SolutionDependencies, IncludedPolicyLocks; and per-lock Version, Identifier,
   DottedDecimalIdentifier, CacheKey, Source, SourceOptions, SCMInfo). So no new
-  model is needed — just `ParsePolicyfileLock([]byte) (*PolicyRevision, error)`
+  model is needed: just `ParsePolicyfileLock([]byte) (*PolicyRevision, error)`
   and `LoadPolicyfileLock(path) (*PolicyRevision, error)` convenience helpers
   that unmarshal a lock file into a `PolicyRevision`.
 - **`Policies.PushRevision(ctx, lock, group, cookbooks map[string]*LocalCookbook)`**:
@@ -66,24 +66,24 @@ what makes Phase 1 tractable without the solver.
   lock.Name, lockDoc)`. Returns the created `*PolicyRevision`. The caller
   supplies already-located cookbooks, so cinc-api needs no knowledge of sources.
 
-### cinc-cli — new `cli/policyfile` package
+### cinc-cli: new `cli/policyfile` package
 
 - **Fetcher/cache** (`fetch.go`, `cache.go`): `EnsureCookbook(ctx, lock
-  CookbookLock) (dir string, err error)` — cache hit returns the cached dir;
-  miss dispatches on `source_options` to one resolver each:
-  - `resolveArtifactserver` — download+extract via cinc-supermarket.
-  - `resolvePath` — return the path as-is (read in place; no cache copy).
-  - `resolveGit` — clone the repo, checkout the locked revision, locate the
+  CookbookLock) (dir string, err error)`. A cache hit returns the cached dir;
+  a miss dispatches on `source_options` to one resolver each:
+  - `resolveArtifactserver`: download+extract via cinc-supermarket.
+  - `resolvePath`: return the path as-is (read in place; no cache copy).
+  - `resolveGit`: clone the repo, checkout the locked revision, locate the
     cookbook subdirectory, copy into the cache.
-  - `resolveChefServer` — download via cinc-api `Cookbooks.Download`.
+  - `resolveChefServer`: download via cinc-api `Cookbooks.Download`.
   The git resolver shells out to the `git` binary (clone + checkout the
   pinned revision, copy the cookbook minus `.git`).
-- **Export assembler** (`export.go`): `Export(lock, destDir, archive bool)` —
+- **Export assembler** (`export.go`): `Export(lock, destDir, archive bool)` that
   writes `cookbooks/<name>-<dotted_decimal_identifier>/` (from the cache),
   `policies/<name>-<revision>.json`, the `Policyfile.lock.json`, and a generated
   client config suitable for `cinc-client -z`; tars the tree when `archive`.
 
-### cinc-cli — commands (thin drivers)
+### cinc-cli: commands (thin drivers)
 
 - `cinc policy push <group> [lock]` (default `./Policyfile.lock.json`):
   parse lock → `EnsureCookbook` for each lock → build `map[name]*LocalCookbook`
@@ -126,7 +126,7 @@ instead of calling the server.
 - **cinc-api:** table-driven lock-parse tests (including the seed lock and a
   cookbook-bearing lock); `PushRevision` against the `cinctest` harness,
   asserting the per-cookbook upload sequence and the final `PutPolicy`.
-- **cinc-cli unit:** each resolver in isolation — `artifactserver` against an
+- **cinc-cli unit:** each resolver in isolation: `artifactserver` against an
   httptest Supermarket, `git` against a temporary local repo, `path` against a
   fixture cookbook dir, `chef_server` against an httptest server; the export
   assembler against a temp lock + cached cookbooks (assert tree + archive);

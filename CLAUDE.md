@@ -126,6 +126,14 @@ release, bump `cincZeroVersion` in `test/acceptance/helpers_test.go`.
   fragments ("no credentials"). Lead with what happened from the user's
   point of view; reserve technical detail for when it changes what they
   should do next.
+- **No em dashes in user-facing docs.** Don't use the em dash character
+  (`—`, U+2014) in user-facing documentation (`README.md`, anything under
+  `docs/`) or in cobra command help strings (`Short`/`Long`/`Example`),
+  since those generate the reference under `docs/commands/`. Use a comma,
+  colon, parentheses, or two sentences instead. The em-dash separators the
+  doc generator (`tools/gendocs`) emits count too: keep them out of its
+  output. This is both a house style and a way to keep generated docs from
+  reading as machine-written.
 - **Test-driven development.** Write a failing test first, watch it fail for the
   expected reason, then write the minimal code to pass.
 - **Every command needs both unit and acceptance tests.** Adding or
