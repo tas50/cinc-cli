@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tas50/cinc-cli/cli/config"
+	"github.com/cinc-project/cinc-cli/cli/config"
 )
 
 func TestShareDryRunPackagesCookbookWithoutNetwork(t *testing.T) {

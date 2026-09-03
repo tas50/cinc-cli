@@ -3,7 +3,7 @@ package explore
 import (
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/tas50/cinc-cli/cli/jsoneditor"
+	"github.com/cinc-project/cinc-cli/cli/jsoneditor"
 )
 
 // subEditor is the modal editor the explorer drives while editing or

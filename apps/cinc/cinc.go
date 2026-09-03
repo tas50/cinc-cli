@@ -4,7 +4,7 @@ package main
 import (
 	"os"
 
-	"github.com/tas50/cinc-cli/apps/cinc/cmd"
+	"github.com/cinc-project/cinc-cli/apps/cinc/cmd"
 )
 
 func main() {

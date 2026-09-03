@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	cliclient "github.com/tas50/cinc-cli/cli/client"
-	"github.com/tas50/cinc-cli/cli/config"
-	"github.com/tas50/cinc-cli/cli/printer"
+	cliclient "github.com/cinc-project/cinc-cli/cli/client"
+	"github.com/cinc-project/cinc-cli/cli/config"
+	"github.com/cinc-project/cinc-cli/cli/printer"
 )
 
 // newConfigCmd builds the `cinc config` command group.

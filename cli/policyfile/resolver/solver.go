@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tas50/cinc-cli/cli/policyfile/rubyeval"
+	"github.com/cinc-project/cinc-cli/cli/policyfile/rubyeval"
 )
 
 // candidate is one available version of a cookbook in the universe, with the

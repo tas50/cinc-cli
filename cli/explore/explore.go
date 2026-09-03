@@ -12,8 +12,8 @@ import (
 	"github.com/mattn/go-isatty"
 	cinc "github.com/tas50/cinc-api"
 
-	"github.com/tas50/cinc-cli/cli/client"
-	"github.com/tas50/cinc-cli/cli/config"
+	"github.com/cinc-project/cinc-cli/cli/client"
+	"github.com/cinc-project/cinc-cli/cli/config"
 )
 
 // Options configures Run.

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	cliclient "github.com/cinc-project/cinc-cli/cli/client"
+	"github.com/cinc-project/cinc-cli/cli/config"
 	cinc "github.com/tas50/cinc-api"
-	cliclient "github.com/tas50/cinc-cli/cli/client"
-	"github.com/tas50/cinc-cli/cli/config"
 )
 
 // acceptanceClient builds a cinc-api client from the acceptance profile,

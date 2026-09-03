@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tas50/cinc-cli/cli/policyfile/resolver"
-	"github.com/tas50/cinc-cli/cli/policyfile/rubyeval"
-	"github.com/tas50/cinc-cli/cli/printer"
+	"github.com/cinc-project/cinc-cli/cli/policyfile/resolver"
+	"github.com/cinc-project/cinc-cli/cli/policyfile/rubyeval"
+	"github.com/cinc-project/cinc-cli/cli/printer"
 )
 
 // newPolicyInstallCmd builds `cinc policy install [Policyfile.rb]`. It

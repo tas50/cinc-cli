@@ -2,7 +2,7 @@
 
 BINARY      := cinc
 CMD_PKG     := ./apps/cinc
-LDFLAGS_PKG := github.com/tas50/cinc-cli/apps/cinc/cmd
+LDFLAGS_PKG := github.com/cinc-project/cinc-cli/apps/cinc/cmd
 DIST_DIR    ?= dist
 PLATFORMS   := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 

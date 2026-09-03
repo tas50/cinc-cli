@@ -4,7 +4,7 @@
 Chef Infra compatibility): one command with one consistent grammar. It
 is a Go binary built with
 [Cobra](https://github.com/spf13/cobra) on top of the
-[`cinc-api`](https://github.com/tas50/cinc-api) client library, which owns
+[`cinc-api`](https://github.com/cinc-project/cinc-api) client library, which owns
 authentication and transport.
 
 ## Why Cinc CLI
@@ -43,7 +43,7 @@ Beta. `cinc` has feature parity with the everyday Chef workflows it
 targets, and the major ideas (the noun-verb grammar, the consistent
 core verbs, the config and compatibility model) are settled. What we
 need now is real-world use: point `cinc` at your server, run your
-actual workflows, and [open an issue](https://github.com/tas50/cinc-cli/issues)
+actual workflows, and [open an issue](https://github.com/cinc-project/cinc-cli/issues)
 when something doesn't behave the way you expect.
 
 Expect the command surface to keep shifting as we act on that feedback
@@ -79,7 +79,7 @@ the Linux AMD64 binary without installing Go:
     CINC_VERSION: v0.21.0
   run: |
     archive="cinc_${CINC_VERSION}_linux_amd64.tar.gz"
-    curl -fsSL -o "$archive" "https://github.com/tas50/cinc-cli/releases/download/${CINC_VERSION}/${archive}"
+    curl -fsSL -o "$archive" "https://github.com/cinc-project/cinc-cli/releases/download/${CINC_VERSION}/${archive}"
     tar -xzf "$archive"
     sudo install "cinc_${CINC_VERSION}_linux_amd64/cinc" /usr/local/bin/cinc
     cinc version

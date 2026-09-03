@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Command reference
-    url: https://github.com/tas50/cinc-cli/tree/main/docs/commands
+    url: https://github.com/cinc-project/cinc-cli/tree/main/docs/commands
     about: Every command, subcommand, and flag — check here before filing a usage question.
   - name: Configuration & getting started
-    url: https://github.com/tas50/cinc-cli/blob/main/README.md
+    url: https://github.com/cinc-project/cinc-cli/blob/main/README.md
     about: Profiles, credentials, and output formats.

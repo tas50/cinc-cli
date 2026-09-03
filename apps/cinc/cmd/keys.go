@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
 
-	"github.com/tas50/cinc-cli/cli/printer"
+	"github.com/cinc-project/cinc-cli/cli/printer"
 )
 
 // keyOwner describes one of the two collections of keys the Cinc Server

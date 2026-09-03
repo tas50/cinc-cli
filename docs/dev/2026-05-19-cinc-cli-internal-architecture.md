@@ -82,7 +82,7 @@ cinc-cli/
 │   ├── theme/                 # terminal color and styling
 │   └── components/            # interactive prompts, selectors, editor
 ├── docs/
-├── go.mod                     # module github.com/tas50/cinc-cli
+├── go.mod                     # module github.com/cinc-project/cinc-cli
 └── Makefile
 ```
 
@@ -173,7 +173,7 @@ set of well-supported third-party libraries, and is unit-tested in isolation.
 
 ## Out of Scope / Open Questions
 
-- The final Go module path (`github.com/tas50/cinc-cli` is assumed).
+- The final Go module path (`github.com/cinc-project/cinc-cli` is assumed).
 - A **plugin model** for third-party commands (cloud provisioning and similar) is
   deferred; the cobra tree can accept externally-registered commands once
   designed.

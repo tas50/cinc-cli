@@ -14,7 +14,7 @@ import (
 
 	cinc "github.com/tas50/cinc-api"
 
-	localcookbook "github.com/tas50/cinc-cli/cli/cookbook"
+	localcookbook "github.com/cinc-project/cinc-cli/cli/cookbook"
 )
 
 func TestInstallDownloadsLatestAndUploadsToServer(t *testing.T) {

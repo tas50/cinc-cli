@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tas50/cinc-cli/cli/client"
-	"github.com/tas50/cinc-cli/cli/explore"
+	"github.com/cinc-project/cinc-cli/cli/client"
+	"github.com/cinc-project/cinc-cli/cli/explore"
 )
 
 // newExploreCmd builds the `cinc explore` command: a k9s-style terminal

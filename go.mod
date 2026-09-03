@@ -1,4 +1,4 @@
-module github.com/tas50/cinc-cli
+module github.com/cinc-project/cinc-cli
 
 go 1.26.4
 

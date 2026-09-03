@@ -10,7 +10,7 @@ import (
 
 	cinc "github.com/tas50/cinc-api"
 
-	"github.com/tas50/cinc-cli/cli/config"
+	"github.com/cinc-project/cinc-cli/cli/config"
 )
 
 // tlsWarnWriter is where the "TLS verification disabled" warning is written. It

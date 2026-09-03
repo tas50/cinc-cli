@@ -97,7 +97,7 @@ TTY detection, so output stays plain when piped or under tests. Render
 structured data through `cli/printer`.
 
 Acceptance tests live under `test/acceptance/` and run the real binary
-against a live [`cinc-zero`](https://github.com/tas50/cinc-zero) server
+against a live [`cinc-zero`](https://github.com/cinc-project/cinc-server-ng) server
 — a single-binary, in-memory Chef Infra Server. They are gated behind
 the `acceptance` build tag. The harness downloads and caches the pinned
 cinc-zero release automatically (no Ruby needed); set `CINC_ZERO_BIN`

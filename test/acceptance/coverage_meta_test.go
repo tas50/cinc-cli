@@ -14,7 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/spf13/cobra"
 
-	"github.com/tas50/cinc-cli/apps/cinc/cmd"
+	"github.com/cinc-project/cinc-cli/apps/cinc/cmd"
 )
 
 // This meta-test is the durable coverage guard. It walks the live cobra

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/tas50/cinc-cli/cli/policyfile/rubyeval"
+	"github.com/cinc-project/cinc-cli/cli/policyfile/rubyeval"
 )
 
 // mkUniverse builds a solver universe from a compact description:
