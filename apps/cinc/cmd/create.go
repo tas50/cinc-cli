@@ -13,8 +13,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tas50/cinc-cli/cli/config"
-	"github.com/tas50/cinc-cli/cli/supermarket"
+	"github.com/cinc-project/cinc-cli/cli/config"
+	"github.com/cinc-project/cinc-cli/cli/supermarket"
 )
 
 // newConfigCreateCmd builds `cinc config create`, the local workstation credentials

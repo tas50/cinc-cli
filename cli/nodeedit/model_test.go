@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	cinc "github.com/tas50/cinc-api"
 
-	"github.com/tas50/cinc-cli/cli/jsoneditor"
+	"github.com/cinc-project/cinc-cli/cli/jsoneditor"
 )
 
 func keyType(m Model, t tea.KeyType) Model { m, _ = m.Update(tea.KeyMsg{Type: t}); return m }

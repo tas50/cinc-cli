@@ -14,9 +14,9 @@ import (
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
 
-	"github.com/tas50/cinc-cli/cli/components"
-	"github.com/tas50/cinc-cli/cli/printer"
-	"github.com/tas50/cinc-cli/cli/remote"
+	"github.com/cinc-project/cinc-cli/cli/components"
+	"github.com/cinc-project/cinc-cli/cli/printer"
+	"github.com/cinc-project/cinc-cli/cli/remote"
 )
 
 var nodeRemoteRunner remote.Runner = remote.NativeRunner{}

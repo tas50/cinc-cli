@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tas50/cinc-cli/cli/printer"
+	"github.com/cinc-project/cinc-cli/cli/printer"
 )
 
 // nodeStatus is one node's check-in summary, as reported by `node status`.

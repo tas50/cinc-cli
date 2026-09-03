@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/tas50/cinc-cli/cli/policyfile/rubyeval"
+	"github.com/cinc-project/cinc-cli/cli/policyfile/rubyeval"
 )
 
 // cookbookInfo is everything the resolver needs about one cookbook it has

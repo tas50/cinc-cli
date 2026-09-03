@@ -16,8 +16,8 @@ import (
 
 	sm "github.com/tas50/cinc-supermarket-api"
 
-	"github.com/tas50/cinc-cli/cli/config"
-	localcookbook "github.com/tas50/cinc-cli/cli/cookbook"
+	"github.com/cinc-project/cinc-cli/cli/config"
+	localcookbook "github.com/cinc-project/cinc-cli/cli/cookbook"
 )
 
 // DefaultSite is the public Supermarket instance.

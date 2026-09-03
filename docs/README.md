@@ -10,13 +10,13 @@ actually use `cinc` day-to-day.
 Three steps to your first successful command:
 
 **1. Install the binary.** Tagged releases ship prebuilt Linux and
-macOS archives at <https://github.com/tas50/cinc-cli/releases>.
+macOS archives at <https://github.com/cinc-project/cinc-cli/releases>.
 Download the archive for your platform, extract it, and drop
 `cinc` somewhere on your `PATH`:
 
 ```sh
 curl -fsSL -o cinc.tar.gz \
-  https://github.com/tas50/cinc-cli/releases/latest/download/cinc_linux_amd64.tar.gz
+  https://github.com/cinc-project/cinc-cli/releases/latest/download/cinc_linux_amd64.tar.gz
 tar -xzf cinc.tar.gz
 sudo install cinc_*/cinc /usr/local/bin/cinc
 cinc version

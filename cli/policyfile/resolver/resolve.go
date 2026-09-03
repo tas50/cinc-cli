@@ -30,7 +30,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tas50/cinc-cli/cli/policyfile/rubyeval"
+	"github.com/cinc-project/cinc-cli/cli/policyfile/rubyeval"
 )
 
 // Result is a fully resolved Policyfile lock plus a summary of what was

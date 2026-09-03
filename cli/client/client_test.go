@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tas50/cinc-cli/cli/config"
+	"github.com/cinc-project/cinc-cli/cli/config"
 )
 
 // writeKeyFile generates an RSA key, writes it as PEM to a temp file, and

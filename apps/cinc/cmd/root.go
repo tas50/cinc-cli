@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tas50/cinc-cli/cli/config"
+	"github.com/cinc-project/cinc-cli/cli/config"
 )
 
 // newRootCmd builds the root `cinc` command and registers its

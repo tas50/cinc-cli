@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 
-	"github.com/tas50/cinc-cli/apps/cinc/cmd"
+	"github.com/cinc-project/cinc-cli/apps/cinc/cmd"
 )
 
 func main() {

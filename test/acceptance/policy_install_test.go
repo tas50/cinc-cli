@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tas50/cinc-cli/cli/policyfile/rubyeval"
+	"github.com/cinc-project/cinc-cli/cli/policyfile/rubyeval"
 )
 
 // requireRubyEngine downloads/caches the pinned ruby.wasm the same way the unit

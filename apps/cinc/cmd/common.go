@@ -14,11 +14,11 @@ import (
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
 
-	"github.com/tas50/cinc-cli/cli/client"
-	"github.com/tas50/cinc-cli/cli/config"
-	"github.com/tas50/cinc-cli/cli/printer"
-	"github.com/tas50/cinc-cli/cli/setup"
-	"github.com/tas50/cinc-cli/cli/supermarket"
+	"github.com/cinc-project/cinc-cli/cli/client"
+	"github.com/cinc-project/cinc-cli/cli/config"
+	"github.com/cinc-project/cinc-cli/cli/printer"
+	"github.com/cinc-project/cinc-cli/cli/setup"
+	"github.com/cinc-project/cinc-cli/cli/supermarket"
 )
 
 // errFirstRunCompleted is a sentinel returned by loadCredentials after

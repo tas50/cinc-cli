@@ -6,8 +6,8 @@ import (
 
 	cinc "github.com/tas50/cinc-api"
 
-	"github.com/tas50/cinc-cli/cli/jsoneditor"
-	"github.com/tas50/cinc-cli/cli/nodeedit"
+	"github.com/cinc-project/cinc-cli/cli/jsoneditor"
+	"github.com/cinc-project/cinc-cli/cli/nodeedit"
 )
 
 // strictJSON returns a save-validation func for the typed editors. It

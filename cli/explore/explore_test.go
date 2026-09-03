@@ -8,7 +8,7 @@ import (
 
 	cinc "github.com/tas50/cinc-api"
 
-	"github.com/tas50/cinc-cli/cli/config"
+	"github.com/cinc-project/cinc-cli/cli/config"
 )
 
 // stubClient is a NewClient that hands back a non-nil client without

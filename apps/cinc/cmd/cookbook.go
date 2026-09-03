@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 	cinc "github.com/tas50/cinc-api"
 
-	localcookbook "github.com/tas50/cinc-cli/cli/cookbook"
-	"github.com/tas50/cinc-cli/cli/printer"
+	localcookbook "github.com/cinc-project/cinc-cli/cli/cookbook"
+	"github.com/cinc-project/cinc-cli/cli/printer"
 )
 
 // newCookbookCmd builds the `cinc cookbook` command group.

@@ -13,9 +13,9 @@ import (
 	cinc "github.com/tas50/cinc-api"
 	"golang.org/x/term"
 
-	cliclient "github.com/tas50/cinc-cli/cli/client"
-	"github.com/tas50/cinc-cli/cli/config"
-	"github.com/tas50/cinc-cli/cli/supermarket"
+	cliclient "github.com/cinc-project/cinc-cli/cli/client"
+	"github.com/cinc-project/cinc-cli/cli/config"
+	"github.com/cinc-project/cinc-cli/cli/supermarket"
 )
 
 // resolveHost looks up a hostname; it is a package variable so the DNS check is

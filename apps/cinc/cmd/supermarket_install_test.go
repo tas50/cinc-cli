@@ -15,7 +15,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	localcookbook "github.com/tas50/cinc-cli/cli/cookbook"
+	localcookbook "github.com/cinc-project/cinc-cli/cli/cookbook"
 )
 
 func TestSupermarketInstallCommandRegistered(t *testing.T) {

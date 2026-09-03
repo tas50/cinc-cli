@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tas50/cinc-cli/cli/policyfile/rubyeval"
+	"github.com/cinc-project/cinc-cli/cli/policyfile/rubyeval"
 )
 
 // runListWrapperRE matches a run_list item wrapped as recipe[...] or role[...].

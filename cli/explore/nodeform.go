@@ -6,7 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	cinc "github.com/tas50/cinc-api"
 
-	"github.com/tas50/cinc-cli/cli/nodeedit"
+	"github.com/cinc-project/cinc-cli/cli/nodeedit"
 )
 
 // nodeFormAdapter wraps the nodeedit form as a subEditor, so editing or

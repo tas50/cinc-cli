@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	cinc "github.com/tas50/cinc-api"
 
-	"github.com/tas50/cinc-cli/cli/jsoneditor"
+	"github.com/cinc-project/cinc-cli/cli/jsoneditor"
 )
 
 // focus identifies which part of the form has the keyboard.

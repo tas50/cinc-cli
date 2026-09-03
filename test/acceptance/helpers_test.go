@@ -25,11 +25,11 @@ import (
 )
 
 // cincPackage is the import path of the cinc binary's main package.
-const cincPackage = "github.com/tas50/cinc-cli/apps/cinc"
+const cincPackage = "github.com/cinc-project/cinc-cli/apps/cinc"
 
 // cincZeroVersion is the pinned cinc-zero release the acceptance suite runs
 // against. cinc-zero is a single-binary, in-memory Chef Infra Server published
-// at https://github.com/tas50/cinc-zero/releases.
+// at https://github.com/cinc-project/cinc-server-ng/releases.
 const cincZeroVersion = "v0.6.3"
 
 // cincZeroChecksums pins the expected SHA-256 of each release asset in source,
@@ -38,7 +38,7 @@ const cincZeroVersion = "v0.6.3"
 // integrity, not authenticity). To bump: change cincZeroVersion above, then
 // replace every digest here with the new release's values, e.g.
 //
-//	curl -sL https://github.com/tas50/cinc-zero/releases/download/<version>/SHA256SUMS
+//	curl -sL https://github.com/cinc-project/cinc-server-ng/releases/download/<version>/SHA256SUMS
 //
 // A platform absent from this map fails closed (we won't run unverified).
 var cincZeroChecksums = map[string]string{
@@ -124,7 +124,7 @@ func ensureCincZero(platform string) (string, error) {
 	}
 
 	asset := fmt.Sprintf("cinc-zero_%s_%s.tar.gz", cincZeroVersion, platform)
-	base := "https://github.com/tas50/cinc-zero/releases/download/" + cincZeroVersion
+	base := "https://github.com/cinc-project/cinc-server-ng/releases/download/" + cincZeroVersion
 	archive, err := httpGet(base + "/" + asset)
 	if err != nil {
 		return "", err

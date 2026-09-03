@@ -9,9 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tas50/cinc-cli/cli/printer"
-	"github.com/tas50/cinc-cli/cli/supermarket"
-	"github.com/tas50/cinc-cli/cli/supermarket/explore"
+	"github.com/cinc-project/cinc-cli/cli/printer"
+	"github.com/cinc-project/cinc-cli/cli/supermarket"
+	"github.com/cinc-project/cinc-cli/cli/supermarket/explore"
 )
 
 // newSupermarketCmd builds the `cinc supermarket` command group.

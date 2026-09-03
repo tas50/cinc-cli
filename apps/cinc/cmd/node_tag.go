@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/tas50/cinc-cli/cli/printer"
+	"github.com/cinc-project/cinc-cli/cli/printer"
 )
 
 // newNodeTagCmd builds the `cinc node tag` sub-group. Node tags live under the

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tas50/cinc-cli/cli/policyfile/rubyeval"
+	"github.com/cinc-project/cinc-cli/cli/policyfile/rubyeval"
 )
 
 // requireRubyEngine skips the test cleanly when the pinned ruby.wasm runtime
